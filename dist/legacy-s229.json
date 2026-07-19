@@ -1,0 +1,286 @@
+{
+  "source": "s229.xlsx",
+  "count": 35,
+  "rows": [
+    {
+      "dateRaw": "03.05. 15:26",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "9",
+      "balanceRaw": "1713",
+      "info": "Giełda Premium-sprzedaż: Glina (905)"
+    },
+    {
+      "dateRaw": "03.05. 15:26",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "9",
+      "balanceRaw": "1704",
+      "info": "Giełda Premium-sprzedaż: Drewno (951)"
+    },
+    {
+      "dateRaw": "02.05. 20:08",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "7",
+      "balanceRaw": "1695",
+      "info": "Giełda Premium-sprzedaż: Żelazo (680)"
+    },
+    {
+      "dateRaw": "02.05. 20:07",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "11",
+      "balanceRaw": "1688",
+      "info": "Giełda Premium-sprzedaż: Glina (955)"
+    },
+    {
+      "dateRaw": "02.05. 20:07",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "10",
+      "balanceRaw": "1677",
+      "info": "Giełda Premium-sprzedaż: Drewno (969)"
+    },
+    {
+      "dateRaw": "02.05. 12:15",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "8",
+      "balanceRaw": "1667",
+      "info": "Giełda Premium-sprzedaż: Żelazo (1011)"
+    },
+    {
+      "dateRaw": "02.05. 12:14",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "8",
+      "balanceRaw": "1659",
+      "info": "Giełda Premium-sprzedaż: Glina (906)"
+    },
+    {
+      "dateRaw": "02.05. 12:14",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "7",
+      "balanceRaw": "1651",
+      "info": "Giełda Premium-sprzedaż: Drewno (927)"
+    },
+    {
+      "dateRaw": "01.05. 23:31",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "8",
+      "balanceRaw": "1644",
+      "info": "Giełda Premium-sprzedaż: Żelazo (946)"
+    },
+    {
+      "dateRaw": "01.05. 17:54",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "23",
+      "balanceRaw": "1636",
+      "info": "Giełda Premium-sprzedaż: Żelazo (1966)"
+    },
+    {
+      "dateRaw": "01.05. 17:54",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "24",
+      "balanceRaw": "1613",
+      "info": "Giełda Premium-sprzedaż: Glina (1980)"
+    },
+    {
+      "dateRaw": "01.05. 17:54",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "23",
+      "balanceRaw": "1589",
+      "info": "Giełda Premium-sprzedaż: Drewno (1929)"
+    },
+    {
+      "dateRaw": "30.04. 18:56",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "3",
+      "balanceRaw": "1566",
+      "info": "Giełda Premium-sprzedaż: Glina (208)"
+    },
+    {
+      "dateRaw": "30.04. 18:56",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "7",
+      "balanceRaw": "1563",
+      "info": "Giełda Premium-sprzedaż: Drewno (485)"
+    },
+    {
+      "dateRaw": "30.04. 18:43",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "12",
+      "balanceRaw": "1556",
+      "info": "Giełda Premium-sprzedaż: Żelazo (953)"
+    },
+    {
+      "dateRaw": "30.04. 18:43",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1544",
+      "info": "Giełda Premium-sprzedaż: Glina (952)"
+    },
+    {
+      "dateRaw": "30.04. 18:43",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "13",
+      "balanceRaw": "1530",
+      "info": "Giełda Premium-sprzedaż: Drewno (924)"
+    },
+    {
+      "dateRaw": "29.04. 22:57",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1517",
+      "info": "Giełda Premium-sprzedaż: Żelazo (935)"
+    },
+    {
+      "dateRaw": "29.04. 22:56",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1503",
+      "info": "Giełda Premium-sprzedaż: Drewno (937)"
+    },
+    {
+      "dateRaw": "29.04. 17:42",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "13",
+      "balanceRaw": "1489",
+      "info": "Giełda Premium-sprzedaż: Glina (903)"
+    },
+    {
+      "dateRaw": "29.04. 17:42",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "13",
+      "balanceRaw": "1476",
+      "info": "Giełda Premium-sprzedaż: Żelazo (926)"
+    },
+    {
+      "dateRaw": "29.04. 17:42",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "13",
+      "balanceRaw": "1463",
+      "info": "Giełda Premium-sprzedaż: Glina (901)"
+    },
+    {
+      "dateRaw": "29.04. 17:42",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1450",
+      "info": "Giełda Premium-sprzedaż: Drewno (945)"
+    },
+    {
+      "dateRaw": "29.04. 17:41",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "13",
+      "balanceRaw": "1436",
+      "info": "Giełda Premium-sprzedaż: Żelazo (921)"
+    },
+    {
+      "dateRaw": "29.04. 17:41",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1423",
+      "info": "Giełda Premium-sprzedaż: Glina (956)"
+    },
+    {
+      "dateRaw": "29.04. 17:40",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1409",
+      "info": "Giełda Premium-sprzedaż: Drewno (950)"
+    },
+    {
+      "dateRaw": "29.04. 06:31",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "29",
+      "balanceRaw": "1395",
+      "info": "Giełda Premium-sprzedaż: Drewno (1942)"
+    },
+    {
+      "dateRaw": "29.04. 06:31",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "29",
+      "balanceRaw": "1366",
+      "info": "Giełda Premium-sprzedaż: Glina (1942)"
+    },
+    {
+      "dateRaw": "29.04. 06:30",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "44",
+      "balanceRaw": "1337",
+      "info": "Giełda Premium-sprzedaż: Żelazo (2951)"
+    },
+    {
+      "dateRaw": "28.04. 01:39",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "30",
+      "balanceRaw": "1293",
+      "info": "Giełda Premium-sprzedaż: Glina (2011)"
+    },
+    {
+      "dateRaw": "28.04. 01:38",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "29",
+      "balanceRaw": "1263",
+      "info": "Giełda Premium-sprzedaż: Drewno (1944)"
+    },
+    {
+      "dateRaw": "26.04. 14:17",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1234",
+      "info": "Giełda Premium-sprzedaż: Żelazo (937)"
+    },
+    {
+      "dateRaw": "26.04. 14:16",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1220",
+      "info": "Giełda Premium-sprzedaż: Glina (937)"
+    },
+    {
+      "dateRaw": "26.04. 14:16",
+      "world": "Świat 229",
+      "txType": "Przeniesienie",
+      "changeRaw": "14",
+      "balanceRaw": "1206",
+      "info": "Giełda Premium-sprzedaż: Drewno (937)"
+    },
+    {
+      "dateRaw": "24.04. 16:17",
+      "world": "Świat 229",
+      "txType": "Użycie",
+      "changeRaw": "-30",
+      "balanceRaw": "1192",
+      "info": "Premium 3"
+    }
+  ]
+}

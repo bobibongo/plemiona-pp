@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analiza PP — Plemiona</title>
+<style>* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0; background: #f4f1ea; color: #222; }
+header { background: #5b3a1e; color: #f4e9d8; padding: 12px 20px; }
+header h1 { margin: 0; font-size: 20px; }
+header p { margin: 4px 0 0; opacity: .85; font-size: 13px; }
+section { margin: 14px 20px; }
+h3 { margin: 0 0 8px; font-size: 15px; }
+#dropzone { border: 2px dashed #b08a5a; border-radius: 8px; padding: 20px; text-align: center; background: #fffdf8; }
+#dropzone.over { background: #f0e6d2; }
+.link { color: #1565c0; cursor: pointer; text-decoration: underline; }
+.actions { margin-top: 10px; }
+button { margin: 0 4px; padding: 6px 12px; cursor: pointer; border: 1px solid #b08a5a; background: #fffdf8; border-radius: 6px; }
+button:hover { background: #f0e6d2; }
+.filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+.filters label { font-size: 13px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.kpi { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; }
+.kpi span { font-size: 12px; color: #666; }
+.kpi b { font-size: 22px; }
+.pos { color: #2e7d32; } .neg { color: #c62828; }
+.card { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 12px; overflow-x: auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { border: 1px solid #e0d6c0; padding: 4px 8px; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Analiza punktów premium</h1>
+  <p id="count">0 wpisów</p>
+</header>
+<section id="dropzone">
+  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — albo <label class="link">wybierz<input id="file" type="file" multiple hidden></label>.
+  <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
+</section>
+<section class="filters">
+  <label>Świat: <select id="f-world"></select></label>
+  <label>Od: <input id="f-from" type="date"></label>
+  <label>Do: <input id="f-to" type="date"></label>
+  <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
+</section>
+<section id="kpis" class="kpis"></section>
+<section class="card"><div id="chart-balance"></div></section>
+<section class="card"><div id="chart-saldo"></div></section>
+<section class="grid">
+  <div class="card"><h3>Efektywny kurs (PP/1000)</h3><table id="rates"></table></div>
+  <div class="card"><h3>Wolumen surowców</h3><table id="res"></table></div>
+  <div class="card"><h3>Wydatki na usługi</h3><table id="svc"></table></div>
+</section>
+<section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
+<script type="module">// src/shared-date.js
+// Format: "DD.MM. HH:MM" (rok bieżący) lub "DD.MM.YY HH:MM" (rok 20YY).
+const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;
+function parsePremiumDate(dateRaw, now = new Date()) {
+  const s = String(dateRaw).replace(/ /g, ' ').trim();
+  const m = RE.exec(s);
+  if (!m) throw new Error(`Nieparsowalna data: ${JSON.stringify(dateRaw)}`);
+  const [, dd, mm, yy, hh, min] = m;
+  const year = yy !== undefined ? 2000 + Number(yy) : now.getFullYear();
+  return new Date(year, Number(mm) - 1, Number(dd), Number(hh), Number(min), 0, 0);
+}
+
+// src/parse.js
+
+const NBSP = / /g;
+function parseNumber(raw) {
+  const s = String(raw).replace(NBSP, '').replace(/\s/g, '').replace('+', '');
+  const n = Number(s);
+  if (Number.isNaN(n)) throw new Error(`Nieparsowalna liczba: ${JSON.stringify(raw)}`);
+  return n;
+}
+
+const RESOURCE_MAP = [
+  [/drewno/i, 'drewno'],
+  [/glina/i, 'glina'],
+  [/(żelazo|zelazo)/i, 'zelazo'],
+];
+function extractResource(info) {
+  const s = String(info);
+  const amountMatch = /\((\d+)\)/.exec(s);
+  for (const [re, key] of RESOURCE_MAP) {
+    if (re.test(s)) {
+      return { resource: key, amount: amountMatch ? Number(amountMatch[1]) : null };
+    }
+  }
+  return { resource: null, amount: null };
+}
+
+const SERVICE_SUBTYPES = [
+  [/natychmiastowe zako[ńn]czenie/i, 'natychmiastowe_zakonczenie'],
+  [/redukcja czasu/i, 'redukcja_czasu'],
+  [/miejscowym kupcem/i, 'handel_kupiec'],
+  [/rycerz/i, 'rycerz'],
+  [/zmniejsz koszt budowy/i, 'zmniejsz_koszt'],
+];
+function classify(raw) {
+  const info = String(raw.info || '');
+  const txType = String(raw.txType || '').replace(NBSP, '').trim();
+  const { resource, amount } = extractResource(info);
+
+  if (/-kupno:/i.test(info)) return { category: 'arbitraz', subtype: 'kupno', resource, amount };
+  if (/-sprzeda[żz]:/i.test(info)) return { category: 'arbitraz', subtype: 'sprzedaz', resource, amount };
+
+  if (/^Premium\b/i.test(info)) return { category: 'zewnetrzne_pp', subtype: 'subskrypcja', resource: null, amount: null };
+  if (txType === 'Kupno') return { category: 'zewnetrzne_pp', subtype: 'zakup_pp', resource: null, amount: null };
+
+  if (txType === 'Użycie') {
+    for (const [re, sub] of SERVICE_SUBTYPES) {
+      if (re.test(info)) return { category: 'usluga', subtype: sub, resource: null, amount: null };
+    }
+    return { category: 'usluga', subtype: 'inne', resource: null, amount: null };
+  }
+  return { category: 'inne', subtype: 'inne', resource: null, amount: null };
+}
+
+// Zegar ścienny z logu (czas polski) zapisujemy jako UTC-ISO, żeby dzień/tydzień
+// były deterministyczne niezależnie od strefy czasowej przeglądarki.
+function wallClockISO(d) {
+  const p = (n, w = 2) => String(n).padStart(w, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:00.000Z`;
+}
+function enrich(raw, now = new Date()) {
+  const ts = wallClockISO(parsePremiumDate(raw.dateRaw, now));
+  const change = parseNumber(raw.changeRaw);
+  const balance = parseNumber(raw.balanceRaw);
+  const world = String(raw.world).replace(NBSP, '').trim();
+  const info = String(raw.info).trim();
+  const cls = classify(raw);
+  return { ts, world, txType: String(raw.txType).replace(NBSP, '').trim(),
+    change, balance, info, ...cls };
+}
+function entryKey(e) {
+  return `${e.world}|${e.ts}|${e.change}|${e.info}`;
+}
+
+// src/merge.js
+function dedupeMerge(existing, incoming) {
+  const byKey = new Map();
+  for (const e of incoming) byKey.set(entryKey(e), e);   // incoming jako baza
+  for (const e of existing) byKey.set(entryKey(e), e);   // existing nadpisuje (wygrywa)
+  return [...byKey.values()].sort((x, y) => (x.ts < y.ts ? 1 : x.ts > y.ts ? -1 : 0));
+}
+
+// src/aggregate.js
+function isoWeek(d) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const day = (date.getUTCDay() + 6) % 7;          // pon=0
+  date.setUTCDate(date.getUTCDate() - day + 3);     // czwartek tego tygodnia
+  const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+  return { year: date.getUTCFullYear(), week };
+}
+function bucketKey(ts, granularity) {
+  const d = new Date(ts);
+  if (granularity === 'week') {
+    const { year, week } = isoWeek(d);
+    return `${year}-W${String(week).padStart(2, '0')}`;
+  }
+  const y = d.getUTCFullYear(), m = String(d.getUTCMonth() + 1).padStart(2, '0'), day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const RES = ['drewno', 'glina', 'zelazo'];
+function aggregate(entries, { granularity }) {
+  const map = new Map();
+  const totals = {
+    earned: 0, spent: 0, net: 0, arbitrageProfit: 0, serviceCost: 0, externalPP: 0,
+    resources: Object.fromEntries(RES.map(r => [r, { bought: 0, sold: 0 }])),
+    serviceBreakdown: {},
+  };
+  for (const e of entries) {
+    const key = bucketKey(e.ts, granularity);
+    if (!map.has(key)) map.set(key, { key, earned: 0, spent: 0, net: 0, arbitrageProfit: 0, serviceCost: 0, externalPP: 0 });
+    const b = map.get(key);
+    if (e.change >= 0) { b.earned += e.change; totals.earned += e.change; }
+    else { b.spent += e.change; totals.spent += e.change; }
+    b.net += e.change; totals.net += e.change;
+    if (e.category === 'arbitraz') { b.arbitrageProfit += e.change; totals.arbitrageProfit += e.change; }
+    if (e.category === 'usluga') {
+      b.serviceCost += e.change; totals.serviceCost += e.change;
+      totals.serviceBreakdown[e.subtype] = (totals.serviceBreakdown[e.subtype] || 0) + e.change;
+    }
+    if (e.category === 'zewnetrzne_pp') { b.externalPP += e.change; totals.externalPP += e.change; }
+    if (e.category === 'arbitraz' && e.resource && e.amount) {
+      totals.resources[e.resource][e.subtype === 'kupno' ? 'bought' : 'sold'] += e.amount;
+    }
+  }
+  const buckets = [...map.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  return { buckets, totals };
+}
+function effectiveRates(entries) {
+  const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));
+  for (const e of entries) {
+    if (e.category !== 'arbitraz' || !e.resource || !e.amount) continue;
+    const a = acc[e.resource];
+    if (e.subtype === 'kupno') { a.buyPP += Math.abs(e.change); a.buyAmt += e.amount; }
+    else { a.sellPP += Math.abs(e.change); a.sellAmt += e.amount; }
+  }
+  const out = {};
+  for (const r of RES) {
+    const a = acc[r];
+    out[r] = {
+      buy: a.buyAmt ? (a.buyPP / a.buyAmt) * 1000 : null,
+      sell: a.sellAmt ? (a.sellPP / a.sellAmt) * 1000 : null,
+    };
+  }
+  return out;
+}
+
+// src/charts.js
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function empty(width, height) {
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">` +
+    `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">brak danych</text></svg>`;
+}
+function barChartSVG(series, opts = {}) {
+  const { width = 640, height = 240, title = '' } = opts;
+  if (!series.length) return empty(width, height);
+  const pad = 30;
+  const max = Math.max(1, ...series.map(s => Math.abs(s.value)));
+  const zeroY = height / 2;
+  const bw = (width - pad * 2) / series.length;
+  const bars = series.map((s, i) => {
+    const h = (Math.abs(s.value) / max) * (height / 2 - pad);
+    const x = pad + i * bw + bw * 0.15;
+    const w = bw * 0.7;
+    const y = s.value >= 0 ? zeroY - h : zeroY;
+    const color = s.color || (s.value >= 0 ? '#2e7d32' : '#c62828');
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${color}"><title>${esc(s.label)}: ${s.value}</title></rect>`;
+  }).join('');
+  const t = title ? `<text x="8" y="16" font-size="13" fill="#333">${esc(title)}</text>` : '';
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${t}` +
+    `<line x1="${pad}" y1="${zeroY}" x2="${width - pad}" y2="${zeroY}" stroke="#ccc"/>${bars}</svg>`;
+}
+function lineChartSVG(points, opts = {}) {
+  const { width = 640, height = 240, title = '' } = opts;
+  if (!points.length) return empty(width, height);
+  const pad = 30;
+  const ys = points.map(p => p.y);
+  const min = Math.min(...ys), max = Math.max(...ys);
+  const range = max - min || 1;
+  const stepX = (width - pad * 2) / Math.max(1, points.length - 1);
+  const coords = points.map((p, i) => {
+    const x = pad + i * stepX;
+    const y = height - pad - ((p.y - min) / range) * (height - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const t = title ? `<text x="8" y="16" font-size="13" fill="#333">${esc(title)}</text>` : '';
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${t}` +
+    `<polyline fill="none" stroke="#1565c0" stroke-width="2" points="${coords}"/></svg>`;
+}
+
+// src/ui.js
+function parseCSV(text) {
+  const firstLine = text.split('\n')[0];
+  const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
+  const rows = [];
+  for (const line of text.replace(/\r/g, '').split('\n')) {
+    if (line === '') continue;
+    const cells = []; let cur = '', q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === sep) { cells.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cells.push(cur);
+    rows.push(cells);
+  }
+  return rows;
+}
+
+const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
+function normalizeImport(fileText, fileName, now = new Date()) {
+  const trimmed = fileText.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    const data = JSON.parse(trimmed);
+    if (Array.isArray(data)) return data;                 // legacy Entry[]
+    if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
+    throw new Error('Nieznany format JSON');
+  }
+  // CSV
+  const rows = parseCSV(fileText);
+  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;   // pomiń nagłówek
+  return rows.slice(start).filter(r => r.length >= 6).map(cells => {
+    const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
+    return enrich(raw, now);
+  });
+}
+
+// ——— Część DOM (przeglądarka) ———
+if (typeof document !== 'undefined') {
+  const KEY = 'plemiona_pp_store_v1';
+  const $ = sel => document.querySelector(sel);
+
+  const loadStore = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
+  const saveStore = arr => localStorage.setItem(KEY, JSON.stringify(arr));
+
+  const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
+
+  function applyFilters(entries) {
+    const world = $('#f-world').value;
+    const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
+    const to = $('#f-to').value ? new Date($('#f-to').value + 'T23:59:59Z') : null;
+    return entries.filter(e => {
+      const d = new Date(e.ts);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      if (world && world !== '__all__' && e.world !== world) return false;
+      return true;
+    });
+  }
+
+  function render() {
+    const store = loadStore();
+    const worlds = [...new Set(store.map(e => e.world))].sort();
+    const sel = $('#f-world');
+    const prev = sel.value;
+    sel.innerHTML = `<option value="__all__">Wszystkie (sumarycznie)</option>` +
+      worlds.map(w => `<option value="${w}">${w}</option>`).join('');
+    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+
+    const gran = $('#f-gran').value;
+    const filtered = applyFilters(store);
+    const { buckets, totals } = aggregate(filtered, { granularity: gran });
+    const rates = effectiveRates(filtered);
+
+    $('#kpis').innerHTML = `
+      <div class="kpi"><span>Arbitraż (PP)</span><b class="${totals.arbitrageProfit >= 0 ? 'pos' : 'neg'}">${fmt(totals.arbitrageProfit)}</b></div>
+      <div class="kpi"><span>Usługi (PP)</span><b class="neg">${fmt(totals.serviceCost)}</b></div>
+      <div class="kpi"><span>Zewnętrzne PP</span><b>${fmt(totals.externalPP)}</b></div>
+      <div class="kpi"><span>Bilans netto</span><b class="${totals.net >= 0 ? 'pos' : 'neg'}">${fmt(totals.net)}</b></div>`;
+
+    $('#chart-balance').innerHTML = barChartSVG(
+      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu', width: 900 });
+    $('#chart-saldo').innerHTML = lineChartSVG(
+      [...filtered].reverse().map(e => ({ x: e.ts, y: e.balance })), { title: 'Saldo PP w czasie', width: 900 });
+
+    const rr = r => `<tr><td>${r}</td><td>${rates[r].buy != null ? rates[r].buy.toFixed(2) : '—'}</td><td>${rates[r].sell != null ? rates[r].sell.toFixed(2) : '—'}</td></tr>`;
+    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno PP/1000</th><th>Sprzedaż PP/1000</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(rr).join('');
+
+    const svcEntries = Object.entries(totals.serviceBreakdown).sort((a, b) => a[1] - b[1]);
+    $('#svc').innerHTML = `<tr><th>Usługa</th><th>PP</th></tr>` +
+      (svcEntries.length ? svcEntries.map(([k, v]) => `<tr><td>${k}</td><td>${fmt(v)}</td></tr>`).join('')
+        : `<tr><td colspan="2">brak danych</td></tr>`);
+
+    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r =>
+        `<tr><td>${r}</td><td>${totals.resources[r].bought.toLocaleString('pl-PL')}</td><td>${totals.resources[r].sold.toLocaleString('pl-PL')}</td></tr>`).join('');
+
+    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Zarobione</th><th>Wydane</th><th>Netto</th><th>Arbitraż</th></tr>` +
+      buckets.map(b => `<tr><td>${b.key}</td><td>${fmt(b.earned)}</td><td>${fmt(b.spent)}</td><td>${fmt(b.net)}</td><td>${fmt(b.arbitrageProfit)}</td></tr>`).join('');
+
+    $('#count').textContent = `${store.length} wpisów w magazynie, ${filtered.length} po filtrach`;
+  }
+
+  async function handleFiles(fileList) {
+    let store = loadStore();
+    for (const f of fileList) {
+      const buf = await f.arrayBuffer();
+      let text = new TextDecoder('utf-8').decode(buf);
+      if (/�/.test(text)) text = new TextDecoder('windows-1250').decode(buf);
+      try {
+        const entries = normalizeImport(text, f.name, new Date());
+        store = dedupeMerge(store, entries);
+      } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
+    }
+    saveStore(store);
+    render();
+  }
+
+  function wire() {
+    const dz = $('#dropzone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
+    $('#file').addEventListener('change', e => handleFiles(e.target.files));
+    ['#f-world', '#f-from', '#f-to', '#f-gran'].forEach(s => $(s).addEventListener('change', render));
+    $('#export').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(loadStore(), null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'plemiona-scalone.json'; a.click();
+    });
+    $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    render();
+  }
+
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', wire);
+  else wire();
+}
+</script>
+</body>
+</html>
