@@ -55,8 +55,16 @@ export function classify(raw) {
   return { category: 'inne', subtype: 'inne', resource: null, amount: null };
 }
 
+// Zegar ścienny z logu (czas polski) zapisujemy jako UTC-ISO, żeby dzień/tydzień
+// były deterministyczne niezależnie od strefy czasowej przeglądarki.
+function wallClockISO(d) {
+  const p = (n, w = 2) => String(n).padStart(w, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:00.000Z`;
+}
+
 export function enrich(raw, now = new Date()) {
-  const ts = parsePremiumDate(raw.dateRaw, now).toISOString();
+  const ts = wallClockISO(parsePremiumDate(raw.dateRaw, now));
   const change = parseNumber(raw.changeRaw);
   const balance = parseNumber(raw.balanceRaw);
   const world = String(raw.world).replace(NBSP, '').trim();
