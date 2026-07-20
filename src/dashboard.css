@@ -88,23 +88,24 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .blocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
 .block h3 { border-bottom: 1px solid var(--line); }
 
-/* Wykres salda na całą szerokość */
-#saldo-card { height: clamp(360px, 62vh, 640px); display: flex; flex-direction: column; }
-#chart-saldo { flex: 1; min-height: 260px; display: block; }
+/* Wykres salda na całą szerokość, wysokość zbliżona do wykresu netto */
+#saldo-card { height: clamp(280px, 34vh, 360px); display: flex; flex-direction: column; }
+#chart-saldo { flex: 1; min-height: 240px; display: block; }
 #chart-saldo svg.chart { height: 100%; }
 
 /* Dwie kolumny: bilans okresowy | konsolidacja */
 .cols { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 @media (min-width: 900px) { .cols { grid-template-columns: 1fr 1fr; } }
-.col-right { display: flex; flex-direction: column; gap: 16px; }
-.rescols { display: grid; grid-template-columns: 1fr; gap: 16px; }
-.subhint { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; font-style: italic; }
-.subhint b { font-style: normal; font-family: var(--mono); color: var(--ink); }
+.col-right { display: flex; flex-direction: column; gap: 8px; }
+.rescols { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.subhint { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+#period-hint b { font-family: var(--mono); color: var(--accent); }
+#clear-sel { color: var(--accent); font-weight: 700; text-decoration: underline; cursor: pointer; }
 #buckets td, #buckets th { white-space: nowrap; }
 #buckets tr[data-key] { cursor: pointer; }
-#buckets tr[data-key]:hover td { background: rgba(168,132,44,.10); }
-#buckets tr.sel td { background: rgba(168,132,44,.18); }
-#buckets tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+#buckets tr[data-key]:hover td { background: rgba(168,132,44,.14); }
+#buckets tr.sel td { background: rgba(124,43,43,.14); font-weight: 600; }
+#buckets tr.sel td:first-child { box-shadow: inset 4px 0 0 var(--accent); color: var(--accent); }
 
 .lrow { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 13.5px; }
 .lrow span { color: var(--ink-2); }

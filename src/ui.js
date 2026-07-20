@@ -53,7 +53,7 @@ if (typeof document !== 'undefined') {
 
   const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
   const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
-  const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
+  const fmtRate = n => n == null ? '—' : Math.round(n).toLocaleString('pl-PL');   // kurs w całościach
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
   const selectedBuckets = new Set();   // wybrane dni w tabeli okresowej (prawa kolumna liczy dla nich)
@@ -110,20 +110,13 @@ if (typeof document !== 'undefined') {
     const gran = $('#f-gran').value;
     const { buckets, totals: t } = aggregate(scoped, { granularity: gran });
 
-    const bilansOgolny = dateFiltered.reduce((s, e) => s + e.change, 0);
-    const bilansWybrany = scoped.reduce((s, e) => s + e.change, 0);
-    const bilansInne = bilansOgolny - bilansWybrany;
     const handelIn = t.breakdown.handel['Sprzedaż'] || 0;
     const handelOut = t.breakdown.handel['Kupno'] || 0;
     const pozaSuma = t.subskrypcje + t.uslugi + t.eventy;
 
-    // === Górny rząd: 4 kafle głównych sum ===
+    // === Górny rząd: 4 kafle głównych sum (wybrany świat) ===
     $('#kpi-row').innerHTML =
-      kpi('Bilans ogólny', bilansOgolny, {
-        cls: sc(bilansOgolny), sum: true,
-        sub: `${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
-             `Inne światy: <b class="${sc(bilansInne)}">${fmt(bilansInne)}</b>`,
-      }) +
+      kpi('Bilans ogólny', t.net, { sum: true }) +
       kpi('Handel PP', t.handel) +
       kpi('Handel surowce', t.resTotal.diff, { unit: 'szt.' }) +
       kpi('Wydatki poza handlem', pozaSuma);
@@ -177,9 +170,6 @@ if (typeof document !== 'undefined') {
     const consEntries = n ? scoped.filter(e => selectedBuckets.has(bucketKey(e.ts, gran))) : scoped;
     const { totals: ct } = aggregate(consEntries, { granularity: gran });
     const crates = effectiveRates(consEntries);
-    $('#cons-scope').innerHTML = n
-      ? (n === 1 ? `Dane dla <b>1</b> wybranego dnia` : `Dane dla <b>${n}</b> wybranych dni`)
-      : `Dane dla całego zakresu`;
 
     $('#restable').innerHTML =
       `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
