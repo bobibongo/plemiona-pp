@@ -80,10 +80,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .filters select, .filters input { padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; }
 
 /* Hero: arkusz bilansowy + wykres salda */
-.hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: stretch; }
+.hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 @media (min-width: 900px) { .hero { grid-template-columns: minmax(340px, 430px) 1fr; } }
 .hero .card { display: flex; flex-direction: column; }
-#chart-saldo { flex: 1; display: flex; align-items: center; }
+#saldo-card { height: clamp(420px, 72vh, 720px); }
+#chart-saldo { flex: 1; min-height: 260px; display: block; }
+#chart-saldo svg.chart { height: 100%; }
 
 /* Ledger */
 .ledger-hero { padding-bottom: 14px; border-bottom: 2px solid var(--gold); margin-bottom: 2px; }
@@ -153,7 +155,7 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
 
 <section class="hero">
   <div class="card"><div id="summary"></div></div>
-  <div class="card"><div id="chart-saldo"></div></div>
+  <div class="card" id="saldo-card"><div id="chart-saldo"></div></div>
 </section>
 
 <section class="card"><div id="chart-balance"></div></section>
@@ -452,7 +454,7 @@ function barChartSVG(series, opts = {}) {
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${zeroLine}${bars}${xlabels}</svg>`;
 }
 function lineChartSVG(points, opts = {}) {
-  const { width = 1000, height = 260, title = '' } = opts;
+  const { width = 1000, height = 260, title = '', endLabel = false } = opts;
   if (!points.length) return empty(width, height);
   const ys = points.map(p => p.y);
   let domainMin = Math.min(...ys), domainMax = Math.max(...ys);
@@ -475,9 +477,19 @@ function lineChartSVG(points, opts = {}) {
   for (let i = 0; i < points.length; i += everyX) {
     xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${INK}">${esc(String(points[i].x))}</text>`;
   }
+  let endMark = '';
+  if (endLabel) {
+    const i = points.length - 1;
+    const ex = xOf(i), ey = yOf(points[i].y);
+    const val = Number(points[i].y).toLocaleString('pl-PL');
+    const anchor = ex > width - M.right - 60 ? 'end' : 'start';
+    const tx = anchor === 'end' ? ex - 8 : ex + 8;
+    endMark = `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="4" fill="${LINE}" stroke="var(--c-surface,#fff)" stroke-width="1.5"/>` +
+      `<text x="${tx.toFixed(1)}" y="${(ey - 8).toFixed(1)}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="${LINE}">${val} PP</text>`;
+  }
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${axis}` +
     `<polygon points="${areaPts}" fill="${LINE}" fill-opacity="0.10"/>` +
-    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${xlabels}</svg>`;
+    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${endMark}${xlabels}</svg>`;
 }
 
 // src/ui.js
@@ -531,6 +543,16 @@ if (typeof document !== 'undefined') {
   const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
   const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+
+  // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
+  let lastSaldoPts = [];
+  function drawSaldo() {
+    const box = $('#chart-saldo');
+    if (!box) return;
+    const w = Math.max(360, Math.round(box.clientWidth) || 900);
+    const h = Math.max(260, Math.round(box.clientHeight) || 300);
+    box.innerHTML = lineChartSVG(lastSaldoPts, { title: 'Saldo PP — całe konto', width: w, height: h, endLabel: true });
+  }
 
   function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
@@ -604,8 +626,8 @@ if (typeof document !== 'undefined') {
     for (const e of [...dateFiltered].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
       closing.set(bucketKey(e.ts, gran), e.balance);   // ostatni wpis okresu wygrywa = saldo zamknięcia
     }
-    const saldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
-    $('#chart-saldo').innerHTML = lineChartSVG(saldoPts, { title: 'Saldo PP — całe konto' });
+    lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
+    drawSaldo();
 
     // === WYKRES: Bilans netto wg okresu (po wybraniu świata) ===
     if (chosen) {
@@ -696,8 +718,10 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
     render();
+    requestAnimationFrame(drawSaldo);   // dokładny pomiar po ułożeniu layoutu
   }
 
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', wire);

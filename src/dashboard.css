@@ -74,10 +74,12 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .filters select, .filters input { padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; }
 
 /* Hero: arkusz bilansowy + wykres salda */
-.hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: stretch; }
+.hero { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 @media (min-width: 900px) { .hero { grid-template-columns: minmax(340px, 430px) 1fr; } }
 .hero .card { display: flex; flex-direction: column; }
-#chart-saldo { flex: 1; display: flex; align-items: center; }
+#saldo-card { height: clamp(420px, 72vh, 720px); }
+#chart-saldo { flex: 1; min-height: 260px; display: block; }
+#chart-saldo svg.chart { height: 100%; }
 
 /* Ledger */
 .ledger-hero { padding-bottom: 14px; border-bottom: 2px solid var(--gold); margin-bottom: 2px; }

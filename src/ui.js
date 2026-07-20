@@ -56,6 +56,16 @@ if (typeof document !== 'undefined') {
   const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
+  // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
+  let lastSaldoPts = [];
+  function drawSaldo() {
+    const box = $('#chart-saldo');
+    if (!box) return;
+    const w = Math.max(360, Math.round(box.clientWidth) || 900);
+    const h = Math.max(260, Math.round(box.clientHeight) || 300);
+    box.innerHTML = lineChartSVG(lastSaldoPts, { title: 'Saldo PP — całe konto', width: w, height: h, endLabel: true });
+  }
+
   function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
     const to = $('#f-to').value ? new Date($('#f-to').value + 'T23:59:59Z') : null;
@@ -128,8 +138,8 @@ if (typeof document !== 'undefined') {
     for (const e of [...dateFiltered].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
       closing.set(bucketKey(e.ts, gran), e.balance);   // ostatni wpis okresu wygrywa = saldo zamknięcia
     }
-    const saldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
-    $('#chart-saldo').innerHTML = lineChartSVG(saldoPts, { title: 'Saldo PP — całe konto' });
+    lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
+    drawSaldo();
 
     // === WYKRES: Bilans netto wg okresu (po wybraniu świata) ===
     if (chosen) {
@@ -220,8 +230,10 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
     render();
+    requestAnimationFrame(drawSaldo);   // dokładny pomiar po ułożeniu layoutu
   }
 
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', wire);

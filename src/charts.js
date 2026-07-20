@@ -81,7 +81,7 @@ export function barChartSVG(series, opts = {}) {
 }
 
 export function lineChartSVG(points, opts = {}) {
-  const { width = 1000, height = 260, title = '' } = opts;
+  const { width = 1000, height = 260, title = '', endLabel = false } = opts;
   if (!points.length) return empty(width, height);
   const ys = points.map(p => p.y);
   let domainMin = Math.min(...ys), domainMax = Math.max(...ys);
@@ -104,7 +104,17 @@ export function lineChartSVG(points, opts = {}) {
   for (let i = 0; i < points.length; i += everyX) {
     xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${INK}">${esc(String(points[i].x))}</text>`;
   }
+  let endMark = '';
+  if (endLabel) {
+    const i = points.length - 1;
+    const ex = xOf(i), ey = yOf(points[i].y);
+    const val = Number(points[i].y).toLocaleString('pl-PL');
+    const anchor = ex > width - M.right - 60 ? 'end' : 'start';
+    const tx = anchor === 'end' ? ex - 8 : ex + 8;
+    endMark = `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="4" fill="${LINE}" stroke="var(--c-surface,#fff)" stroke-width="1.5"/>` +
+      `<text x="${tx.toFixed(1)}" y="${(ey - 8).toFixed(1)}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="${LINE}">${val} PP</text>`;
+  }
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${axis}` +
     `<polygon points="${areaPts}" fill="${LINE}" fill-opacity="0.10"/>` +
-    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${xlabels}</svg>`;
+    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${endMark}${xlabels}</svg>`;
 }
