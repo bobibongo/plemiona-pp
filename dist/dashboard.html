@@ -58,8 +58,7 @@ svg { width: 100%; height: auto; }
 <section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
 <script type="module">// src/shared-date.js
 // Format: "DD.MM. HH:MM" (rok bieżący) lub "DD.MM.YY HH:MM" (rok 20YY).
-const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;
-function parsePremiumDate(dateRaw, now = new Date()) {
+const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parsePremiumDate(dateRaw, now = new Date()) {
   const s = String(dateRaw).replace(/ /g, ' ').trim();
   const m = RE.exec(s);
   if (!m) throw new Error(`Nieparsowalna data: ${JSON.stringify(dateRaw)}`);
@@ -68,10 +67,8 @@ function parsePremiumDate(dateRaw, now = new Date()) {
   return new Date(year, Number(mm) - 1, Number(dd), Number(hh), Number(min), 0, 0);
 }
 
-// src/parse.js
-
-const NBSP = / /g;
-function parseNumber(raw) {
+// src/parse.js
+const NBSP = / /g;function parseNumber(raw) {
   const s = String(raw).replace(NBSP, '').replace(/\s/g, '').replace('+', '');
   const n = Number(s);
   if (Number.isNaN(n)) throw new Error(`Nieparsowalna liczba: ${JSON.stringify(raw)}`);
@@ -82,8 +79,7 @@ const RESOURCE_MAP = [
   [/drewno/i, 'drewno'],
   [/glina/i, 'glina'],
   [/(żelazo|zelazo)/i, 'zelazo'],
-];
-function extractResource(info) {
+];function extractResource(info) {
   const s = String(info);
   const amountMatch = /\((\d+)\)/.exec(s);
   for (const [re, key] of RESOURCE_MAP) {
@@ -100,8 +96,7 @@ const SERVICE_SUBTYPES = [
   [/miejscowym kupcem/i, 'handel_kupiec'],
   [/rycerz/i, 'rycerz'],
   [/zmniejsz koszt budowy/i, 'zmniejsz_koszt'],
-];
-function classify(raw) {
+];function classify(raw) {
   const info = String(raw.info || '');
   const txType = String(raw.txType || '').replace(NBSP, '').trim();
   const { resource, amount } = extractResource(info);
@@ -127,8 +122,7 @@ function wallClockISO(d) {
   const p = (n, w = 2) => String(n).padStart(w, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
     `${p(d.getHours())}:${p(d.getMinutes())}:00.000Z`;
-}
-function enrich(raw, now = new Date()) {
+}function enrich(raw, now = new Date()) {
   const ts = wallClockISO(parsePremiumDate(raw.dateRaw, now));
   const change = parseNumber(raw.changeRaw);
   const balance = parseNumber(raw.balanceRaw);
@@ -137,13 +131,11 @@ function enrich(raw, now = new Date()) {
   const cls = classify(raw);
   return { ts, world, txType: String(raw.txType).replace(NBSP, '').trim(),
     change, balance, info, ...cls };
-}
-function entryKey(e) {
+}function entryKey(e) {
   return `${e.world}|${e.ts}|${e.change}|${e.info}`;
 }
 
-// src/merge.js
-function dedupeMerge(existing, incoming) {
+// src/merge.jsfunction dedupeMerge(existing, incoming) {
   const byKey = new Map();
   for (const e of incoming) byKey.set(entryKey(e), e);   // incoming jako baza
   for (const e of existing) byKey.set(entryKey(e), e);   // existing nadpisuje (wygrywa)
@@ -158,8 +150,7 @@ function isoWeek(d) {
   const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
   const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
   return { year: date.getUTCFullYear(), week };
-}
-function bucketKey(ts, granularity) {
+}function bucketKey(ts, granularity) {
   const d = new Date(ts);
   if (granularity === 'week') {
     const { year, week } = isoWeek(d);
@@ -169,8 +160,7 @@ function bucketKey(ts, granularity) {
   return `${y}-${m}-${day}`;
 }
 
-const RES = ['drewno', 'glina', 'zelazo'];
-function aggregate(entries, { granularity }) {
+const RES = ['drewno', 'glina', 'zelazo'];function aggregate(entries, { granularity }) {
   const map = new Map();
   const totals = {
     earned: 0, spent: 0, net: 0, arbitrageProfit: 0, serviceCost: 0, externalPP: 0,
@@ -196,8 +186,7 @@ function aggregate(entries, { granularity }) {
   }
   const buckets = [...map.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   return { buckets, totals };
-}
-function effectiveRates(entries) {
+}function effectiveRates(entries) {
   const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));
   for (const e of entries) {
     if (e.category !== 'arbitraz' || !e.resource || !e.amount) continue;
@@ -222,8 +211,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 function empty(width, height) {
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">` +
     `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">brak danych</text></svg>`;
-}
-function barChartSVG(series, opts = {}) {
+}function barChartSVG(series, opts = {}) {
   const { width = 640, height = 240, title = '' } = opts;
   if (!series.length) return empty(width, height);
   const pad = 30;
@@ -241,8 +229,7 @@ function barChartSVG(series, opts = {}) {
   const t = title ? `<text x="8" y="16" font-size="13" fill="#333">${esc(title)}</text>` : '';
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${t}` +
     `<line x1="${pad}" y1="${zeroY}" x2="${width - pad}" y2="${zeroY}" stroke="#ccc"/>${bars}</svg>`;
-}
-function lineChartSVG(points, opts = {}) {
+}function lineChartSVG(points, opts = {}) {
   const { width = 640, height = 240, title = '' } = opts;
   if (!points.length) return empty(width, height);
   const pad = 30;
@@ -260,8 +247,7 @@ function lineChartSVG(points, opts = {}) {
     `<polyline fill="none" stroke="#1565c0" stroke-width="2" points="${coords}"/></svg>`;
 }
 
-// src/ui.js
-function parseCSV(text) {
+// src/ui.jsfunction parseCSV(text) {
   const firstLine = text.split('\n')[0];
   const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
   const rows = [];
@@ -281,8 +267,7 @@ function parseCSV(text) {
   return rows;
 }
 
-const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
-function normalizeImport(fileText, fileName, now = new Date()) {
+const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];function normalizeImport(fileText, fileName, now = new Date()) {
   const trimmed = fileText.trim();
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     const data = JSON.parse(trimmed);

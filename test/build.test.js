@@ -17,3 +17,15 @@ test('bookmarklet jest jedną linią javascript:', () => {
   assert.doesNotMatch(bm, /\bimport\b/);
   assert.doesNotMatch(bm, /\n/);
 });
+
+test('bookmarklet nie zawiera komentarzy // (nie połknąłby kodu po sklejeniu)', () => {
+  const bm = buildBookmarklet();
+  assert.doesNotMatch(bm, /\/\//);
+});
+
+test('bookmarklet ma wykonywalny kod tuż po otwarciu IIFE (nie komentarz)', () => {
+  const bm = buildBookmarklet();
+  const body = bm.replace(/^javascript:\(\(\)=>\{/, '');
+  assert.doesNotMatch(body.trimStart().slice(0, 3), /^\/\//);
+  assert.match(bm, /parsePremiumDate/);
+});
