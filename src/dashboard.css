@@ -102,6 +102,8 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 #period-hint b { font-family: var(--mono); color: var(--accent); }
 #clear-sel { color: var(--accent); font-weight: 700; text-decoration: underline; cursor: pointer; }
 #buckets td, #buckets th { white-space: nowrap; }
+#buckets th[data-sort] { cursor: pointer; user-select: none; }
+#buckets th[data-sort]:hover { color: var(--ink); }
 #buckets tr[data-key] { cursor: pointer; }
 #buckets tr[data-key]:hover td { background: rgba(168,132,44,.14); }
 #buckets tr.sel td { background: rgba(124,43,43,.14); font-weight: 600; }

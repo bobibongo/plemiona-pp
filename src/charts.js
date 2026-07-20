@@ -83,7 +83,8 @@ export function barChartSVG(series, opts = {}) {
 export function lineChartSVG(points, opts = {}) {
   const { width = 1000, height = 260, title = '', endLabel = false } = opts;
   if (!points.length) return empty(width, height);
-  const ys = points.map(p => p.y);
+  const { overlay, legend } = opts;   // overlay: {points,color} rysowana słabiej; legend: [{color,label}]
+  const ys = points.map(p => p.y).concat(overlay ? overlay.points.map(p => p.y) : []);
   let domainMin = Math.min(...ys), domainMax = Math.max(...ys);
   if (domainMin === domainMax) { domainMin -= 1; domainMax += 1; }
   const { plotW, plotH, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
@@ -114,7 +115,21 @@ export function lineChartSVG(points, opts = {}) {
     endMark = `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="4" fill="${LINE}" stroke="var(--c-surface,#fff)" stroke-width="1.5"/>` +
       `<text x="${tx.toFixed(1)}" y="${(ey - 8).toFixed(1)}" text-anchor="${anchor}" font-size="12" font-weight="700" fill="${LINE}">${val} PP</text>`;
   }
+  let overlayEl = '';
+  if (overlay && overlay.points.length) {
+    const oc = overlay.points.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.y).toFixed(1)}`).join(' ');
+    overlayEl = `<polyline fill="none" stroke="${overlay.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.9" points="${oc}"/>`;
+  }
+  let legendEl = '';
+  if (legend && legend.length) {
+    const lx = M.left + 8, ly = M.top + 4;
+    legendEl = legend.map((it, i) => {
+      const y = ly + i * 15;
+      return `<rect x="${lx}" y="${(y - 4).toFixed(1)}" width="14" height="3" rx="1.5" fill="${it.color}"/>` +
+        `<text x="${lx + 20}" y="${(y + 1).toFixed(1)}" font-size="10.5" fill="${INK2}">${esc(it.label)}</text>`;
+    }).join('');
+  }
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${axis}` +
-    `<polygon points="${areaPts}" fill="${LINE}" fill-opacity="0.10"/>` +
-    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${endMark}${xlabels}</svg>`;
+    `<polygon points="${areaPts}" fill="${LINE}" fill-opacity="0.10"/>${overlayEl}` +
+    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${endMark}${legendEl}${xlabels}</svg>`;
 }

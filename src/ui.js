@@ -100,6 +100,7 @@ if (typeof document !== 'undefined') {
 
   const selectedBuckets = new Set();   // wybrane dni w tabeli okresowej (prawa kolumna liczy dla nich)
   let granTouched = false;             // czy użytkownik ręcznie wybrał granulację
+  let periodSort = { key: 'date', dir: 'asc' };   // sortowanie tabeli okresowej
 
   // Auto-dobór granulacji do długości zakresu (długi zakres = czytelniej miesiącami)
   function suggestGran(entries) {
@@ -113,12 +114,16 @@ if (typeof document !== 'undefined') {
   // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
   let lastSaldoPts = [];
   let lastSaldoTitle = 'Saldo PP';
+  let lastSaldoOverlay = null, lastSaldoLegend = null;
   function drawSaldo() {
     const box = $('#chart-saldo');
     if (!box) return;
     const w = Math.max(360, Math.round(box.clientWidth) || 900);
     const h = Math.max(240, Math.round(box.clientHeight) || 300);
-    box.innerHTML = lineChartSVG(lastSaldoPts, { title: lastSaldoTitle, width: w, height: h, endLabel: true });
+    box.innerHTML = lineChartSVG(lastSaldoPts, {
+      title: lastSaldoTitle, width: w, height: h, endLabel: true,
+      overlay: lastSaldoOverlay, legend: lastSaldoLegend,
+    });
   }
 
   function dateBounds() {
@@ -144,9 +149,19 @@ if (typeof document !== 'undefined') {
   };
   const block = (title, rows) => `<div class="card block"><h3>${title}</h3>${rows}</div>`;
 
+  // Kolejność światów: numerycznie malejąco (nowsze/wyższe wyżej), nienumeryczne (np. Szybkie) na końcu
+  function worldCmp(a, b) {
+    const na = parseInt((a.match(/\d+/) || [])[0], 10), nb = parseInt((b.match(/\d+/) || [])[0], 10);
+    const aNum = !Number.isNaN(na), bNum = !Number.isNaN(nb);
+    if (aNum && bNum) return nb - na;
+    if (aNum) return -1;
+    if (bNum) return 1;
+    return a.localeCompare(b, 'pl');
+  }
+
   function render() {
     const store = STORE;
-    const worlds = [...new Set(store.map(e => e.world))].sort();
+    const worlds = [...new Set(store.map(e => e.world))].sort(worldCmp);
     const sel = $('#f-world');
     const prev = sel.value || ALL;
     sel.innerHTML = `<option value="${ALL}">Wszystkie (sumarycznie)</option>` +
@@ -192,17 +207,44 @@ if (typeof document !== 'undefined') {
         lrow('Eventy', t.eventy, { cls: sc(t.eventy) }) +
         lrow('Suma', pozaSuma, { sum: true }));
 
-    // === Wykres salda — saldo konta w okresie aktywności wybranego świata ===
+    // === Wykres salda ===
     const shortKey = k =>
       k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7)          // YYYY-MM-DD -> DD.MM
         : /^\d{4}-\d{2}$/.test(k) ? k.slice(5, 7) + '.' + k.slice(0, 4) // YYYY-MM -> MM.YYYY
           : k.replace(/^\d{4}-/, '');                                    // YYYY-Www -> Www
-    const closing = new Map();
-    for (const e of [...scoped].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
-      closing.set(bucketKey(e.ts, gran), e.balance);
+    const asc = (a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0);
+
+    if (!chosen) {
+      // całe konto: saldo (Nowe saldo PP) na koniec okresu
+      const closing = new Map();
+      for (const e of [...dateFiltered].sort(asc)) closing.set(bucketKey(e.ts, gran), e.balance);
+      lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
+      lastSaldoTitle = 'Saldo PP — całe konto';
+      lastSaldoOverlay = null; lastSaldoLegend = null;
+    } else {
+      // wybrany świat: skumulowany wkład tego świata + saldo konta w tle (różnica = inne światy)
+      const sortedScoped = [...scoped].sort(asc);
+      const minTs = sortedScoped[0]?.ts, maxTs = sortedScoped[sortedScoped.length - 1]?.ts;
+      const inRange = e => e.ts >= minTs && e.ts <= maxTs;
+      const acct = new Map();       // saldo konta (wszystkie światy) w oknie
+      for (const e of dateFiltered.filter(inRange).sort(asc)) acct.set(bucketKey(e.ts, gran), e.balance);
+      const wnet = new Map();       // zmiana wybranego świata na okres
+      for (const e of scoped) { const k = bucketKey(e.ts, gran); wnet.set(k, (wnet.get(k) || 0) + e.change); }
+      let cum = 0;
+      const worldPts = [], acctPts = [];
+      for (const k of acct.keys()) {
+        cum += (wnet.get(k) || 0);
+        worldPts.push({ x: shortKey(k), y: cum });
+        acctPts.push({ x: shortKey(k), y: acct.get(k) });
+      }
+      lastSaldoPts = worldPts;
+      lastSaldoTitle = `Skumulowany bilans PP — ${world}`;
+      lastSaldoOverlay = { points: acctPts, color: 'var(--c-axis, #8b95a3)' };
+      lastSaldoLegend = [
+        { color: 'var(--c-line, #3b4aa0)', label: `Wkład: ${world}` },
+        { color: 'var(--c-axis, #8b95a3)', label: 'Saldo całego konta' },
+      ];
     }
-    lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
-    lastSaldoTitle = chosen ? `Saldo PP konta — ${world}` : 'Saldo PP — całe konto';
     drawSaldo();
 
     // === Wykres bilansu netto (wybrany świat lub wszystkie sumarycznie) ===
@@ -210,10 +252,18 @@ if (typeof document !== 'undefined') {
       buckets.map(b => ({ label: shortKey(b.key), value: b.net })),
       { title: `Bilans netto PP wg okresu — ${chosen ? world : 'wszystkie światy'}` });
 
-    // === Bilans okresowy (lewa kolumna, klikalne daty) ===
+    // === Bilans okresowy (lewa kolumna, klikalne daty, sortowalne kolumny) ===
+    const arrow = k => periodSort.key === k ? (periodSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    const sortVal = (b, k) => k === 'date' ? b.key : b[k];
+    const sortedBuckets = [...buckets].sort((a, b) => {
+      const av = sortVal(a, periodSort.key), bv = sortVal(b, periodSort.key);
+      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+      return periodSort.dir === 'asc' ? cmp : -cmp;
+    });
     $('#buckets').innerHTML =
-      `<tr><th>Data</th><th>Bilans PP</th><th>PP z handlu</th><th>Różnica surowców</th></tr>` +
-      buckets.map(b => `<tr data-key="${b.key}"${selectedBuckets.has(b.key) ? ' class="sel"' : ''}><td>${b.key}</td>` +
+      `<tr><th data-sort="date">Data${arrow('date')}</th><th data-sort="net">Bilans PP${arrow('net')}</th>` +
+      `<th data-sort="handel">PP z handlu${arrow('handel')}</th><th data-sort="resDiff">Różnica surowców${arrow('resDiff')}</th></tr>` +
+      sortedBuckets.map(b => `<tr data-key="${b.key}"${selectedBuckets.has(b.key) ? ' class="sel"' : ''}><td>${b.key}</td>` +
         `<td class="${sc(b.net)}">${fmt(b.net)}</td>` +
         `<td class="${sc(b.handel)}">${fmt(b.handel)}</td>` +
         `<td class="${sc(b.resDiff)}">${b.resDiff ? fmt(b.resDiff) : '—'}</td></tr>`).join('');
@@ -304,6 +354,14 @@ if (typeof document !== 'undefined') {
     ['#f-world', '#f-from', '#f-to'].forEach(s => $(s).addEventListener('change', () => { granTouched = false; selectedBuckets.clear(); render(); }));
     $('#f-gran').addEventListener('change', () => { granTouched = true; selectedBuckets.clear(); render(); });
     $('#buckets').addEventListener('click', e => {
+      const th = e.target.closest('th[data-sort]');
+      if (th) {
+        const k = th.getAttribute('data-sort');
+        if (periodSort.key === k) periodSort.dir = periodSort.dir === 'asc' ? 'desc' : 'asc';
+        else periodSort = { key: k, dir: k === 'date' ? 'asc' : 'desc' };
+        render();
+        return;
+      }
       const tr = e.target.closest('tr[data-key]');
       if (!tr) return;
       const k = tr.getAttribute('data-key');
