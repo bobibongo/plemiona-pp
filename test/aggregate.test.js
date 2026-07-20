@@ -11,49 +11,46 @@ test('bucketKey day/week', () => {
   assert.match(bucketKey('2026-07-19T22:30:00.000Z', 'week'), /^2026-W\d{2}$/);
 });
 
-test('aggregate sumuje kategorie i netto', () => {
+test('aggregate sumuje kategorie, netto oraz przychody/wydatki', () => {
   const entries = [
     E('2026-07-19T10:00:00.000Z', 30, 'handel', { subtype: 'sprzedaz', label: 'Sprzedaż' }),
     E('2026-07-19T11:00:00.000Z', -47, 'handel', { subtype: 'kupno', label: 'Kupno' }),
     E('2026-07-19T12:00:00.000Z', -10, 'uslugi', { label: 'Redukcja czasu budowy' }),
     E('2026-07-19T13:00:00.000Z', -30, 'subskrypcje', { label: 'Konto premium' }),
     E('2026-07-19T14:00:00.000Z', 1500, 'zakup_pp', { label: 'Zakup PP' }),
-    E('2026-07-19T15:00:00.000Z', 5, 'eventy', { label: 'Otwarcie prezentu' }),
+    E('2026-07-19T15:00:00.000Z', -5, 'eventy', { label: 'Zakręcenie kołem' }),
   ];
   const { buckets, totals } = aggregate(entries, { granularity: 'day' });
   assert.equal(buckets.length, 1);
-  assert.equal(buckets[0].net, 30 - 47 - 10 - 30 + 1500 + 5);
-  assert.equal(totals.net, 1448);
-  assert.equal(totals.handel, -17);        // 30 - 47
+  assert.equal(totals.net, 30 - 47 - 10 - 30 + 1500 - 5);
+  assert.equal(totals.handel, -17);
   assert.equal(totals.uslugi, -10);
   assert.equal(totals.subskrypcje, -30);
   assert.equal(totals.zakup_pp, 1500);
-  assert.equal(totals.eventy, 5);
+  assert.equal(totals.eventy, -5);
+  assert.equal(totals.earned, 30 + 1500);       // wszystkie dodatnie
+  assert.equal(totals.spent, -47 - 10 - 30 - 5); // wszystkie ujemne
+  // per okres główne pozycje
+  assert.equal(buckets[0].handel, -17);
+  assert.equal(buckets[0].subskrypcje, -30);
+  assert.equal(buckets[0].uslugi, -10);
+  assert.equal(buckets[0].eventy, -5);
+  assert.equal(buckets[0].zakup_pp, 1500);
+  assert.equal(buckets[0].net, totals.net);
 });
 
-test('aggregate: rozbicie po label w kategoriach', () => {
+test('aggregate: wolumen surowców z różnicą (per surowiec i sumarycznie)', () => {
   const entries = [
-    E('t', -10, 'uslugi', { label: 'Redukcja czasu budowy' }),
-    E('t', -10, 'uslugi', { label: 'Redukcja czasu budowy' }),
-    E('t', -30, 'subskrypcje', { label: 'Konto premium' }),
-    E('t', 5, 'eventy', { label: 'Otwarcie prezentu' }),
+    E('2026-07-19T10:00:00.000Z', 9, 'handel', { subtype: 'sprzedaz', resource: 'glina', amount: 905 }),
+    E('2026-07-19T11:00:00.000Z', -47, 'handel', { subtype: 'kupno', resource: 'glina', amount: 20076 }),
+    E('2026-07-19T12:00:00.000Z', -20, 'handel', { subtype: 'kupno', resource: 'drewno', amount: 8000 }),
   ];
-  const { totals } = aggregate(entries, { granularity: 'day' });
-  assert.equal(totals.breakdown.uslugi['Redukcja czasu budowy'], -20);
-  assert.equal(totals.breakdown.subskrypcje['Konto premium'], -30);
-  assert.equal(totals.breakdown.eventy['Otwarcie prezentu'], 5);
-  assert.equal(totals.breakdown.handel['Kupno'] ?? 0, 0);
-});
-
-test('aggregate: wolumen surowców z różnicą', () => {
-  const entries = [
-    E('t', 9, 'handel', { subtype: 'sprzedaz', resource: 'glina', amount: 905 }),
-    E('t', -47, 'handel', { subtype: 'kupno', resource: 'glina', amount: 20076 }),
-  ];
-  const { totals } = aggregate(entries, { granularity: 'day' });
-  assert.equal(totals.resources.glina.sold, 905);
-  assert.equal(totals.resources.glina.bought, 20076);
-  assert.equal(totals.resources.glina.diff, 20076 - 905);   // kupione - sprzedane
+  const { buckets, totals } = aggregate(entries, { granularity: 'day' });
+  assert.equal(totals.resources.glina.diff, 20076 - 905);
+  assert.equal(totals.resTotal.bought, 20076 + 8000);
+  assert.equal(totals.resTotal.sold, 905);
+  assert.equal(totals.resTotal.diff, 20076 + 8000 - 905);
+  assert.equal(buckets[0].resDiff, 20076 + 8000 - 905);   // różnica surowców w okresie
 });
 
 test('effectiveRates: surowce na 1 PP', () => {
@@ -62,7 +59,7 @@ test('effectiveRates: surowce na 1 PP', () => {
     E('t', 23, 'handel', { subtype: 'sprzedaz', resource: 'zelazo', amount: 10000 }),
   ];
   const r = effectiveRates(entries);
-  assert.ok(Math.abs(r.zelazo.buy - (20000 / 47)) < 1e-9);   // surowce / PP
+  assert.ok(Math.abs(r.zelazo.buy - (20000 / 47)) < 1e-9);
   assert.ok(Math.abs(r.zelazo.sell - (10000 / 23)) < 1e-9);
   assert.equal(r.drewno.buy, null);
 });

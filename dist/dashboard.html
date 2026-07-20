@@ -5,66 +5,99 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Analiza PP — Plemiona</title>
 <style>* { box-sizing: border-box; }
-body { font-family: system-ui, sans-serif; margin: 0; background: #f4f1ea; color: #222; }
-header { background: #5b3a1e; color: #f4e9d8; padding: 12px 20px; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background: #f4f1ea; color: #2b2b2b; }
+.wrap { width: 88%; max-width: 1180px; margin: 0 auto; }
+header { background: #5b3a1e; color: #f4e9d8; padding: 14px 0; }
 header h1 { margin: 0; font-size: 20px; }
 header p { margin: 4px 0 0; opacity: .85; font-size: 13px; }
-section { margin: 14px 20px; }
-h3 { margin: 0 0 8px; font-size: 15px; }
-#dropzone { border: 2px dashed #b08a5a; border-radius: 8px; padding: 20px; text-align: center; background: #fffdf8; }
+main { padding-bottom: 40px; }
+section { margin: 14px 0; }
+h2.sect { margin: 22px 0 6px; font-size: 16px; color: #5b3a1e; }
+h3 { margin: 0 0 8px; font-size: 14px; color: #4a3a28; }
+h3 small { color: #7a6f5c; font-weight: normal; font-size: 12px; }
+
+#dropzone { border: 2px dashed #b08a5a; border-radius: 10px; padding: 18px; text-align: center; background: #fffdf8; }
 #dropzone.over { background: #f0e6d2; }
 .link { color: #1565c0; cursor: pointer; text-decoration: underline; }
 .actions { margin-top: 10px; }
-button { margin: 0 4px; padding: 6px 12px; cursor: pointer; border: 1px solid #b08a5a; background: #fffdf8; border-radius: 6px; }
+button { margin: 0 4px; padding: 6px 12px; cursor: pointer; border: 1px solid #b08a5a; background: #fffdf8; border-radius: 6px; color: #4a3a28; }
 button:hover { background: #f0e6d2; }
-.filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-.filters label { font-size: 13px; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-.kpi { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; }
-.kpi span { font-size: 12px; color: #666; }
-.kpi b { font-size: 22px; }
-.pos { color: #2e7d32; } .neg { color: #c62828; }
-.card { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 12px; overflow-x: auto; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-.sect { margin: 18px 20px 4px; font-size: 16px; }
-.otherworlds { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
-.hint, .muted { color: #888; font-size: 13px; }
-h3 small { color: #666; font-weight: normal; font-size: 12px; }
+
+.filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+.filters select, .filters input { padding: 3px 6px; border: 1px solid #cbb992; border-radius: 5px; background: #fffdf8; }
+
+.info { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.grp { background: #fbf7ee; border: 1px solid #e6dcc4; border-radius: 10px; padding: 10px 12px; }
+.grp > h3 { text-transform: uppercase; letter-spacing: .04em; font-size: 11.5px; color: #8a7a5c; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: #fffdf8; border: 1px solid #e6dcc4; border-radius: 8px; padding: 9px 11px; display: flex; flex-direction: column; }
+.kpi span { font-size: 11.5px; color: #7a6f5c; margin-bottom: 3px; }
+.kpi b { font-size: 21px; font-weight: 650; line-height: 1.1; }
+.kpi b i { font-style: normal; font-size: 11px; color: #9a8f78; margin-left: 4px; font-weight: 400; }
+.pos { color: #2e7d32; } .neg { color: #c0392b; }
+
+.otherworlds { background: #fbf7ee; border: 1px solid #e6dcc4; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.hint, .muted { color: #9a8f78; font-size: 13px; }
+
+.card { background: #fffdf8; border: 1px solid #e6dcc4; border-radius: 10px; padding: 12px; overflow-x: auto; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { border: 1px solid #e0d6c0; padding: 4px 8px; text-align: right; }
-th:first-child, td:first-child { text-align: left; }
+th, td { border-bottom: 1px solid #eee2c8; padding: 5px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+th { color: #7a6f5c; font-weight: 600; border-bottom: 2px solid #e6dcc4; }
+th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
+tr:hover td { background: #fbf7ee; }
+
 svg.chart { width: 100%; height: auto; display: block; }
-svg .bar:hover, svg .dot:hover { opacity: .75; cursor: pointer; }
+svg .bar { transition: opacity .1s; }
+svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
 #tt { position: fixed; z-index: 9999; display: none; pointer-events: none; background: #2b1d10; color: #f4e9d8;
-  padding: 6px 9px; border-radius: 6px; font-size: 12px; line-height: 1.35; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  padding: 6px 9px; border-radius: 6px; font-size: 12px; line-height: 1.35; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+
+@media (min-width: 760px) {
+  .info { grid-template-columns: 1fr 1fr; }
+}
 </style>
 </head>
 <body>
-<header>
+<header><div class="wrap">
   <h1>Analiza punktów premium</h1>
   <p id="count">0 wpisów</p>
-</header>
+</div></header>
+
+<main class="wrap">
 <section id="dropzone">
   Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — albo <label class="link">wybierz<input id="file" type="file" multiple hidden></label>.
   <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
 </section>
+
 <section class="filters">
   <label>Świat: <select id="f-world"></select></label>
   <label>Od: <input id="f-from" type="date"></label>
   <label>Do: <input id="f-to" type="date"></label>
   <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
 </section>
-<section id="kpis" class="kpis"></section>
+
+<section class="info">
+  <div class="grp"><h3>Podsumowanie</h3><div id="info-main" class="kpis"></div></div>
+  <div class="grp"><h3>Przychody</h3><div id="info-in" class="kpis"></div></div>
+  <div class="grp"><h3>Wydatki</h3><div id="info-out" class="kpis"></div></div>
+</section>
 <section id="otherworlds" class="otherworlds" style="display:none"></section>
+
 <section class="card"><div id="chart-saldo"></div></section>
 <section class="card"><div id="chart-balance"></div></section>
+
 <section class="grid">
   <div class="card"><h3>Efektywny kurs (surowce na 1 PP)</h3><table id="rates"></table></div>
   <div class="card"><h3>Wolumen surowców (Handel)</h3><table id="res"></table></div>
 </section>
+
 <h2 class="sect">Rozbicie na kategorie</h2>
 <section id="breakdown" class="grid"></section>
-<section class="card"><h3>Bilans netto PP wg okresu</h3><table id="buckets"></table></section>
+
+<section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
+</main>
 <script type="module">// src/shared-date.js
 // Format: "DD.MM. HH:MM" (rok bieżący) lub "DD.MM.YY HH:MM" (rok 20YY).
 const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parsePremiumDate(dateRaw, now = new Date()) {
@@ -204,31 +237,48 @@ function bucketKey(ts, granularity) {
 
 const RES = ['drewno', 'glina', 'zelazo'];
 const CATEGORIES = ['handel', 'zakup_pp', 'subskrypcje', 'uslugi', 'eventy'];
+
+function newBucket(key) {
+  const b = { key, net: 0, earned: 0, spent: 0, bought: 0, sold: 0, resDiff: 0 };
+  for (const c of CATEGORIES) b[c] = 0;
+  return b;
+}
 function aggregate(entries, { granularity }) {
   const map = new Map();
   const totals = {
-    net: 0,
+    net: 0, earned: 0, spent: 0,
     resources: Object.fromEntries(RES.map(r => [r, { bought: 0, sold: 0, diff: 0 }])),
+    resTotal: { bought: 0, sold: 0, diff: 0 },
     breakdown: Object.fromEntries(CATEGORIES.map(c => [c, {}])),
   };
   for (const c of CATEGORIES) totals[c] = 0;
 
   for (const e of entries) {
     const key = bucketKey(e.ts, granularity);
-    if (!map.has(key)) map.set(key, { key, net: 0 });
-    map.get(key).net += e.change;
-    totals.net += e.change;
+    if (!map.has(key)) map.set(key, newBucket(key));
+    const b = map.get(key);
+
+    b.net += e.change; totals.net += e.change;
+    if (e.change >= 0) { b.earned += e.change; totals.earned += e.change; }
+    else { b.spent += e.change; totals.spent += e.change; }
 
     if (CATEGORIES.includes(e.category)) {
+      b[e.category] += e.change;
       totals[e.category] += e.change;
       const label = e.label || e.subtype || 'inne';
       totals.breakdown[e.category][label] = (totals.breakdown[e.category][label] || 0) + e.change;
     }
     if (e.category === 'handel' && e.resource && e.amount) {
-      totals.resources[e.resource][e.subtype === 'kupno' ? 'bought' : 'sold'] += e.amount;
+      const dir = e.subtype === 'kupno' ? 'bought' : 'sold';
+      totals.resources[e.resource][dir] += e.amount;
+      totals.resTotal[dir] += e.amount;
+      b[dir] += e.amount;
     }
   }
+
   for (const r of RES) totals.resources[r].diff = totals.resources[r].bought - totals.resources[r].sold;
+  totals.resTotal.diff = totals.resTotal.bought - totals.resTotal.sold;
+  for (const b of map.values()) b.resDiff = b.bought - b.sold;
 
   const buckets = [...map.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   return { buckets, totals };
@@ -257,15 +307,20 @@ function effectiveRates(entries) {
 // src/charts.js
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const M = { left: 56, right: 14, top: 22, bottom: 42 };
+const M = { left: 52, right: 16, top: 22, bottom: 46 };
+const INK = '#8a7f6a';        // stonowany atrament etykiet
+const GRID = '#ece3cf';       // hairline siatki
+const BASE = '#b7a988';       // linia bazowa / oś
+const POS = '#2e7d32';        // dodatnie
+const NEG = '#c0392b';        // ujemne
+const LINE = '#1565c0';       // seria salda
 
 function empty(width, height) {
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">` +
-    `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">brak danych</text></svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">` +
+    `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="${INK}" font-size="12">brak danych</text></svg>`;
 }
 
-// Ładne wartości podziałki osi Y.
-function niceTicks(min, max, count = 5) {
+function niceTicks(min, max, count = 4) {
   if (min === max) { min -= 1; max += 1; }
   const span = max - min;
   const rawStep = span / count;
@@ -285,7 +340,6 @@ function fmtTick(n) {
   return n.toLocaleString('pl-PL', { maximumFractionDigits: 0 });
 }
 
-// Wspólne rusztowanie: osie Y (siatka + etykiety) i podpis tytułu.
 function frame(width, height, title, domainMin, domainMax) {
   const plotW = width - M.left - M.right;
   const plotH = height - M.top - M.bottom;
@@ -295,14 +349,14 @@ function frame(width, height, title, domainMin, domainMax) {
   for (const t of ticks) {
     if (t < domainMin - 1e-9 || t > domainMax + 1e-9) continue;
     const y = yOf(t);
-    grid += `<line x1="${M.left}" y1="${y.toFixed(1)}" x2="${width - M.right}" y2="${y.toFixed(1)}" stroke="#e6ddc8"/>`;
-    grid += `<text x="${M.left - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#777">${esc(fmtTick(t))}</text>`;
+    grid += `<line x1="${M.left}" y1="${y.toFixed(1)}" x2="${width - M.right}" y2="${y.toFixed(1)}" stroke="${GRID}"/>`;
+    grid += `<text x="${M.left - 7}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="${INK}" style="font-variant-numeric:tabular-nums">${esc(fmtTick(t))}</text>`;
   }
-  const t = title ? `<text x="${M.left}" y="14" font-size="13" fill="#333">${esc(title)}</text>` : '';
+  const t = title ? `<text x="${M.left}" y="13" font-size="12.5" fill="#52514e" font-weight="600">${esc(title)}</text>` : '';
   return { plotW, plotH, yOf, grid, titleEl: t };
 }
 function barChartSVG(series, opts = {}) {
-  const { width = 900, height = 260, title = '' } = opts;
+  const { width = 1000, height = 260, title = '' } = opts;
   if (!series.length) return empty(width, height);
   const vals = series.map(s => s.value);
   const domainMax = Math.max(1, 0, ...vals);
@@ -310,44 +364,49 @@ function barChartSVG(series, opts = {}) {
   const { plotW, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
   const zeroY = yOf(0);
   const bw = plotW / series.length;
-  const everyX = Math.ceil(series.length / 14);
+  const everyX = Math.ceil(series.length / 16);
   let bars = '', xlabels = '';
   series.forEach((s, i) => {
-    const x = M.left + i * bw + bw * 0.15;
-    const w = bw * 0.7;
-    const y = s.value >= 0 ? yOf(s.value) : zeroY;
+    const x = M.left + i * bw + bw * 0.18;
+    const w = Math.max(1, bw * 0.64);
+    const top = s.value >= 0 ? yOf(s.value) : zeroY;
     const h = Math.max(1, Math.abs(yOf(s.value) - zeroY));
-    const color = s.color || (s.value >= 0 ? '#2e7d32' : '#c62828');
-    bars += `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" data-label="${esc(s.label)}" data-value="${s.value}"><title>${esc(s.label)}: ${s.value}</title></rect>`;
+    const color = s.color || (s.value >= 0 ? POS : NEG);
+    const rx = Math.min(2, w / 2);
+    bars += `<rect class="bar" x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="${rx}" fill="${color}" data-label="${esc(s.label)}" data-value="${s.value}"><title>${esc(s.label)}: ${s.value}</title></rect>`;
     if (i % everyX === 0) {
       const cx = M.left + i * bw + bw / 2;
-      xlabels += `<text x="${cx.toFixed(1)}" y="${(height - M.bottom + 14).toFixed(1)}" text-anchor="end" font-size="10" fill="#777" transform="rotate(-40 ${cx.toFixed(1)} ${(height - M.bottom + 14).toFixed(1)})">${esc(s.label)}</text>`;
+      const ly = height - M.bottom + 14;
+      xlabels += `<text x="${cx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="end" font-size="9.5" fill="${INK}" transform="rotate(-38 ${cx.toFixed(1)} ${ly.toFixed(1)})">${esc(s.label)}</text>`;
     }
   });
-  const zeroLine = `<line x1="${M.left}" y1="${zeroY.toFixed(1)}" x2="${width - M.right}" y2="${zeroY.toFixed(1)}" stroke="#b0a080"/>`;
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">${titleEl}${grid}${zeroLine}${bars}${xlabels}</svg>`;
+  const zeroLine = `<line x1="${M.left}" y1="${zeroY.toFixed(1)}" x2="${width - M.right}" y2="${zeroY.toFixed(1)}" stroke="${BASE}"/>`;
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${zeroLine}${bars}${xlabels}</svg>`;
 }
 function lineChartSVG(points, opts = {}) {
-  const { width = 900, height = 260, title = '' } = opts;
+  const { width = 1000, height = 260, title = '' } = opts;
   if (!points.length) return empty(width, height);
   const ys = points.map(p => p.y);
   let domainMin = Math.min(...ys), domainMax = Math.max(...ys);
   if (domainMin === domainMax) { domainMin -= 1; domainMax += 1; }
-  const { plotW, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
+  const { plotW, plotH, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
   const xOf = i => M.left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
   const coords = points.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.y).toFixed(1)}`).join(' ');
+  const showDots = points.length <= 60;
   let dots = '';
   for (let i = 0; i < points.length; i++) {
-    dots += `<circle class="dot" cx="${xOf(i).toFixed(1)}" cy="${yOf(points[i].y).toFixed(1)}" r="2.5" fill="#1565c0" data-label="${esc(points[i].x)}" data-value="${points[i].y}"><title>${esc(points[i].x)}: ${points[i].y}</title></circle>`;
+    const r = showDots ? 2.5 : 0;
+    dots += `<circle class="dot" cx="${xOf(i).toFixed(1)}" cy="${yOf(points[i].y).toFixed(1)}" r="${r}" fill="${LINE}" data-label="${esc(points[i].x)}" data-value="${points[i].y}"><title>${esc(points[i].x)}: ${points[i].y}</title></circle>`;
   }
+  const axis = `<line x1="${M.left}" y1="${(M.top + plotH).toFixed(1)}" x2="${width - M.right}" y2="${(M.top + plotH).toFixed(1)}" stroke="${BASE}"/>`;
   const everyX = Math.ceil(points.length / 7);
   let xlabels = '';
   for (let i = 0; i < points.length; i += everyX) {
     const label = String(points[i].x).slice(0, 10);
-    xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#777">${esc(label)}</text>`;
+    xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${INK}">${esc(label)}</text>`;
   }
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">${titleEl}${grid}` +
-    `<polyline fill="none" stroke="#1565c0" stroke-width="1.6" points="${coords}"/>${dots}${xlabels}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${axis}` +
+    `<polyline fill="none" stroke="${LINE}" stroke-width="1.8" points="${coords}"/>${dots}${xlabels}</svg>`;
 }
 
 // src/ui.js
@@ -438,15 +497,28 @@ if (typeof document !== 'undefined') {
     const rates = effectiveRates(scoped);
     const bilansPP = dateFiltered.reduce((s, e) => s + e.change, 0);       // wszystkie światy
 
-    // KPI
-    const kpi = (label, val, cls = '') => `<div class="kpi"><span>${label}</span><b class="${cls}">${fmt(val)}</b></div>`;
-    $('#kpis').innerHTML =
-      kpi('Bilans PP (wszystkie światy)', bilansPP, bilansPP >= 0 ? 'pos' : 'neg') +
-      kpi('Bilans PP Handel', totals.handel, totals.handel >= 0 ? 'pos' : 'neg') +
-      kpi('Zakup PP', totals.zakup_pp) +
-      kpi('Subskrypcje', totals.subskrypcje, 'neg') +
-      kpi('Usługi', totals.uslugi, 'neg') +
-      kpi('Eventy', totals.eventy, totals.eventy >= 0 ? 'pos' : 'neg');
+    // Sekcja informacyjna: podsumowanie / przychody / wydatki
+    const signCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    const tile = (label, val, { unit = 'PP', signed = true, cls } = {}) => {
+      const txt = signed ? fmt(val) : fmtNum(val);
+      const c = cls !== undefined ? cls : signCls(val);
+      return `<div class="kpi"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
+    };
+    const t = totals;
+    $('#info-main').innerHTML =
+      tile('Bilans PP', bilansPP, { cls: signCls(bilansPP) }) +
+      tile('Bilans PP (Handel)', t.handel) +
+      tile('Bilans surowców (Handel)', t.resTotal.diff, { unit: 'szt.' });
+    $('#info-in').innerHTML =
+      tile('Kupione PP (łącznie)', t.earned, { cls: 'pos' }) +
+      tile('Kupione surowce', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Zakupione PP', t.zakup_pp, { cls: signCls(t.zakup_pp) });
+    $('#info-out').innerHTML =
+      tile('Wydane PP (łącznie)', t.spent, { cls: 'neg' }) +
+      tile('Wydane surowce', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
+      tile('Usługi', t.uslugi, { cls: 'neg' }) +
+      tile('Eventy', t.eventy, { cls: signCls(t.eventy) });
 
     // Inne światy: jedna liczba netto (tylko gdy wybrano konkretny świat)
     const ow = $('#otherworlds');
@@ -492,9 +564,18 @@ if (typeof document !== 'undefined') {
         `<tr><th>Pozycja</th><th>PP</th></tr>${body}</table></div>`;
     }).join('');
 
-    // Tabela netto wg okresu
-    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Netto PP</th></tr>` +
-      buckets.map(b => `<tr><td>${b.key}</td><td class="${b.net >= 0 ? 'pos' : 'neg'}">${fmt(b.net)}</td></tr>`).join('');
+    // Tabela wg okresu z głównymi pozycjami
+    const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    $('#buckets').innerHTML =
+      `<tr><th>Okres</th><th>Bilans PP</th><th>Handel</th><th>Surowce Δ</th><th>Zakup PP</th><th>Subskrypcje</th><th>Usługi</th><th>Eventy</th></tr>` +
+      buckets.map(b => `<tr><td>${b.key}</td>` +
+        `<td class="${sc(b.net)}">${fmt(b.net)}</td>` +
+        `<td class="${sc(b.handel)}">${fmt(b.handel)}</td>` +
+        `<td class="${sc(b.resDiff)}">${fmt(b.resDiff)}</td>` +
+        `<td class="${sc(b.zakup_pp)}">${fmt(b.zakup_pp)}</td>` +
+        `<td class="${sc(b.subskrypcje)}">${fmt(b.subskrypcje)}</td>` +
+        `<td class="${sc(b.uslugi)}">${fmt(b.uslugi)}</td>` +
+        `<td class="${sc(b.eventy)}">${fmt(b.eventy)}</td></tr>`).join('');
 
     $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${world === ALL ? 'wszystkie światy' : world})`;
   }

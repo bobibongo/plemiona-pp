@@ -92,15 +92,28 @@ if (typeof document !== 'undefined') {
     const rates = effectiveRates(scoped);
     const bilansPP = dateFiltered.reduce((s, e) => s + e.change, 0);       // wszystkie światy
 
-    // KPI
-    const kpi = (label, val, cls = '') => `<div class="kpi"><span>${label}</span><b class="${cls}">${fmt(val)}</b></div>`;
-    $('#kpis').innerHTML =
-      kpi('Bilans PP (wszystkie światy)', bilansPP, bilansPP >= 0 ? 'pos' : 'neg') +
-      kpi('Bilans PP Handel', totals.handel, totals.handel >= 0 ? 'pos' : 'neg') +
-      kpi('Zakup PP', totals.zakup_pp) +
-      kpi('Subskrypcje', totals.subskrypcje, 'neg') +
-      kpi('Usługi', totals.uslugi, 'neg') +
-      kpi('Eventy', totals.eventy, totals.eventy >= 0 ? 'pos' : 'neg');
+    // Sekcja informacyjna: podsumowanie / przychody / wydatki
+    const signCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    const tile = (label, val, { unit = 'PP', signed = true, cls } = {}) => {
+      const txt = signed ? fmt(val) : fmtNum(val);
+      const c = cls !== undefined ? cls : signCls(val);
+      return `<div class="kpi"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
+    };
+    const t = totals;
+    $('#info-main').innerHTML =
+      tile('Bilans PP', bilansPP, { cls: signCls(bilansPP) }) +
+      tile('Bilans PP (Handel)', t.handel) +
+      tile('Bilans surowców (Handel)', t.resTotal.diff, { unit: 'szt.' });
+    $('#info-in').innerHTML =
+      tile('Kupione PP (łącznie)', t.earned, { cls: 'pos' }) +
+      tile('Kupione surowce', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Zakupione PP', t.zakup_pp, { cls: signCls(t.zakup_pp) });
+    $('#info-out').innerHTML =
+      tile('Wydane PP (łącznie)', t.spent, { cls: 'neg' }) +
+      tile('Wydane surowce', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
+      tile('Usługi', t.uslugi, { cls: 'neg' }) +
+      tile('Eventy', t.eventy, { cls: signCls(t.eventy) });
 
     // Inne światy: jedna liczba netto (tylko gdy wybrano konkretny świat)
     const ow = $('#otherworlds');
@@ -146,9 +159,18 @@ if (typeof document !== 'undefined') {
         `<tr><th>Pozycja</th><th>PP</th></tr>${body}</table></div>`;
     }).join('');
 
-    // Tabela netto wg okresu
-    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Netto PP</th></tr>` +
-      buckets.map(b => `<tr><td>${b.key}</td><td class="${b.net >= 0 ? 'pos' : 'neg'}">${fmt(b.net)}</td></tr>`).join('');
+    // Tabela wg okresu z głównymi pozycjami
+    const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    $('#buckets').innerHTML =
+      `<tr><th>Okres</th><th>Bilans PP</th><th>Handel</th><th>Surowce Δ</th><th>Zakup PP</th><th>Subskrypcje</th><th>Usługi</th><th>Eventy</th></tr>` +
+      buckets.map(b => `<tr><td>${b.key}</td>` +
+        `<td class="${sc(b.net)}">${fmt(b.net)}</td>` +
+        `<td class="${sc(b.handel)}">${fmt(b.handel)}</td>` +
+        `<td class="${sc(b.resDiff)}">${fmt(b.resDiff)}</td>` +
+        `<td class="${sc(b.zakup_pp)}">${fmt(b.zakup_pp)}</td>` +
+        `<td class="${sc(b.subskrypcje)}">${fmt(b.subskrypcje)}</td>` +
+        `<td class="${sc(b.uslugi)}">${fmt(b.uslugi)}</td>` +
+        `<td class="${sc(b.eventy)}">${fmt(b.eventy)}</td></tr>`).join('');
 
     $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${world === ALL ? 'wszystkie światy' : world})`;
   }
