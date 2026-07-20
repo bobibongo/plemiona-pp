@@ -74,7 +74,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .filters select, .filters input { padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; }
 
 /* Górne kafle */
-.kpirow { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.kpirow { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 12px; }
 .kpi { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column;
   box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 16px rgba(0,0,0,.3); }
 .kpi span { font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; margin-bottom: 6px; }
@@ -96,8 +96,8 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 /* Dwie kolumny: bilans okresowy | konsolidacja */
 .cols { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 @media (min-width: 900px) { .cols { grid-template-columns: 1fr 1fr; } }
-.col-right { display: flex; flex-direction: column; gap: 8px; }
-.rescols { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.col-right { display: flex; flex-direction: column; gap: 4px; }
+.rescols { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .subhint { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
 #period-hint b { font-family: var(--mono); color: var(--accent); }
 #clear-sel { color: var(--accent); font-weight: 700; text-decoration: underline; cursor: pointer; }

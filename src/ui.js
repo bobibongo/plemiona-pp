@@ -60,12 +60,13 @@ if (typeof document !== 'undefined') {
 
   // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
   let lastSaldoPts = [];
+  let lastSaldoTitle = 'Saldo PP';
   function drawSaldo() {
     const box = $('#chart-saldo');
     if (!box) return;
     const w = Math.max(360, Math.round(box.clientWidth) || 900);
-    const h = Math.max(260, Math.round(box.clientHeight) || 320);
-    box.innerHTML = lineChartSVG(lastSaldoPts, { title: 'Saldo PP — całe konto', width: w, height: h, endLabel: true });
+    const h = Math.max(240, Math.round(box.clientHeight) || 300);
+    box.innerHTML = lineChartSVG(lastSaldoPts, { title: lastSaldoTitle, width: w, height: h, endLabel: true });
   }
 
   function dateBounds() {
@@ -114,12 +115,13 @@ if (typeof document !== 'undefined') {
     const handelOut = t.breakdown.handel['Kupno'] || 0;
     const pozaSuma = t.subskrypcje + t.uslugi + t.eventy;
 
-    // === Górny rząd: 4 kafle głównych sum (wybrany świat) ===
+    // === Górny rząd: 5 kafli głównych sum (wybrany świat) ===
     $('#kpi-row').innerHTML =
       kpi('Bilans ogólny', t.net, { sum: true }) +
       kpi('Handel PP', t.handel) +
       kpi('Handel surowce', t.resTotal.diff, { unit: 'szt.' }) +
-      kpi('Wydatki poza handlem', pozaSuma);
+      kpi('Wydatki poza handlem', pozaSuma) +
+      kpi('Zakupione / otrzymane PP', t.zakup_pp);
 
     // === 3 bloki szczegółów ===
     $('#blocks').innerHTML =
@@ -137,22 +139,20 @@ if (typeof document !== 'undefined') {
         lrow('Eventy', t.eventy, { cls: sc(t.eventy) }) +
         lrow('Suma', pozaSuma, { sum: true }));
 
-    // === Wykres salda (cała szerokość) ===
+    // === Wykres salda — saldo konta w okresie aktywności wybranego świata ===
     const shortKey = k => k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7) : k.replace(/^\d{4}-/, '');
     const closing = new Map();
-    for (const e of [...dateFiltered].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
+    for (const e of [...scoped].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
       closing.set(bucketKey(e.ts, gran), e.balance);
     }
     lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
+    lastSaldoTitle = chosen ? `Saldo PP konta — ${world}` : 'Saldo PP — całe konto';
     drawSaldo();
 
-    // === Wykres bilansu netto (po wybraniu świata) ===
-    if (chosen) {
-      $('#chart-balance').innerHTML = barChartSVG(
-        buckets.map(b => ({ label: shortKey(b.key), value: b.net })), { title: `Bilans netto PP wg okresu — ${world}` });
-    } else {
-      $('#chart-balance').innerHTML = `<p class="hint">Wybierz świat w filtrze, aby zobaczyć bilans netto dzień po dniu.</p>`;
-    }
+    // === Wykres bilansu netto (wybrany świat lub wszystkie sumarycznie) ===
+    $('#chart-balance').innerHTML = barChartSVG(
+      buckets.map(b => ({ label: shortKey(b.key), value: b.net })),
+      { title: `Bilans netto PP wg okresu — ${chosen ? world : 'wszystkie światy'}` });
 
     // === Bilans okresowy (lewa kolumna, klikalne daty) ===
     $('#buckets').innerHTML =
