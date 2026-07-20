@@ -297,7 +297,9 @@ function enrich(raw, now = new Date()) {
     change, balance, info, ...cls };
 }
 function entryKey(e) {
-  return `${e.world}|${e.ts}|${e.change}|${e.info}`;
+  // saldo w kluczu: prawdziwe powtórzenia w tej samej minucie (ten sam opis/zmiana)
+  // mają różne "Nowe saldo PP", więc nie zostaną błędnie zwinięte.
+  return `${e.world}|${e.ts}|${e.change}|${e.balance}|${e.info}`;
 }
 
 // src/merge.jsfunction dedupeMerge(existing, incoming) {
@@ -709,7 +711,11 @@ if (typeof document !== 'undefined') {
     d += `<tr class="total-row"><td>BILANS PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
     $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
 
-    $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${worldName})`;
+    // aktualne saldo konta = "Nowe saldo PP" najnowszego wpisu (całe konto, niezależnie od filtrów)
+    const newest = store.reduce((a, b) => (!a || b.ts > a.ts ? b : a), null);
+    const currentPP = newest ? newest.balance : 0;
+    $('#count').innerHTML = `Aktualne saldo konta: <b>${fmtNum(currentPP)} PP</b> · ` +
+      `${store.length} wpisów, ${scoped.length} w widoku (${worldName})`;
   }
 
   async function handleFiles(fileList) {

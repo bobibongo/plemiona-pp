@@ -101,5 +101,5 @@ test('enrich buduje pełny Entry i entryKey jest stabilny', () => {
   assert.equal(e.category, 'handel');
   assert.equal(e.label, 'Kupno');
   assert.equal(typeof e.ts, 'string');
-  assert.equal(entryKey(e), `Świat 231|${e.ts}|-47|Giełda Premium-kupno: Żelazo (20316)`);
+  assert.equal(entryKey(e), `Świat 231|${e.ts}|-47|974|Giełda Premium-kupno: Żelazo (20316)`);
 });

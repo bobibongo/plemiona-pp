@@ -101,5 +101,7 @@ export function enrich(raw, now = new Date()) {
 }
 
 export function entryKey(e) {
-  return `${e.world}|${e.ts}|${e.change}|${e.info}`;
+  // saldo w kluczu: prawdziwe powtórzenia w tej samej minucie (ten sam opis/zmiana)
+  // mają różne "Nowe saldo PP", więc nie zostaną błędnie zwinięte.
+  return `${e.world}|${e.ts}|${e.change}|${e.balance}|${e.info}`;
 }
