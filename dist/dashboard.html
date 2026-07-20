@@ -243,6 +243,10 @@ const SERVICE_MAP = [
   [/miejscowym kupcem/i, 'Handel z miejscowym kupcem'],
   [/wymiana manuskryptu/i, 'Wymiana manuskryptu'],
   [/wskrzeszenie rycerza/i, 'Wskrzeszenie rycerza'],
+  [/rekrutacja rycerza/i, 'Rekrutacja rycerza'],
+  [/przekwalifikowanie rycerza/i, 'Przekwalifikowanie rycerza'],
+  [/trening rycerza/i, 'Trening rycerza'],
+  [/rycerz/i, 'Rycerz — inne'],
   [/zmniejsz koszt budowy/i, 'Zmniejsz koszt budowy'],
 ];
 
@@ -560,8 +564,50 @@ if (typeof document !== 'undefined') {
   const $ = sel => document.querySelector(sel);
   const ALL = '__all__';
 
-  const loadStore = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
-  const saveStore = arr => localStorage.setItem(KEY, JSON.stringify(arr));
+  // Dane trzymamy w pamięci (szybki render). Do localStorage zapisujemy formę
+  // kompaktową (bez pól pochodnych) skompresowaną gzipem — pełny wieloletni log
+  // (dziesiątki tys. wpisów) nie mieści się w localStorage jako pełny JSON.
+  let STORE = [];
+
+  const COMPACT_FIELDS = ['ts', 'world', 'txType', 'change', 'balance', 'info'];
+  const toCompact = e => { const o = {}; for (const k of COMPACT_FIELDS) o[k] = e[k]; return o; };
+  const hydrate = e => ({ ...e, ...classify({ txType: e.txType, info: e.info, changeRaw: e.change }) });
+
+  const bytesToB64 = bytes => { let s = ''; const CH = 0x8000; for (let i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH)); return btoa(s); };
+  const b64ToBytes = b64 => { const s = atob(b64); const a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; };
+  async function gzip(str) {
+    const cs = new CompressionStream('gzip'); const w = cs.writable.getWriter();
+    w.write(new TextEncoder().encode(str)); w.close();
+    return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+  }
+  async function gunzip(bytes) {
+    const ds = new DecompressionStream('gzip'); const w = ds.writable.getWriter();
+    w.write(bytes); w.close();
+    return new TextDecoder().decode(await new Response(ds.readable).arrayBuffer());
+  }
+
+  async function loadStore() {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return [];
+    try {
+      const json = raw.startsWith('gz:') ? await gunzip(b64ToBytes(raw.slice(3))) : raw;
+      const arr = JSON.parse(json);
+      return arr.map(hydrate);   // odtwarza kategorie/etykiety/surowce z info
+    } catch (e) { console.error('Błąd wczytania magazynu:', e); return []; }
+  }
+  async function persist(store) {
+    const json = JSON.stringify(store.map(toCompact));
+    try {
+      if (typeof CompressionStream !== 'undefined') {
+        localStorage.setItem(KEY, 'gz:' + bytesToB64(await gzip(json)));
+      } else {
+        localStorage.setItem(KEY, json);
+      }
+    } catch (e) {
+      try { localStorage.setItem(KEY, json); }
+      catch (e2) { alert('Za dużo danych na magazyn przeglądarki. Zawęź zakres dat lub wyeksportuj i podziel dane.'); }
+    }
+  }
 
   const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
   const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
@@ -605,7 +651,7 @@ if (typeof document !== 'undefined') {
   const block = (title, rows) => `<div class="card block"><h3>${title}</h3>${rows}</div>`;
 
   function render() {
-    const store = loadStore();
+    const store = STORE;
     const worlds = [...new Set(store.map(e => e.world))].sort();
     const sel = $('#f-world');
     const prev = sel.value || ALL;
@@ -719,16 +765,15 @@ if (typeof document !== 'undefined') {
   }
 
   async function handleFiles(fileList) {
-    let store = loadStore();
     for (const f of fileList) {
       const buf = await f.arrayBuffer();
       let text = new TextDecoder('utf-8').decode(buf);
       if (/�/.test(text)) text = new TextDecoder('windows-1250').decode(buf);
       try {
-        store = dedupeMerge(store, normalizeImport(text, f.name, new Date()));
+        STORE = dedupeMerge(STORE, normalizeImport(text, f.name, new Date()));
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
-    saveStore(store);
+    await persist(STORE);
     render();
   }
 
@@ -752,7 +797,7 @@ if (typeof document !== 'undefined') {
     });
   }
 
-  function wire() {
+  async function wire() {
     const dz = $('#dropzone');
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
     dz.addEventListener('dragleave', () => dz.classList.remove('over'));
@@ -770,13 +815,15 @@ if (typeof document !== 'undefined') {
       if (e.target.id === 'clear-sel') { selectedBuckets.clear(); render(); }
     });
     $('#export').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(loadStore(), null, 2)], { type: 'application/json' });
+      // pełne wpisy (z kategoriami) — tablica Entry[], którą import wczyta bez zmian
+      const blob = new Blob([JSON.stringify(STORE)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
       a.download = 'plemiona-scalone.json'; a.click();
     });
-    $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); STORE = []; render(); } });
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
+    STORE = await loadStore();
     render();
     requestAnimationFrame(drawSaldo);
   }

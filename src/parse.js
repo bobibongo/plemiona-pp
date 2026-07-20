@@ -44,6 +44,10 @@ const SERVICE_MAP = [
   [/miejscowym kupcem/i, 'Handel z miejscowym kupcem'],
   [/wymiana manuskryptu/i, 'Wymiana manuskryptu'],
   [/wskrzeszenie rycerza/i, 'Wskrzeszenie rycerza'],
+  [/rekrutacja rycerza/i, 'Rekrutacja rycerza'],
+  [/przekwalifikowanie rycerza/i, 'Przekwalifikowanie rycerza'],
+  [/trening rycerza/i, 'Trening rycerza'],
+  [/rycerz/i, 'Rycerz — inne'],
   [/zmniejsz koszt budowy/i, 'Zmniejsz koszt budowy'],
 ];
 

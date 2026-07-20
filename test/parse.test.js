@@ -76,6 +76,8 @@ test('Usługi: różne typy', () => {
     ['Handluj surowcami z miejscowym kupcem', 'Handel z miejscowym kupcem'],
     ['Wymiana manuskryptu', 'Wymiana manuskryptu'],
     ['Wskrzeszenie rycerza, skrócenie czasu - Paul', 'Wskrzeszenie rycerza'],
+    ['Rekrutacja rycerza, skrócenie czasu - Paul', 'Rekrutacja rycerza'],
+    ['Przekwalifikowanie rycerza', 'Przekwalifikowanie rycerza'],
     ['Zmniejsz koszt budowy - - Pałac (Poziom 1)', 'Zmniejsz koszt budowy'],
   ];
   for (const [info, label] of cases) {
