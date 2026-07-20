@@ -56,12 +56,6 @@ if (typeof document !== 'undefined') {
   const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
-  const tile = (label, val, { unit = 'PP', signed = true, cls, sum = false } = {}) => {
-    const txt = signed ? fmt(val) : fmtNum(val);
-    const c = cls !== undefined ? cls : sc(val);
-    return `<div class="kpi${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
-  };
-
   function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
     const to = $('#f-to').value ? new Date($('#f-to').value + 'T23:59:59Z') : null;
@@ -92,36 +86,41 @@ if (typeof document !== 'undefined') {
     const { buckets, totals: t } = aggregate(scoped, { granularity: gran });
     const rates = effectiveRates(scoped);
 
-    // === BILANS OGÓLNY (konto = wszystkie światy) ===
+    // === ARKUSZ BILANSOWY ===
     const bilansOgolny = dateFiltered.reduce((s, e) => s + e.change, 0);
     const bilansWybrany = scoped.reduce((s, e) => s + e.change, 0);
     const bilansInne = bilansOgolny - bilansWybrany;
-    $('#g-ogolny').innerHTML =
-      tile('Bilans ogólny (konto)', bilansOgolny, { cls: sc(bilansOgolny), sum: true }) +
-      tile(`Świat: ${worldName}`, bilansWybrany) +
-      tile('Inne światy', bilansInne);
-
-    // === HANDEL PP (wybrany świat) ===
     const handelIn = t.breakdown.handel['Sprzedaż'] || 0;
     const handelOut = t.breakdown.handel['Kupno'] || 0;
-    $('#g-handel').innerHTML =
-      tile('Zyskane (sprzedaż)', handelIn, { cls: 'pos' }) +
-      tile('Wydane (kupno)', handelOut, { cls: 'neg' }) +
-      tile('Suma', t.handel, { sum: true });
-
-    // === HANDEL SUROWCE (wybrany świat) ===
-    $('#g-surowce').innerHTML =
-      tile('Kupione', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
-      tile('Sprzedane', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
-      tile('Suma (różnica)', t.resTotal.diff, { unit: 'szt.', sum: true });
-
-    // === WYDATKI POZA HANDLEM (wybrany świat) ===
     const pozaSuma = t.subskrypcje + t.uslugi + t.eventy;
-    $('#g-poza').innerHTML =
-      tile('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
-      tile('Usługi', t.uslugi, { cls: 'neg' }) +
-      tile('Eventy', t.eventy, { cls: sc(t.eventy) }) +
-      tile('Suma', pozaSuma, { sum: true });
+
+    const lrow = (label, val, { unit = 'PP', signed = true, cls, sum = false } = {}) => {
+      const txt = signed ? fmt(val) : fmtNum(val);
+      const c = cls !== undefined ? cls : sc(val);
+      return `<div class="lrow${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
+    };
+    const lsec = (title, rows) => `<div class="lsec"><h4>${title}</h4>${rows}</div>`;
+
+    $('#summary').innerHTML =
+      `<div class="ledger-hero">` +
+        `<div class="eyebrow">Bilans ogólny · konto</div>` +
+        `<div class="hero-num ${sc(bilansOgolny)}">${fmt(bilansOgolny)}<i>PP</i></div>` +
+        `<div class="hero-recon">Świat ${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
+        `Inne światy: <b class="${sc(bilansInne)}">${fmt(bilansInne)}</b></div>` +
+      `</div>` +
+      lsec('Handel PP · wybrany świat',
+        lrow('Zyskane (sprzedaż)', handelIn, { cls: 'pos' }) +
+        lrow('Wydane (kupno)', handelOut, { cls: 'neg' }) +
+        lrow('Suma', t.handel, { sum: true })) +
+      lsec('Handel surowce · wybrany świat',
+        lrow('Kupione', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
+        lrow('Sprzedane', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
+        lrow('Różnica', t.resTotal.diff, { unit: 'szt.', sum: true })) +
+      lsec('Wydatki poza handlem · wybrany świat',
+        lrow('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
+        lrow('Usługi', t.uslugi, { cls: 'neg' }) +
+        lrow('Eventy', t.eventy, { cls: sc(t.eventy) }) +
+        lrow('Suma', pozaSuma, { sum: true }));
 
     // === WYKRES: Saldo PP w czasie (konto, wszystkie światy, zawsze widoczny) ===
     const saldoPts = [...dateFiltered]

@@ -2,12 +2,13 @@
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const M = { left: 52, right: 16, top: 22, bottom: 46 };
-const INK = '#8a7f6a';        // stonowany atrament etykiet
-const GRID = '#ece3cf';       // hairline siatki
-const BASE = '#b7a988';       // linia bazowa / oś
-const POS = '#2e7d32';        // dodatnie
-const NEG = '#c0392b';        // ujemne
-const LINE = '#1565c0';       // seria salda
+const INK = 'var(--c-axis, #8b95a3)';    // atrament etykiet osi
+const GRID = 'var(--c-grid, #e4e9ef)';   // hairline siatki
+const BASE = 'var(--c-base, #cbd3dd)';   // linia bazowa / oś
+const POS = 'var(--c-pos, #1a7f4b)';     // dodatnie
+const NEG = 'var(--c-neg, #c1443a)';     // ujemne
+const LINE = 'var(--c-line, #3b4aa0)';   // seria salda
+const INK2 = 'var(--c-ink2, #566072)';   // tytuł
 
 function empty(width, height) {
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">` +
@@ -46,7 +47,7 @@ function frame(width, height, title, domainMin, domainMax) {
     grid += `<line x1="${M.left}" y1="${y.toFixed(1)}" x2="${width - M.right}" y2="${y.toFixed(1)}" stroke="${GRID}"/>`;
     grid += `<text x="${M.left - 7}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="${INK}" style="font-variant-numeric:tabular-nums">${esc(fmtTick(t))}</text>`;
   }
-  const t = title ? `<text x="${M.left}" y="13" font-size="12.5" fill="#52514e" font-weight="600">${esc(title)}</text>` : '';
+  const t = title ? `<text x="${M.left}" y="13" font-size="12.5" fill="${INK2}" font-weight="600">${esc(title)}</text>` : '';
   return { plotW, plotH, yOf, grid, titleEl: t };
 }
 

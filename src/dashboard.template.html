@@ -8,7 +8,10 @@
 </head>
 <body>
 <header><div class="wrap">
-  <h1>Analiza punktów premium</h1>
+  <div class="brand">
+    <div class="eyebrow">Plemiona · analiza PP</div>
+    <h1>Bilans punktów premium</h1>
+  </div>
   <p id="count">0 wpisów</p>
 </div></header>
 
@@ -25,21 +28,18 @@
   <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
 </section>
 
-<section class="info">
-  <div class="grp accent"><h3>Bilans ogólny (konto)</h3><div id="g-ogolny" class="kpis"></div></div>
-  <div class="grp"><h3>Handel PP (wybrany świat)</h3><div id="g-handel" class="kpis"></div></div>
-  <div class="grp"><h3>Handel surowce (wybrany świat)</h3><div id="g-surowce" class="kpis"></div></div>
-  <div class="grp"><h3>Wydatki poza handlem (wybrany świat)</h3><div id="g-poza" class="kpis"></div></div>
+<section class="hero">
+  <div class="card"><div id="summary"></div></div>
+  <div class="card"><div id="chart-saldo"></div></div>
 </section>
 
-<section class="card"><div id="chart-saldo"></div></section>
 <section class="card"><div id="chart-balance"></div></section>
 
-<section class="card"><h3>Surowce i efektywny kurs (Handel, wybrany świat)</h3><table id="restable"></table></section>
+<section class="card"><h3>Surowce i efektywny kurs · wybrany świat</h3><table id="restable"></table></section>
 
 <div class="grid">
-  <section class="card"><h3>Szczegółowy bilans PP (wybrany świat)</h3><table id="detail"></table></section>
-  <section class="card"><h3>Bilans wg okresu (wybrany świat)</h3><table id="buckets"></table></section>
+  <section class="card"><h3>Szczegółowy bilans PP · wybrany świat</h3><table id="detail"></table></section>
+  <section class="card"><h3>Bilans wg okresu · wybrany świat</h3><table id="buckets"></table></section>
 </div>
 </main>
 <script type="module">/*INJECT:js*/</script>
