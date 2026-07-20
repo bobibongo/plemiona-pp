@@ -101,8 +101,9 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Dwie kolumny: bilans okresowy | konsolidacja */
 .cols { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
-@media (min-width: 900px) { .cols { grid-template-columns: minmax(300px, 380px) 1fr; } }
+@media (min-width: 900px) { .cols { grid-template-columns: 1fr 1fr; } }
 .col-right { display: flex; flex-direction: column; gap: 16px; }
+.rescols { display: grid; grid-template-columns: 1fr; gap: 16px; }
 .subhint { font-size: 12px; color: var(--ink-3); margin-bottom: 8px; font-style: italic; }
 .subhint b { font-style: normal; font-family: var(--mono); color: var(--ink); }
 #buckets td, #buckets th { white-space: nowrap; }
@@ -180,7 +181,10 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
   </section>
   <div class="col-right">
     <div class="subhint" id="cons-scope"></div>
-    <section class="card"><h3>Surowce i efektywny kurs</h3><table id="restable"></table></section>
+    <div class="rescols">
+      <section class="card"><h3>Surowce (Handel)</h3><table id="restable"></table></section>
+      <section class="card"><h3>Efektywny kurs (szt. / 1 PP)</h3><table id="rates"></table></section>
+    </div>
     <section class="card"><h3>Szczegółowy bilans PP</h3><table id="detail"></table></section>
   </div>
 </div>
@@ -688,12 +692,17 @@ if (typeof document !== 'undefined') {
       : `Dane dla całego zakresu`;
 
     $('#restable').innerHTML =
-      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th><th>Kurs kupno</th><th>Kurs sprzedaż</th></tr>` +
+      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
       ['drewno', 'glina', 'zelazo'].map(r => {
         const x = ct.resources[r];
         return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td>` +
-          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`;
+          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td></tr>`;
       }).join('');
+
+    $('#rates').innerHTML =
+      `<tr><th>Surowiec</th><th>Kurs kupno</th><th>Kurs sprzedaż</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r =>
+        `<tr><td>${r}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`).join('');
 
     const cIn = ct.breakdown.handel['Sprzedaż'] || 0;
     const cOut = ct.breakdown.handel['Kupno'] || 0;

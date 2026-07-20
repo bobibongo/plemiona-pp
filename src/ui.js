@@ -182,12 +182,17 @@ if (typeof document !== 'undefined') {
       : `Dane dla całego zakresu`;
 
     $('#restable').innerHTML =
-      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th><th>Kurs kupno</th><th>Kurs sprzedaż</th></tr>` +
+      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
       ['drewno', 'glina', 'zelazo'].map(r => {
         const x = ct.resources[r];
         return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td>` +
-          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`;
+          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td></tr>`;
       }).join('');
+
+    $('#rates').innerHTML =
+      `<tr><th>Surowiec</th><th>Kurs kupno</th><th>Kurs sprzedaż</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r =>
+        `<tr><td>${r}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`).join('');
 
     const cIn = ct.breakdown.handel['Sprzedaż'] || 0;
     const cOut = ct.breakdown.handel['Kupno'] || 0;
