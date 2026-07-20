@@ -28,18 +28,23 @@
   <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
 </section>
 
-<section class="hero">
-  <div class="card"><div id="summary"></div></div>
-  <div class="card" id="saldo-card"><div id="chart-saldo"></div></div>
-</section>
+<section class="kpirow" id="kpi-row"></section>
+<section class="blocks" id="blocks"></section>
 
-<section class="card"><div id="chart-balance"></div></section>
+<section class="card" id="saldo-card"><div id="chart-saldo"></div></section>
+<section class="card" id="netto-card"><div id="chart-balance"></div></section>
 
-<section class="card"><h3>Surowce i efektywny kurs · wybrany świat</h3><table id="restable"></table></section>
-
-<div class="grid">
-  <section class="card"><h3>Szczegółowy bilans PP · wybrany świat</h3><table id="detail"></table></section>
-  <section class="card"><h3>Bilans wg okresu · wybrany świat</h3><table id="buckets"></table></section>
+<div class="cols">
+  <section class="card">
+    <h3>Bilans okresowy</h3>
+    <div class="subhint" id="period-hint"></div>
+    <table id="buckets"></table>
+  </section>
+  <div class="col-right">
+    <div class="subhint" id="cons-scope"></div>
+    <section class="card"><h3>Surowce i efektywny kurs</h3><table id="restable"></table></section>
+    <section class="card"><h3>Szczegółowy bilans PP</h3><table id="detail"></table></section>
+  </div>
 </div>
 </main>
 <script type="module">/*INJECT:js*/</script>

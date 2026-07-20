@@ -56,13 +56,15 @@ if (typeof document !== 'undefined') {
   const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
+  const selectedBuckets = new Set();   // wybrane dni w tabeli okresowej (prawa kolumna liczy dla nich)
+
   // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
   let lastSaldoPts = [];
   function drawSaldo() {
     const box = $('#chart-saldo');
     if (!box) return;
     const w = Math.max(360, Math.round(box.clientWidth) || 900);
-    const h = Math.max(260, Math.round(box.clientHeight) || 300);
+    const h = Math.max(260, Math.round(box.clientHeight) || 320);
     box.innerHTML = lineChartSVG(lastSaldoPts, { title: 'Saldo PP — całe konto', width: w, height: h, endLabel: true });
   }
 
@@ -76,6 +78,19 @@ if (typeof document !== 'undefined') {
     return !(from && d < from) && !(to && d > to);
   };
 
+  const kpi = (label, val, { unit = 'PP', signed = true, cls, sum = false, sub = '' } = {}) => {
+    const txt = signed ? fmt(val) : fmtNum(val);
+    const c = cls !== undefined ? cls : sc(val);
+    return `<div class="kpi${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b>` +
+      (sub ? `<div class="kpi-sub">${sub}</div>` : '') + `</div>`;
+  };
+  const lrow = (label, val, { unit = 'PP', signed = true, cls, sum = false } = {}) => {
+    const txt = signed ? fmt(val) : fmtNum(val);
+    const c = cls !== undefined ? cls : sc(val);
+    return `<div class="lrow${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
+  };
+  const block = (title, rows) => `<div class="card block"><h3>${title}</h3>${rows}</div>`;
+
   function render() {
     const store = loadStore();
     const worlds = [...new Set(store.map(e => e.world))].sort();
@@ -85,18 +100,16 @@ if (typeof document !== 'undefined') {
       worlds.map(w => `<option value="${w}">${w}</option>`).join('');
     sel.value = [...sel.options].some(o => o.value === prev) ? prev : ALL;
     const world = sel.value;
-    const worldName = world === ALL ? 'wszystkie światy' : world;
+    const worldName = world === ALL ? 'Wszystkie światy' : world;
     const chosen = world !== ALL;
 
     const { from, to } = dateBounds();
-    const dateFiltered = store.filter(e => inDate(e, from, to));               // wszystkie światy
+    const dateFiltered = store.filter(e => inDate(e, from, to));
     const scoped = chosen ? dateFiltered.filter(e => e.world === world) : dateFiltered;
 
     const gran = $('#f-gran').value;
     const { buckets, totals: t } = aggregate(scoped, { granularity: gran });
-    const rates = effectiveRates(scoped);
 
-    // === ARKUSZ BILANSOWY ===
     const bilansOgolny = dateFiltered.reduce((s, e) => s + e.change, 0);
     const bilansWybrany = scoped.reduce((s, e) => s + e.change, 0);
     const bilansInne = bilansOgolny - bilansWybrany;
@@ -104,44 +117,43 @@ if (typeof document !== 'undefined') {
     const handelOut = t.breakdown.handel['Kupno'] || 0;
     const pozaSuma = t.subskrypcje + t.uslugi + t.eventy;
 
-    const lrow = (label, val, { unit = 'PP', signed = true, cls, sum = false } = {}) => {
-      const txt = signed ? fmt(val) : fmtNum(val);
-      const c = cls !== undefined ? cls : sc(val);
-      return `<div class="lrow${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
-    };
-    const lsec = (title, rows) => `<div class="lsec"><h4>${title}</h4>${rows}</div>`;
+    // === Górny rząd: 4 kafle głównych sum ===
+    $('#kpi-row').innerHTML =
+      kpi('Bilans ogólny', bilansOgolny, {
+        cls: sc(bilansOgolny), sum: true,
+        sub: `${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
+             `Inne światy: <b class="${sc(bilansInne)}">${fmt(bilansInne)}</b>`,
+      }) +
+      kpi('Handel PP', t.handel) +
+      kpi('Handel surowce', t.resTotal.diff, { unit: 'szt.' }) +
+      kpi('Wydatki poza handlem', pozaSuma);
 
-    $('#summary').innerHTML =
-      `<div class="ledger-hero">` +
-        `<div class="eyebrow">Bilans ogólny · konto</div>` +
-        `<div class="hero-num ${sc(bilansOgolny)}">${fmt(bilansOgolny)}<i>PP</i></div>` +
-        `<div class="hero-recon">${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
-        `Inne światy: <b class="${sc(bilansInne)}">${fmt(bilansInne)}</b></div>` +
-      `</div>` +
-      lsec('Handel PP · wybrany świat',
+    // === 3 bloki szczegółów ===
+    $('#blocks').innerHTML =
+      block('Handel PP',
         lrow('Zyskane (sprzedaż)', handelIn, { cls: 'pos' }) +
         lrow('Wydane (kupno)', handelOut, { cls: 'neg' }) +
         lrow('Suma', t.handel, { sum: true })) +
-      lsec('Handel surowce · wybrany świat',
+      block('Handel surowce',
         lrow('Kupione', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
         lrow('Sprzedane', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
         lrow('Różnica', t.resTotal.diff, { unit: 'szt.', sum: true })) +
-      lsec('Wydatki poza handlem · wybrany świat',
+      block('Wydatki poza handlem',
         lrow('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
         lrow('Usługi', t.uslugi, { cls: 'neg' }) +
         lrow('Eventy', t.eventy, { cls: sc(t.eventy) }) +
         lrow('Suma', pozaSuma, { sum: true }));
 
-    // === WYKRES: Saldo PP w czasie (konto, saldo na koniec okresu = czytelniej) ===
+    // === Wykres salda (cała szerokość) ===
     const shortKey = k => k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7) : k.replace(/^\d{4}-/, '');
     const closing = new Map();
     for (const e of [...dateFiltered].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
-      closing.set(bucketKey(e.ts, gran), e.balance);   // ostatni wpis okresu wygrywa = saldo zamknięcia
+      closing.set(bucketKey(e.ts, gran), e.balance);
     }
     lastSaldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
     drawSaldo();
 
-    // === WYKRES: Bilans netto wg okresu (po wybraniu świata) ===
+    // === Wykres bilansu netto (po wybraniu świata) ===
     if (chosen) {
       $('#chart-balance').innerHTML = barChartSVG(
         buckets.map(b => ({ label: shortKey(b.key), value: b.net })), { title: `Bilans netto PP wg okresu — ${world}` });
@@ -149,36 +161,48 @@ if (typeof document !== 'undefined') {
       $('#chart-balance').innerHTML = `<p class="hint">Wybierz świat w filtrze, aby zobaczyć bilans netto dzień po dniu.</p>`;
     }
 
-    // === Surowce + efektywny kurs (jedna tabela) ===
-    $('#restable').innerHTML =
-      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th><th>Kurs kupno (szt./PP)</th><th>Kurs sprzedaż (szt./PP)</th></tr>` +
-      ['drewno', 'glina', 'zelazo'].map(r => {
-        const x = t.resources[r];
-        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td>` +
-          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td><td>${fmtRate(rates[r].buy)}</td><td>${fmtRate(rates[r].sell)}</td></tr>`;
-      }).join('');
-
-    // === Szczegółowy bilans PP (pionowo: przychody → wydatki → bilans) ===
-    const subRows = obj => Object.entries(obj).sort((a, b) => a[1] - b[1])
-      .map(([k, v]) => `<tr class="sub"><td>${k}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`).join('');
-    let d = `<tr class="grp-row"><td>PRZYCHODY</td><td></td></tr>`;
-    d += `<tr><td>Sprzedaż na giełdzie</td><td class="pos">${fmt(handelIn)}</td></tr>`;
-    if (t.zakup_pp) d += `<tr><td>Zakup PP</td><td class="${sc(t.zakup_pp)}">${fmt(t.zakup_pp)}</td></tr>`;
-    d += `<tr class="grp-row"><td>WYDATKI</td><td></td></tr>`;
-    d += `<tr><td>Zakup na giełdzie</td><td class="neg">${fmt(handelOut)}</td></tr>`;
-    d += `<tr class="cat"><td>Subskrypcje</td><td class="${sc(t.subskrypcje)}">${fmt(t.subskrypcje)}</td></tr>${subRows(t.breakdown.subskrypcje)}`;
-    d += `<tr class="cat"><td>Usługi</td><td class="${sc(t.uslugi)}">${fmt(t.uslugi)}</td></tr>${subRows(t.breakdown.uslugi)}`;
-    d += `<tr class="cat"><td>Eventy</td><td class="${sc(t.eventy)}">${fmt(t.eventy)}</td></tr>${subRows(t.breakdown.eventy)}`;
-    d += `<tr class="total-row"><td>BILANS PP (${worldName})</td><td class="${sc(t.net)}">${fmt(t.net)}</td></tr>`;
-    $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
-
-    // === Bilans wg okresu (prosty) ===
+    // === Bilans okresowy (lewa kolumna, klikalne daty) ===
     $('#buckets').innerHTML =
       `<tr><th>Data</th><th>Bilans PP</th><th>PP z handlu</th><th>Różnica surowców</th></tr>` +
-      buckets.map(b => `<tr><td>${b.key}</td>` +
+      buckets.map(b => `<tr data-key="${b.key}"${selectedBuckets.has(b.key) ? ' class="sel"' : ''}><td>${b.key}</td>` +
         `<td class="${sc(b.net)}">${fmt(b.net)}</td>` +
         `<td class="${sc(b.handel)}">${fmt(b.handel)}</td>` +
         `<td class="${sc(b.resDiff)}">${b.resDiff ? fmt(b.resDiff) : '—'}</td></tr>`).join('');
+    const n = selectedBuckets.size;
+    $('#period-hint').innerHTML = n
+      ? `Wybrane dni: <b>${n}</b> — <span class="link" id="clear-sel">wyczyść</span>`
+      : `Kliknij wiersze, aby policzyć prawą kolumnę dla wybranych dni.`;
+
+    // === Prawa kolumna (konsolidacja dla wyboru) ===
+    const consEntries = n ? scoped.filter(e => selectedBuckets.has(bucketKey(e.ts, gran))) : scoped;
+    const { totals: ct } = aggregate(consEntries, { granularity: gran });
+    const crates = effectiveRates(consEntries);
+    $('#cons-scope').innerHTML = n
+      ? (n === 1 ? `Dane dla <b>1</b> wybranego dnia` : `Dane dla <b>${n}</b> wybranych dni`)
+      : `Dane dla całego zakresu`;
+
+    $('#restable').innerHTML =
+      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th><th>Kurs kupno</th><th>Kurs sprzedaż</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r => {
+        const x = ct.resources[r];
+        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td>` +
+          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`;
+      }).join('');
+
+    const cIn = ct.breakdown.handel['Sprzedaż'] || 0;
+    const cOut = ct.breakdown.handel['Kupno'] || 0;
+    const subRows = obj => Object.entries(obj).sort((a, b) => a[1] - b[1])
+      .map(([k, v]) => `<tr class="sub"><td>${k}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`).join('');
+    let d = `<tr class="grp-row"><td>PRZYCHODY</td><td></td></tr>`;
+    d += `<tr><td>Sprzedaż na giełdzie</td><td class="pos">${fmt(cIn)}</td></tr>`;
+    if (ct.zakup_pp) d += `<tr><td>Zakup PP</td><td class="${sc(ct.zakup_pp)}">${fmt(ct.zakup_pp)}</td></tr>`;
+    d += `<tr class="grp-row"><td>WYDATKI</td><td></td></tr>`;
+    d += `<tr><td>Zakup na giełdzie</td><td class="neg">${fmt(cOut)}</td></tr>`;
+    d += `<tr class="cat"><td>Subskrypcje</td><td class="${sc(ct.subskrypcje)}">${fmt(ct.subskrypcje)}</td></tr>${subRows(ct.breakdown.subskrypcje)}`;
+    d += `<tr class="cat"><td>Usługi</td><td class="${sc(ct.uslugi)}">${fmt(ct.uslugi)}</td></tr>${subRows(ct.breakdown.uslugi)}`;
+    d += `<tr class="cat"><td>Eventy</td><td class="${sc(ct.eventy)}">${fmt(ct.eventy)}</td></tr>${subRows(ct.breakdown.eventy)}`;
+    d += `<tr class="total-row"><td>BILANS PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
+    $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
 
     $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${worldName})`;
   }
@@ -223,7 +247,17 @@ if (typeof document !== 'undefined') {
     dz.addEventListener('dragleave', () => dz.classList.remove('over'));
     dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
     $('#file').addEventListener('change', e => handleFiles(e.target.files));
-    ['#f-world', '#f-from', '#f-to', '#f-gran'].forEach(s => $(s).addEventListener('change', render));
+    ['#f-world', '#f-from', '#f-to', '#f-gran'].forEach(s => $(s).addEventListener('change', () => { selectedBuckets.clear(); render(); }));
+    $('#buckets').addEventListener('click', e => {
+      const tr = e.target.closest('tr[data-key]');
+      if (!tr) return;
+      const k = tr.getAttribute('data-key');
+      selectedBuckets.has(k) ? selectedBuckets.delete(k) : selectedBuckets.add(k);
+      render();
+    });
+    document.addEventListener('click', e => {
+      if (e.target.id === 'clear-sel') { selectedBuckets.clear(); render(); }
+    });
     $('#export').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(loadStore(), null, 2)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -233,7 +267,7 @@ if (typeof document !== 'undefined') {
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
     render();
-    requestAnimationFrame(drawSaldo);   // dokładny pomiar po ułożeniu layoutu
+    requestAnimationFrame(drawSaldo);
   }
 
   if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', wire);
