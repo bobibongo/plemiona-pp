@@ -6,9 +6,10 @@ import { bucketKey, aggregate, effectiveRates } from '../src/aggregate.js';
 const E = (ts, change, category, extra = {}) =>
   ({ ts, world: 'Świat 231', change, category, info: '', ...extra });
 
-test('bucketKey day/week', () => {
+test('bucketKey day/week/month', () => {
   assert.equal(bucketKey('2026-07-19T22:30:00.000Z', 'day'), '2026-07-19');
   assert.match(bucketKey('2026-07-19T22:30:00.000Z', 'week'), /^2026-W\d{2}$/);
+  assert.equal(bucketKey('2026-07-19T22:30:00.000Z', 'month'), '2026-07');
 });
 
 test('aggregate sumuje kategorie, netto oraz przychody/wydatki', () => {

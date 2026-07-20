@@ -10,11 +10,13 @@ function isoWeek(d) {
 
 export function bucketKey(ts, granularity) {
   const d = new Date(ts);
+  const y = d.getUTCFullYear(), m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  if (granularity === 'month') return `${y}-${m}`;
   if (granularity === 'week') {
     const { year, week } = isoWeek(d);
     return `${year}-W${String(week).padStart(2, '0')}`;
   }
-  const y = d.getUTCFullYear(), m = String(d.getUTCMonth() + 1).padStart(2, '0'), day = String(d.getUTCDate()).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 

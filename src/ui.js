@@ -99,6 +99,16 @@ if (typeof document !== 'undefined') {
   const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
   const selectedBuckets = new Set();   // wybrane dni w tabeli okresowej (prawa kolumna liczy dla nich)
+  let granTouched = false;             // czy użytkownik ręcznie wybrał granulację
+
+  // Auto-dobór granulacji do długości zakresu (długi zakres = czytelniej miesiącami)
+  function suggestGran(entries) {
+    if (entries.length < 2) return 'day';
+    let min = Infinity, max = -Infinity;
+    for (const e of entries) { const t = +new Date(e.ts); if (t < min) min = t; if (t > max) max = t; }
+    const days = (max - min) / 86400000;
+    return days > 730 ? 'month' : days > 180 ? 'week' : 'day';
+  }
 
   // Wykres salda rysujemy na dokładny rozmiar kontenera (wypełnia całą wysokość karty).
   let lastSaldoPts = [];
@@ -150,7 +160,8 @@ if (typeof document !== 'undefined') {
     const dateFiltered = store.filter(e => inDate(e, from, to));
     const scoped = chosen ? dateFiltered.filter(e => e.world === world) : dateFiltered;
 
-    const gran = $('#f-gran').value;
+    let gran = $('#f-gran').value;
+    if (!granTouched) { gran = suggestGran(scoped); if ($('#f-gran').value !== gran) $('#f-gran').value = gran; }
     const { buckets, totals: t } = aggregate(scoped, { granularity: gran });
 
     const handelIn = t.breakdown.handel['Sprzedaż'] || 0;
@@ -182,7 +193,10 @@ if (typeof document !== 'undefined') {
         lrow('Suma', pozaSuma, { sum: true }));
 
     // === Wykres salda — saldo konta w okresie aktywności wybranego świata ===
-    const shortKey = k => k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7) : k.replace(/^\d{4}-/, '');
+    const shortKey = k =>
+      k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7)          // YYYY-MM-DD -> DD.MM
+        : /^\d{4}-\d{2}$/.test(k) ? k.slice(5, 7) + '.' + k.slice(0, 4) // YYYY-MM -> MM.YYYY
+          : k.replace(/^\d{4}-/, '');                                    // YYYY-Www -> Www
     const closing = new Map();
     for (const e of [...scoped].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
       closing.set(bucketKey(e.ts, gran), e.balance);
@@ -287,7 +301,8 @@ if (typeof document !== 'undefined') {
     dz.addEventListener('dragleave', () => dz.classList.remove('over'));
     dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); handleFiles(e.dataTransfer.files); });
     $('#file').addEventListener('change', e => handleFiles(e.target.files));
-    ['#f-world', '#f-from', '#f-to', '#f-gran'].forEach(s => $(s).addEventListener('change', () => { selectedBuckets.clear(); render(); }));
+    ['#f-world', '#f-from', '#f-to'].forEach(s => $(s).addEventListener('change', () => { granTouched = false; selectedBuckets.clear(); render(); }));
+    $('#f-gran').addEventListener('change', () => { granTouched = true; selectedBuckets.clear(); render(); });
     $('#buckets').addEventListener('click', e => {
       const tr = e.target.closest('tr[data-key]');
       if (!tr) return;
