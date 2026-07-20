@@ -6,6 +6,15 @@ const stripModule = code => code
   .replace(/^\s*import[^\n]*\n/gm, '')
   .replace(/^\s*export\s+/gm, '');
 
+// Usuwa komentarze przed sklejeniem kodu w jedną linię (bookmarklet).
+// Bez tego pierwszy // połyka cały kod po zamianie nowych linii na spacje.
+// Bezpieczne dla collector.js/shared-date.js: brak // wewnątrz stringów i regexów.
+const stripComments = code => code
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split(/\r?\n/)
+  .map(line => line.replace(/\/\/.*/, ''))
+  .join('\n');
+
 const LOGIC = ['src/shared-date.js', 'src/parse.js', 'src/merge.js', 'src/aggregate.js', 'src/charts.js', 'src/ui.js'];
 
 export function buildDashboard() {
@@ -17,8 +26,9 @@ export function buildDashboard() {
 }
 
 export function buildBookmarklet() {
-  const js = ['src/shared-date.js', 'src/collector.js'].map(p => stripModule(read('./' + p))).join('\n');
-  const oneLine = 'javascript:(()=>{' + js.replace(/\n\s*/g, ' ') + '})()';
+  const js = ['src/shared-date.js', 'src/collector.js']
+    .map(p => stripComments(stripModule(read('./' + p)))).join('\n');
+  const oneLine = 'javascript:(()=>{' + js.replace(/\n\s*/g, ' ').trim() + '})()';
   return oneLine;
 }
 
