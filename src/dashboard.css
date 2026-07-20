@@ -20,7 +20,14 @@ button:hover { background: #f0e6d2; }
 .pos { color: #2e7d32; } .neg { color: #c62828; }
 .card { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 12px; overflow-x: auto; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.sect { margin: 18px 20px 4px; font-size: 16px; }
+.otherworlds { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.hint, .muted { color: #888; font-size: 13px; }
+h3 small { color: #666; font-weight: normal; font-size: 12px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { border: 1px solid #e0d6c0; padding: 4px 8px; text-align: right; }
 th:first-child, td:first-child { text-align: left; }
-svg { width: 100%; height: auto; }
+svg.chart { width: 100%; height: auto; display: block; }
+svg .bar:hover, svg .dot:hover { opacity: .75; cursor: pointer; }
+#tt { position: fixed; z-index: 9999; display: none; pointer-events: none; background: #2b1d10; color: #f4e9d8;
+  padding: 6px 9px; border-radius: 6px; font-size: 12px; line-height: 1.35; box-shadow: 0 2px 8px rgba(0,0,0,.3); }

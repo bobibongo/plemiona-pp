@@ -26,10 +26,17 @@ button:hover { background: #f0e6d2; }
 .pos { color: #2e7d32; } .neg { color: #c62828; }
 .card { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 12px; overflow-x: auto; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.sect { margin: 18px 20px 4px; font-size: 16px; }
+.otherworlds { background: #fffdf8; border: 1px solid #e0d6c0; border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.hint, .muted { color: #888; font-size: 13px; }
+h3 small { color: #666; font-weight: normal; font-size: 12px; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { border: 1px solid #e0d6c0; padding: 4px 8px; text-align: right; }
 th:first-child, td:first-child { text-align: left; }
-svg { width: 100%; height: auto; }
+svg.chart { width: 100%; height: auto; display: block; }
+svg .bar:hover, svg .dot:hover { opacity: .75; cursor: pointer; }
+#tt { position: fixed; z-index: 9999; display: none; pointer-events: none; background: #2b1d10; color: #f4e9d8;
+  padding: 6px 9px; border-radius: 6px; font-size: 12px; line-height: 1.35; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
 </style>
 </head>
 <body>
@@ -48,14 +55,16 @@ svg { width: 100%; height: auto; }
   <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
 </section>
 <section id="kpis" class="kpis"></section>
-<section class="card"><div id="chart-balance"></div></section>
+<section id="otherworlds" class="otherworlds" style="display:none"></section>
 <section class="card"><div id="chart-saldo"></div></section>
+<section class="card"><div id="chart-balance"></div></section>
 <section class="grid">
-  <div class="card"><h3>Efektywny kurs (PP/1000)</h3><table id="rates"></table></div>
-  <div class="card"><h3>Wolumen surowców</h3><table id="res"></table></div>
-  <div class="card"><h3>Wydatki na usługi</h3><table id="svc"></table></div>
+  <div class="card"><h3>Efektywny kurs (surowce na 1 PP)</h3><table id="rates"></table></div>
+  <div class="card"><h3>Wolumen surowców (Handel)</h3><table id="res"></table></div>
 </section>
-<section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
+<h2 class="sect">Rozbicie na kategorie</h2>
+<section id="breakdown" class="grid"></section>
+<section class="card"><h3>Bilans netto PP wg okresu</h3><table id="buckets"></table></section>
 <script type="module">// src/shared-date.js
 // Format: "DD.MM. HH:MM" (rok bieżący) lub "DD.MM.YY HH:MM" (rok 20YY).
 const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parsePremiumDate(dateRaw, now = new Date()) {
@@ -67,8 +76,10 @@ const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parseP
   return new Date(year, Number(mm) - 1, Number(dd), Number(hh), Number(min), 0, 0);
 }
 
-// src/parse.js
-const NBSP = / /g;function parseNumber(raw) {
+// src/parse.js
+
+const NBSP = / /g;
+function parseNumber(raw) {
   const s = String(raw).replace(NBSP, '').replace(/\s/g, '').replace('+', '');
   const n = Number(s);
   if (Number.isNaN(n)) throw new Error(`Nieparsowalna liczba: ${JSON.stringify(raw)}`);
@@ -79,7 +90,8 @@ const RESOURCE_MAP = [
   [/drewno/i, 'drewno'],
   [/glina/i, 'glina'],
   [/(żelazo|zelazo)/i, 'zelazo'],
-];function extractResource(info) {
+];
+function extractResource(info) {
   const s = String(info);
   const amountMatch = /\((\d+)\)/.exec(s);
   for (const [re, key] of RESOURCE_MAP) {
@@ -90,30 +102,57 @@ const RESOURCE_MAP = [
   return { resource: null, amount: null };
 }
 
-const SERVICE_SUBTYPES = [
-  [/natychmiastowe zako[ńn]czenie/i, 'natychmiastowe_zakonczenie'],
-  [/redukcja czasu/i, 'redukcja_czasu'],
-  [/miejscowym kupcem/i, 'handel_kupiec'],
-  [/rycerz/i, 'rycerz'],
-  [/zmniejsz koszt budowy/i, 'zmniejsz_koszt'],
-];function classify(raw) {
+// Kolejność ma znaczenie — pierwszy pasujący wygrywa.
+const SUBSCRIPTION_MAP = [
+  [/konto premium/i, 'Konto premium'],
+  [/^premium\b/i, 'Konto premium'],
+  [/men[ae]d[żz]er kont/i, 'Menadżer konta'],
+  [/asystent farmera/i, 'Asystent farmera'],
+  [/20\s*%.*(żelaz|zelaz)/i, '+20% żelaza'],
+  [/20\s*%.*glin/i, '+20% gliny'],
+  [/20\s*%.*drewn/i, '+20% drewna'],
+];
+
+const SERVICE_MAP = [
+  [/redukcja czasu/i, 'Redukcja czasu budowy'],
+  [/natychmiastowe zako[ńn]czenie/i, 'Natychmiastowe zakończenie'],
+  [/miejscowym kupcem/i, 'Handel z miejscowym kupcem'],
+  [/wymiana manuskryptu/i, 'Wymiana manuskryptu'],
+  [/wskrzeszenie rycerza/i, 'Wskrzeszenie rycerza'],
+  [/zmniejsz koszt budowy/i, 'Zmniejsz koszt budowy'],
+];
+
+// Nazwa eventu: bez treści w nawiasach i bez ogona po " - ".
+function eventLabel(info) {
+  const s = String(info).replace(/\(.*?\)/g, '').replace(/\s*-\s.*$/, '').trim();
+  return s || String(info).trim();
+}
+function classify(raw) {
   const info = String(raw.info || '');
   const txType = String(raw.txType || '').replace(NBSP, '').trim();
   const { resource, amount } = extractResource(info);
 
-  if (/-kupno:/i.test(info)) return { category: 'arbitraz', subtype: 'kupno', resource, amount };
-  if (/-sprzeda[żz]:/i.test(info)) return { category: 'arbitraz', subtype: 'sprzedaz', resource, amount };
+  // 1. Handel (po treści, niezależnie od typu transakcji)
+  if (/-kupno:/i.test(info)) return { category: 'handel', subtype: 'kupno', label: 'Kupno', resource, amount };
+  if (/-sprzeda[żz]:/i.test(info)) return { category: 'handel', subtype: 'sprzedaz', label: 'Sprzedaż', resource, amount };
 
-  if (/^Premium\b/i.test(info)) return { category: 'zewnetrzne_pp', subtype: 'subskrypcja', resource: null, amount: null };
-  if (txType === 'Kupno') return { category: 'zewnetrzne_pp', subtype: 'zakup_pp', resource: null, amount: null };
-
-  if (txType === 'Użycie') {
-    for (const [re, sub] of SERVICE_SUBTYPES) {
-      if (re.test(info)) return { category: 'usluga', subtype: sub, resource: null, amount: null };
-    }
-    return { category: 'usluga', subtype: 'inne', resource: null, amount: null };
+  // 2. Subskrypcje
+  for (const [re, label] of SUBSCRIPTION_MAP) {
+    if (re.test(info)) return { category: 'subskrypcje', subtype: label, label, resource: null, amount: null };
   }
-  return { category: 'inne', subtype: 'inne', resource: null, amount: null };
+
+  // 3. Usługi
+  for (const [re, label] of SERVICE_MAP) {
+    if (re.test(info)) return { category: 'uslugi', subtype: label, label, resource: null, amount: null };
+  }
+
+  // 4. Zakup PP (realne pieniądze lub przeniesienie PP od graczy)
+  if (txType === 'Kupno' || txType === 'Przeniesienie') {
+    return { category: 'zakup_pp', subtype: 'zakup_pp', label: 'Zakup PP', resource: null, amount: null };
+  }
+
+  // 5. Eventy — reszta
+  return { category: 'eventy', subtype: 'event', label: eventLabel(info), resource: null, amount: null };
 }
 
 // Zegar ścienny z logu (czas polski) zapisujemy jako UTC-ISO, żeby dzień/tydzień
@@ -122,7 +161,8 @@ function wallClockISO(d) {
   const p = (n, w = 2) => String(n).padStart(w, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
     `${p(d.getHours())}:${p(d.getMinutes())}:00.000Z`;
-}function enrich(raw, now = new Date()) {
+}
+function enrich(raw, now = new Date()) {
   const ts = wallClockISO(parsePremiumDate(raw.dateRaw, now));
   const change = parseNumber(raw.changeRaw);
   const balance = parseNumber(raw.balanceRaw);
@@ -131,7 +171,8 @@ function wallClockISO(d) {
   const cls = classify(raw);
   return { ts, world, txType: String(raw.txType).replace(NBSP, '').trim(),
     change, balance, info, ...cls };
-}function entryKey(e) {
+}
+function entryKey(e) {
   return `${e.world}|${e.ts}|${e.change}|${e.info}`;
 }
 
@@ -150,7 +191,8 @@ function isoWeek(d) {
   const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
   const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
   return { year: date.getUTCFullYear(), week };
-}function bucketKey(ts, granularity) {
+}
+function bucketKey(ts, granularity) {
   const d = new Date(ts);
   if (granularity === 'week') {
     const { year, week } = isoWeek(d);
@@ -160,36 +202,43 @@ function isoWeek(d) {
   return `${y}-${m}-${day}`;
 }
 
-const RES = ['drewno', 'glina', 'zelazo'];function aggregate(entries, { granularity }) {
+const RES = ['drewno', 'glina', 'zelazo'];
+const CATEGORIES = ['handel', 'zakup_pp', 'subskrypcje', 'uslugi', 'eventy'];
+function aggregate(entries, { granularity }) {
   const map = new Map();
   const totals = {
-    earned: 0, spent: 0, net: 0, arbitrageProfit: 0, serviceCost: 0, externalPP: 0,
-    resources: Object.fromEntries(RES.map(r => [r, { bought: 0, sold: 0 }])),
-    serviceBreakdown: {},
+    net: 0,
+    resources: Object.fromEntries(RES.map(r => [r, { bought: 0, sold: 0, diff: 0 }])),
+    breakdown: Object.fromEntries(CATEGORIES.map(c => [c, {}])),
   };
+  for (const c of CATEGORIES) totals[c] = 0;
+
   for (const e of entries) {
     const key = bucketKey(e.ts, granularity);
-    if (!map.has(key)) map.set(key, { key, earned: 0, spent: 0, net: 0, arbitrageProfit: 0, serviceCost: 0, externalPP: 0 });
-    const b = map.get(key);
-    if (e.change >= 0) { b.earned += e.change; totals.earned += e.change; }
-    else { b.spent += e.change; totals.spent += e.change; }
-    b.net += e.change; totals.net += e.change;
-    if (e.category === 'arbitraz') { b.arbitrageProfit += e.change; totals.arbitrageProfit += e.change; }
-    if (e.category === 'usluga') {
-      b.serviceCost += e.change; totals.serviceCost += e.change;
-      totals.serviceBreakdown[e.subtype] = (totals.serviceBreakdown[e.subtype] || 0) + e.change;
+    if (!map.has(key)) map.set(key, { key, net: 0 });
+    map.get(key).net += e.change;
+    totals.net += e.change;
+
+    if (CATEGORIES.includes(e.category)) {
+      totals[e.category] += e.change;
+      const label = e.label || e.subtype || 'inne';
+      totals.breakdown[e.category][label] = (totals.breakdown[e.category][label] || 0) + e.change;
     }
-    if (e.category === 'zewnetrzne_pp') { b.externalPP += e.change; totals.externalPP += e.change; }
-    if (e.category === 'arbitraz' && e.resource && e.amount) {
+    if (e.category === 'handel' && e.resource && e.amount) {
       totals.resources[e.resource][e.subtype === 'kupno' ? 'bought' : 'sold'] += e.amount;
     }
   }
+  for (const r of RES) totals.resources[r].diff = totals.resources[r].bought - totals.resources[r].sold;
+
   const buckets = [...map.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   return { buckets, totals };
-}function effectiveRates(entries) {
+}
+
+// Efektywny kurs jako ILOŚĆ SUROWCA na 1 PP (kupno i sprzedaż osobno).
+function effectiveRates(entries) {
   const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));
   for (const e of entries) {
-    if (e.category !== 'arbitraz' || !e.resource || !e.amount) continue;
+    if (e.category !== 'handel' || !e.resource || !e.amount) continue;
     const a = acc[e.resource];
     if (e.subtype === 'kupno') { a.buyPP += Math.abs(e.change); a.buyAmt += e.amount; }
     else { a.sellPP += Math.abs(e.change); a.sellAmt += e.amount; }
@@ -198,8 +247,8 @@ const RES = ['drewno', 'glina', 'zelazo'];function aggregate(entries, { granula
   for (const r of RES) {
     const a = acc[r];
     out[r] = {
-      buy: a.buyAmt ? (a.buyPP / a.buyAmt) * 1000 : null,
-      sell: a.sellAmt ? (a.sellPP / a.sellAmt) * 1000 : null,
+      buy: a.buyPP ? a.buyAmt / a.buyPP : null,
+      sell: a.sellPP ? a.sellAmt / a.sellPP : null,
     };
   }
   return out;
@@ -208,46 +257,101 @@ const RES = ['drewno', 'glina', 'zelazo'];function aggregate(entries, { granula
 // src/charts.js
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+const M = { left: 56, right: 14, top: 22, bottom: 42 };
+
 function empty(width, height) {
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">` +
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">` +
     `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#888">brak danych</text></svg>`;
-}function barChartSVG(series, opts = {}) {
-  const { width = 640, height = 240, title = '' } = opts;
-  if (!series.length) return empty(width, height);
-  const pad = 30;
-  const max = Math.max(1, ...series.map(s => Math.abs(s.value)));
-  const zeroY = height / 2;
-  const bw = (width - pad * 2) / series.length;
-  const bars = series.map((s, i) => {
-    const h = (Math.abs(s.value) / max) * (height / 2 - pad);
-    const x = pad + i * bw + bw * 0.15;
-    const w = bw * 0.7;
-    const y = s.value >= 0 ? zeroY - h : zeroY;
-    const color = s.color || (s.value >= 0 ? '#2e7d32' : '#c62828');
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(1, h).toFixed(1)}" fill="${color}"><title>${esc(s.label)}: ${s.value}</title></rect>`;
-  }).join('');
-  const t = title ? `<text x="8" y="16" font-size="13" fill="#333">${esc(title)}</text>` : '';
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${t}` +
-    `<line x1="${pad}" y1="${zeroY}" x2="${width - pad}" y2="${zeroY}" stroke="#ccc"/>${bars}</svg>`;
-}function lineChartSVG(points, opts = {}) {
-  const { width = 640, height = 240, title = '' } = opts;
-  if (!points.length) return empty(width, height);
-  const pad = 30;
-  const ys = points.map(p => p.y);
-  const min = Math.min(...ys), max = Math.max(...ys);
-  const range = max - min || 1;
-  const stepX = (width - pad * 2) / Math.max(1, points.length - 1);
-  const coords = points.map((p, i) => {
-    const x = pad + i * stepX;
-    const y = height - pad - ((p.y - min) / range) * (height - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const t = title ? `<text x="8" y="16" font-size="13" fill="#333">${esc(title)}</text>` : '';
-  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${t}` +
-    `<polyline fill="none" stroke="#1565c0" stroke-width="2" points="${coords}"/></svg>`;
 }
 
-// src/ui.jsfunction parseCSV(text) {
+// Ładne wartości podziałki osi Y.
+function niceTicks(min, max, count = 5) {
+  if (min === max) { min -= 1; max += 1; }
+  const span = max - min;
+  const rawStep = span / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const step = (norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1) * mag;
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let v = start; v <= end + step / 2; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+  return ticks;
+}
+
+function fmtTick(n) {
+  const a = Math.abs(n);
+  if (a >= 1000) return (n / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + 'k';
+  return n.toLocaleString('pl-PL', { maximumFractionDigits: 0 });
+}
+
+// Wspólne rusztowanie: osie Y (siatka + etykiety) i podpis tytułu.
+function frame(width, height, title, domainMin, domainMax) {
+  const plotW = width - M.left - M.right;
+  const plotH = height - M.top - M.bottom;
+  const yOf = v => M.top + (domainMax - v) / (domainMax - domainMin) * plotH;
+  const ticks = niceTicks(domainMin, domainMax);
+  let grid = '';
+  for (const t of ticks) {
+    if (t < domainMin - 1e-9 || t > domainMax + 1e-9) continue;
+    const y = yOf(t);
+    grid += `<line x1="${M.left}" y1="${y.toFixed(1)}" x2="${width - M.right}" y2="${y.toFixed(1)}" stroke="#e6ddc8"/>`;
+    grid += `<text x="${M.left - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#777">${esc(fmtTick(t))}</text>`;
+  }
+  const t = title ? `<text x="${M.left}" y="14" font-size="13" fill="#333">${esc(title)}</text>` : '';
+  return { plotW, plotH, yOf, grid, titleEl: t };
+}
+function barChartSVG(series, opts = {}) {
+  const { width = 900, height = 260, title = '' } = opts;
+  if (!series.length) return empty(width, height);
+  const vals = series.map(s => s.value);
+  const domainMax = Math.max(1, 0, ...vals);
+  const domainMin = Math.min(0, ...vals);
+  const { plotW, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
+  const zeroY = yOf(0);
+  const bw = plotW / series.length;
+  const everyX = Math.ceil(series.length / 14);
+  let bars = '', xlabels = '';
+  series.forEach((s, i) => {
+    const x = M.left + i * bw + bw * 0.15;
+    const w = bw * 0.7;
+    const y = s.value >= 0 ? yOf(s.value) : zeroY;
+    const h = Math.max(1, Math.abs(yOf(s.value) - zeroY));
+    const color = s.color || (s.value >= 0 ? '#2e7d32' : '#c62828');
+    bars += `<rect class="bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" data-label="${esc(s.label)}" data-value="${s.value}"><title>${esc(s.label)}: ${s.value}</title></rect>`;
+    if (i % everyX === 0) {
+      const cx = M.left + i * bw + bw / 2;
+      xlabels += `<text x="${cx.toFixed(1)}" y="${(height - M.bottom + 14).toFixed(1)}" text-anchor="end" font-size="10" fill="#777" transform="rotate(-40 ${cx.toFixed(1)} ${(height - M.bottom + 14).toFixed(1)})">${esc(s.label)}</text>`;
+    }
+  });
+  const zeroLine = `<line x1="${M.left}" y1="${zeroY.toFixed(1)}" x2="${width - M.right}" y2="${zeroY.toFixed(1)}" stroke="#b0a080"/>`;
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">${titleEl}${grid}${zeroLine}${bars}${xlabels}</svg>`;
+}
+function lineChartSVG(points, opts = {}) {
+  const { width = 900, height = 260, title = '' } = opts;
+  if (!points.length) return empty(width, height);
+  const ys = points.map(p => p.y);
+  let domainMin = Math.min(...ys), domainMax = Math.max(...ys);
+  if (domainMin === domainMax) { domainMin -= 1; domainMax += 1; }
+  const { plotW, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
+  const xOf = i => M.left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+  const coords = points.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.y).toFixed(1)}`).join(' ');
+  let dots = '';
+  for (let i = 0; i < points.length; i++) {
+    dots += `<circle class="dot" cx="${xOf(i).toFixed(1)}" cy="${yOf(points[i].y).toFixed(1)}" r="2.5" fill="#1565c0" data-label="${esc(points[i].x)}" data-value="${points[i].y}"><title>${esc(points[i].x)}: ${points[i].y}</title></circle>`;
+  }
+  const everyX = Math.ceil(points.length / 7);
+  let xlabels = '';
+  for (let i = 0; i < points.length; i += everyX) {
+    const label = String(points[i].x).slice(0, 10);
+    xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 14).toFixed(1)}" text-anchor="middle" font-size="10" fill="#777">${esc(label)}</text>`;
+  }
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart">${titleEl}${grid}` +
+    `<polyline fill="none" stroke="#1565c0" stroke-width="1.6" points="${coords}"/>${dots}${xlabels}</svg>`;
+}
+
+// src/ui.js
+function parseCSV(text) {
   const firstLine = text.split('\n')[0];
   const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
   const rows = [];
@@ -267,7 +371,8 @@ function empty(width, height) {
   return rows;
 }
 
-const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];function normalizeImport(fileText, fileName, now = new Date()) {
+const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
+function normalizeImport(fileText, fileName, now = new Date()) {
   const trimmed = fileText.trim();
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     const data = JSON.parse(trimmed);
@@ -275,9 +380,8 @@ const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  // CSV
   const rows = parseCSV(fileText);
-  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;   // pomiń nagłówek
+  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;
   return rows.slice(start).filter(r => r.length >= 6).map(cells => {
     const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
     return enrich(raw, now);
@@ -288,67 +392,111 @@ const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
 if (typeof document !== 'undefined') {
   const KEY = 'plemiona_pp_store_v1';
   const $ = sel => document.querySelector(sel);
+  const ALL = '__all__';
 
   const loadStore = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const saveStore = arr => localStorage.setItem(KEY, JSON.stringify(arr));
 
   const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
+  const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
+  const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
 
-  function applyFilters(entries) {
-    const world = $('#f-world').value;
+  const CATS = [
+    ['handel', 'Handel'],
+    ['zakup_pp', 'Zakup PP'],
+    ['subskrypcje', 'Subskrypcje'],
+    ['uslugi', 'Usługi'],
+    ['eventy', 'Eventy'],
+  ];
+
+  function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
     const to = $('#f-to').value ? new Date($('#f-to').value + 'T23:59:59Z') : null;
-    return entries.filter(e => {
-      const d = new Date(e.ts);
-      if (from && d < from) return false;
-      if (to && d > to) return false;
-      if (world && world !== '__all__' && e.world !== world) return false;
-      return true;
-    });
+    return { from, to };
   }
+  const inDate = (e, from, to) => {
+    const d = new Date(e.ts);
+    return !(from && d < from) && !(to && d > to);
+  };
 
   function render() {
     const store = loadStore();
     const worlds = [...new Set(store.map(e => e.world))].sort();
     const sel = $('#f-world');
-    const prev = sel.value;
-    sel.innerHTML = `<option value="__all__">Wszystkie (sumarycznie)</option>` +
+    const prev = sel.value || ALL;
+    sel.innerHTML = `<option value="${ALL}">Wszystkie (sumarycznie)</option>` +
       worlds.map(w => `<option value="${w}">${w}</option>`).join('');
-    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : ALL;
+    const world = sel.value;
+
+    const { from, to } = dateBounds();
+    const dateFiltered = store.filter(e => inDate(e, from, to));           // wszystkie światy w okresie
+    const scoped = world === ALL ? dateFiltered : dateFiltered.filter(e => e.world === world);
 
     const gran = $('#f-gran').value;
-    const filtered = applyFilters(store);
-    const { buckets, totals } = aggregate(filtered, { granularity: gran });
-    const rates = effectiveRates(filtered);
+    const { buckets, totals } = aggregate(scoped, { granularity: gran });
+    const rates = effectiveRates(scoped);
+    const bilansPP = dateFiltered.reduce((s, e) => s + e.change, 0);       // wszystkie światy
 
-    $('#kpis').innerHTML = `
-      <div class="kpi"><span>Arbitraż (PP)</span><b class="${totals.arbitrageProfit >= 0 ? 'pos' : 'neg'}">${fmt(totals.arbitrageProfit)}</b></div>
-      <div class="kpi"><span>Usługi (PP)</span><b class="neg">${fmt(totals.serviceCost)}</b></div>
-      <div class="kpi"><span>Zewnętrzne PP</span><b>${fmt(totals.externalPP)}</b></div>
-      <div class="kpi"><span>Bilans netto</span><b class="${totals.net >= 0 ? 'pos' : 'neg'}">${fmt(totals.net)}</b></div>`;
+    // KPI
+    const kpi = (label, val, cls = '') => `<div class="kpi"><span>${label}</span><b class="${cls}">${fmt(val)}</b></div>`;
+    $('#kpis').innerHTML =
+      kpi('Bilans PP (wszystkie światy)', bilansPP, bilansPP >= 0 ? 'pos' : 'neg') +
+      kpi('Bilans PP Handel', totals.handel, totals.handel >= 0 ? 'pos' : 'neg') +
+      kpi('Zakup PP', totals.zakup_pp) +
+      kpi('Subskrypcje', totals.subskrypcje, 'neg') +
+      kpi('Usługi', totals.uslugi, 'neg') +
+      kpi('Eventy', totals.eventy, totals.eventy >= 0 ? 'pos' : 'neg');
 
+    // Inne światy: jedna liczba netto (tylko gdy wybrano konkretny świat)
+    const ow = $('#otherworlds');
+    if (world === ALL) {
+      ow.style.display = 'none';
+    } else {
+      const other = dateFiltered.filter(e => e.world !== world).reduce((s, e) => s + e.change, 0);
+      ow.style.display = '';
+      ow.innerHTML = `<span>Inne światy razem (netto PP, ten sam okres):</span> <b class="${other >= 0 ? 'pos' : 'neg'}">${fmt(other)}</b>`;
+    }
+
+    // Wykresy — saldo najpierw, potem netto
+    if (world === ALL) {
+      $('#chart-saldo').innerHTML = `<p class="hint">Saldo PP w czasie pokazujemy dla pojedynczego świata — wybierz świat w filtrze.</p>`;
+    } else {
+      $('#chart-saldo').innerHTML = lineChartSVG(
+        [...scoped].reverse().map(e => ({ x: e.ts.slice(0, 16).replace('T', ' '), y: e.balance })),
+        { title: 'Saldo PP w czasie' });
+    }
     $('#chart-balance').innerHTML = barChartSVG(
-      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu', width: 900 });
-    $('#chart-saldo').innerHTML = lineChartSVG(
-      [...filtered].reverse().map(e => ({ x: e.ts, y: e.balance })), { title: 'Saldo PP w czasie', width: 900 });
+      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu' });
 
-    const rr = r => `<tr><td>${r}</td><td>${rates[r].buy != null ? rates[r].buy.toFixed(2) : '—'}</td><td>${rates[r].sell != null ? rates[r].sell.toFixed(2) : '—'}</td></tr>`;
-    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno PP/1000</th><th>Sprzedaż PP/1000</th></tr>` +
+    // Kurs (surowce na 1 PP)
+    const rr = r => `<tr><td>${r}</td><td>${fmtRate(rates[r].buy)}</td><td>${fmtRate(rates[r].sell)}</td></tr>`;
+    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno (szt./PP)</th><th>Sprzedaż (szt./PP)</th></tr>` +
       ['drewno', 'glina', 'zelazo'].map(rr).join('');
 
-    const svcEntries = Object.entries(totals.serviceBreakdown).sort((a, b) => a[1] - b[1]);
-    $('#svc').innerHTML = `<tr><th>Usługa</th><th>PP</th></tr>` +
-      (svcEntries.length ? svcEntries.map(([k, v]) => `<tr><td>${k}</td><td>${fmt(v)}</td></tr>`).join('')
-        : `<tr><td colspan="2">brak danych</td></tr>`);
+    // Wolumen surowców + różnica
+    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r => {
+        const x = totals.resources[r];
+        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td><td class="${x.diff >= 0 ? 'pos' : 'neg'}">${fmt(x.diff)}</td></tr>`;
+      }).join('');
 
-    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th></tr>` +
-      ['drewno', 'glina', 'zelazo'].map(r =>
-        `<tr><td>${r}</td><td>${totals.resources[r].bought.toLocaleString('pl-PL')}</td><td>${totals.resources[r].sold.toLocaleString('pl-PL')}</td></tr>`).join('');
+    // Rozbicie kategorii
+    $('#breakdown').innerHTML = CATS.map(([key, label]) => {
+      const rowsObj = totals.breakdown[key] || {};
+      const rows = Object.entries(rowsObj).sort((a, b) => a[1] - b[1]);
+      const body = rows.length
+        ? rows.map(([k, v]) => `<tr><td>${k}</td><td class="${v >= 0 ? 'pos' : 'neg'}">${fmt(v)}</td></tr>`).join('')
+        : `<tr><td colspan="2" class="muted">brak</td></tr>`;
+      return `<div class="card"><h3>${label} <small>(${fmt(totals[key])} PP)</small></h3><table>` +
+        `<tr><th>Pozycja</th><th>PP</th></tr>${body}</table></div>`;
+    }).join('');
 
-    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Zarobione</th><th>Wydane</th><th>Netto</th><th>Arbitraż</th></tr>` +
-      buckets.map(b => `<tr><td>${b.key}</td><td>${fmt(b.earned)}</td><td>${fmt(b.spent)}</td><td>${fmt(b.net)}</td><td>${fmt(b.arbitrageProfit)}</td></tr>`).join('');
+    // Tabela netto wg okresu
+    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Netto PP</th></tr>` +
+      buckets.map(b => `<tr><td>${b.key}</td><td class="${b.net >= 0 ? 'pos' : 'neg'}">${fmt(b.net)}</td></tr>`).join('');
 
-    $('#count').textContent = `${store.length} wpisów w magazynie, ${filtered.length} po filtrach`;
+    $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${world === ALL ? 'wszystkie światy' : world})`;
   }
 
   async function handleFiles(fileList) {
@@ -358,12 +506,32 @@ if (typeof document !== 'undefined') {
       let text = new TextDecoder('utf-8').decode(buf);
       if (/�/.test(text)) text = new TextDecoder('windows-1250').decode(buf);
       try {
-        const entries = normalizeImport(text, f.name, new Date());
-        store = dedupeMerge(store, entries);
+        store = dedupeMerge(store, normalizeImport(text, f.name, new Date()));
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
     saveStore(store);
     render();
+  }
+
+  // Dymek (tooltip) dzielony dla wszystkich wykresów
+  function setupTooltip() {
+    const tt = document.createElement('div');
+    tt.id = 'tt';
+    document.body.appendChild(tt);
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest('[data-label]');
+      if (!el) return;
+      tt.innerHTML = `<b>${el.getAttribute('data-label')}</b><br>${Number(el.getAttribute('data-value')).toLocaleString('pl-PL')} PP`;
+      tt.style.display = 'block';
+    });
+    document.addEventListener('mousemove', e => {
+      if (tt.style.display !== 'block') return;
+      tt.style.left = (e.clientX + 12) + 'px';
+      tt.style.top = (e.clientY + 12) + 'px';
+    });
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest('[data-label]')) tt.style.display = 'none';
+    });
   }
 
   function wire() {
@@ -379,6 +547,7 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    setupTooltip();
     render();
   }
 

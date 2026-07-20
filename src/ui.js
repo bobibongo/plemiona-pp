@@ -34,9 +34,8 @@ export function normalizeImport(fileText, fileName, now = new Date()) {
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  // CSV
   const rows = parseCSV(fileText);
-  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;   // pomiń nagłówek
+  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;
   return rows.slice(start).filter(r => r.length >= 6).map(cells => {
     const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
     return enrich(raw, now);
@@ -47,67 +46,111 @@ export function normalizeImport(fileText, fileName, now = new Date()) {
 if (typeof document !== 'undefined') {
   const KEY = 'plemiona_pp_store_v1';
   const $ = sel => document.querySelector(sel);
+  const ALL = '__all__';
 
   const loadStore = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } };
   const saveStore = arr => localStorage.setItem(KEY, JSON.stringify(arr));
 
   const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
+  const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
+  const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
 
-  function applyFilters(entries) {
-    const world = $('#f-world').value;
+  const CATS = [
+    ['handel', 'Handel'],
+    ['zakup_pp', 'Zakup PP'],
+    ['subskrypcje', 'Subskrypcje'],
+    ['uslugi', 'Usługi'],
+    ['eventy', 'Eventy'],
+  ];
+
+  function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
     const to = $('#f-to').value ? new Date($('#f-to').value + 'T23:59:59Z') : null;
-    return entries.filter(e => {
-      const d = new Date(e.ts);
-      if (from && d < from) return false;
-      if (to && d > to) return false;
-      if (world && world !== '__all__' && e.world !== world) return false;
-      return true;
-    });
+    return { from, to };
   }
+  const inDate = (e, from, to) => {
+    const d = new Date(e.ts);
+    return !(from && d < from) && !(to && d > to);
+  };
 
   function render() {
     const store = loadStore();
     const worlds = [...new Set(store.map(e => e.world))].sort();
     const sel = $('#f-world');
-    const prev = sel.value;
-    sel.innerHTML = `<option value="__all__">Wszystkie (sumarycznie)</option>` +
+    const prev = sel.value || ALL;
+    sel.innerHTML = `<option value="${ALL}">Wszystkie (sumarycznie)</option>` +
       worlds.map(w => `<option value="${w}">${w}</option>`).join('');
-    if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : ALL;
+    const world = sel.value;
+
+    const { from, to } = dateBounds();
+    const dateFiltered = store.filter(e => inDate(e, from, to));           // wszystkie światy w okresie
+    const scoped = world === ALL ? dateFiltered : dateFiltered.filter(e => e.world === world);
 
     const gran = $('#f-gran').value;
-    const filtered = applyFilters(store);
-    const { buckets, totals } = aggregate(filtered, { granularity: gran });
-    const rates = effectiveRates(filtered);
+    const { buckets, totals } = aggregate(scoped, { granularity: gran });
+    const rates = effectiveRates(scoped);
+    const bilansPP = dateFiltered.reduce((s, e) => s + e.change, 0);       // wszystkie światy
 
-    $('#kpis').innerHTML = `
-      <div class="kpi"><span>Arbitraż (PP)</span><b class="${totals.arbitrageProfit >= 0 ? 'pos' : 'neg'}">${fmt(totals.arbitrageProfit)}</b></div>
-      <div class="kpi"><span>Usługi (PP)</span><b class="neg">${fmt(totals.serviceCost)}</b></div>
-      <div class="kpi"><span>Zewnętrzne PP</span><b>${fmt(totals.externalPP)}</b></div>
-      <div class="kpi"><span>Bilans netto</span><b class="${totals.net >= 0 ? 'pos' : 'neg'}">${fmt(totals.net)}</b></div>`;
+    // KPI
+    const kpi = (label, val, cls = '') => `<div class="kpi"><span>${label}</span><b class="${cls}">${fmt(val)}</b></div>`;
+    $('#kpis').innerHTML =
+      kpi('Bilans PP (wszystkie światy)', bilansPP, bilansPP >= 0 ? 'pos' : 'neg') +
+      kpi('Bilans PP Handel', totals.handel, totals.handel >= 0 ? 'pos' : 'neg') +
+      kpi('Zakup PP', totals.zakup_pp) +
+      kpi('Subskrypcje', totals.subskrypcje, 'neg') +
+      kpi('Usługi', totals.uslugi, 'neg') +
+      kpi('Eventy', totals.eventy, totals.eventy >= 0 ? 'pos' : 'neg');
 
+    // Inne światy: jedna liczba netto (tylko gdy wybrano konkretny świat)
+    const ow = $('#otherworlds');
+    if (world === ALL) {
+      ow.style.display = 'none';
+    } else {
+      const other = dateFiltered.filter(e => e.world !== world).reduce((s, e) => s + e.change, 0);
+      ow.style.display = '';
+      ow.innerHTML = `<span>Inne światy razem (netto PP, ten sam okres):</span> <b class="${other >= 0 ? 'pos' : 'neg'}">${fmt(other)}</b>`;
+    }
+
+    // Wykresy — saldo najpierw, potem netto
+    if (world === ALL) {
+      $('#chart-saldo').innerHTML = `<p class="hint">Saldo PP w czasie pokazujemy dla pojedynczego świata — wybierz świat w filtrze.</p>`;
+    } else {
+      $('#chart-saldo').innerHTML = lineChartSVG(
+        [...scoped].reverse().map(e => ({ x: e.ts.slice(0, 16).replace('T', ' '), y: e.balance })),
+        { title: 'Saldo PP w czasie' });
+    }
     $('#chart-balance').innerHTML = barChartSVG(
-      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu', width: 900 });
-    $('#chart-saldo').innerHTML = lineChartSVG(
-      [...filtered].reverse().map(e => ({ x: e.ts, y: e.balance })), { title: 'Saldo PP w czasie', width: 900 });
+      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu' });
 
-    const rr = r => `<tr><td>${r}</td><td>${rates[r].buy != null ? rates[r].buy.toFixed(2) : '—'}</td><td>${rates[r].sell != null ? rates[r].sell.toFixed(2) : '—'}</td></tr>`;
-    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno PP/1000</th><th>Sprzedaż PP/1000</th></tr>` +
+    // Kurs (surowce na 1 PP)
+    const rr = r => `<tr><td>${r}</td><td>${fmtRate(rates[r].buy)}</td><td>${fmtRate(rates[r].sell)}</td></tr>`;
+    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno (szt./PP)</th><th>Sprzedaż (szt./PP)</th></tr>` +
       ['drewno', 'glina', 'zelazo'].map(rr).join('');
 
-    const svcEntries = Object.entries(totals.serviceBreakdown).sort((a, b) => a[1] - b[1]);
-    $('#svc').innerHTML = `<tr><th>Usługa</th><th>PP</th></tr>` +
-      (svcEntries.length ? svcEntries.map(([k, v]) => `<tr><td>${k}</td><td>${fmt(v)}</td></tr>`).join('')
-        : `<tr><td colspan="2">brak danych</td></tr>`);
+    // Wolumen surowców + różnica
+    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
+      ['drewno', 'glina', 'zelazo'].map(r => {
+        const x = totals.resources[r];
+        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td><td class="${x.diff >= 0 ? 'pos' : 'neg'}">${fmt(x.diff)}</td></tr>`;
+      }).join('');
 
-    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th></tr>` +
-      ['drewno', 'glina', 'zelazo'].map(r =>
-        `<tr><td>${r}</td><td>${totals.resources[r].bought.toLocaleString('pl-PL')}</td><td>${totals.resources[r].sold.toLocaleString('pl-PL')}</td></tr>`).join('');
+    // Rozbicie kategorii
+    $('#breakdown').innerHTML = CATS.map(([key, label]) => {
+      const rowsObj = totals.breakdown[key] || {};
+      const rows = Object.entries(rowsObj).sort((a, b) => a[1] - b[1]);
+      const body = rows.length
+        ? rows.map(([k, v]) => `<tr><td>${k}</td><td class="${v >= 0 ? 'pos' : 'neg'}">${fmt(v)}</td></tr>`).join('')
+        : `<tr><td colspan="2" class="muted">brak</td></tr>`;
+      return `<div class="card"><h3>${label} <small>(${fmt(totals[key])} PP)</small></h3><table>` +
+        `<tr><th>Pozycja</th><th>PP</th></tr>${body}</table></div>`;
+    }).join('');
 
-    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Zarobione</th><th>Wydane</th><th>Netto</th><th>Arbitraż</th></tr>` +
-      buckets.map(b => `<tr><td>${b.key}</td><td>${fmt(b.earned)}</td><td>${fmt(b.spent)}</td><td>${fmt(b.net)}</td><td>${fmt(b.arbitrageProfit)}</td></tr>`).join('');
+    // Tabela netto wg okresu
+    $('#buckets').innerHTML = `<tr><th>Okres</th><th>Netto PP</th></tr>` +
+      buckets.map(b => `<tr><td>${b.key}</td><td class="${b.net >= 0 ? 'pos' : 'neg'}">${fmt(b.net)}</td></tr>`).join('');
 
-    $('#count').textContent = `${store.length} wpisów w magazynie, ${filtered.length} po filtrach`;
+    $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${world === ALL ? 'wszystkie światy' : world})`;
   }
 
   async function handleFiles(fileList) {
@@ -117,12 +160,32 @@ if (typeof document !== 'undefined') {
       let text = new TextDecoder('utf-8').decode(buf);
       if (/�/.test(text)) text = new TextDecoder('windows-1250').decode(buf);
       try {
-        const entries = normalizeImport(text, f.name, new Date());
-        store = dedupeMerge(store, entries);
+        store = dedupeMerge(store, normalizeImport(text, f.name, new Date()));
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
     saveStore(store);
     render();
+  }
+
+  // Dymek (tooltip) dzielony dla wszystkich wykresów
+  function setupTooltip() {
+    const tt = document.createElement('div');
+    tt.id = 'tt';
+    document.body.appendChild(tt);
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest('[data-label]');
+      if (!el) return;
+      tt.innerHTML = `<b>${el.getAttribute('data-label')}</b><br>${Number(el.getAttribute('data-value')).toLocaleString('pl-PL')} PP`;
+      tt.style.display = 'block';
+    });
+    document.addEventListener('mousemove', e => {
+      if (tt.style.display !== 'block') return;
+      tt.style.left = (e.clientX + 12) + 'px';
+      tt.style.top = (e.clientY + 12) + 'px';
+    });
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest('[data-label]')) tt.style.display = 'none';
+    });
   }
 
   function wire() {
@@ -138,6 +201,7 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); location.reload(); } });
+    setupTooltip();
     render();
   }
 

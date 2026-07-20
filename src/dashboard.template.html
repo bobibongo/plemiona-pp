@@ -22,14 +22,16 @@
   <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option></select></label>
 </section>
 <section id="kpis" class="kpis"></section>
-<section class="card"><div id="chart-balance"></div></section>
+<section id="otherworlds" class="otherworlds" style="display:none"></section>
 <section class="card"><div id="chart-saldo"></div></section>
+<section class="card"><div id="chart-balance"></div></section>
 <section class="grid">
-  <div class="card"><h3>Efektywny kurs (PP/1000)</h3><table id="rates"></table></div>
-  <div class="card"><h3>Wolumen surowców</h3><table id="res"></table></div>
-  <div class="card"><h3>Wydatki na usługi</h3><table id="svc"></table></div>
+  <div class="card"><h3>Efektywny kurs (surowce na 1 PP)</h3><table id="rates"></table></div>
+  <div class="card"><h3>Wolumen surowców (Handel)</h3><table id="res"></table></div>
 </section>
-<section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
+<h2 class="sect">Rozbicie na kategorie</h2>
+<section id="breakdown" class="grid"></section>
+<section class="card"><h3>Bilans netto PP wg okresu</h3><table id="buckets"></table></section>
 <script type="module">/*INJECT:js*/</script>
 </body>
 </html>

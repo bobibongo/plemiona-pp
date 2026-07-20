@@ -16,7 +16,7 @@ test('normalizeImport z JSON kolektora wzbogaca wiersze', () => {
     changeRaw: '-47', balanceRaw: '974', info: 'Giełda Premium-kupno: Żelazo (20316)' }] });
   const out = normalizeImport(json, 'x.json', NOW);
   assert.equal(out.length, 1);
-  assert.equal(out[0].category, 'arbitraz');
+  assert.equal(out[0].category, 'handel');
   assert.equal(out[0].change, -47);
 });
 
