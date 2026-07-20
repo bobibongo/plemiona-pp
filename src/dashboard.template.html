@@ -26,24 +26,21 @@
 </section>
 
 <section class="info">
-  <div class="grp"><h3>Podsumowanie</h3><div id="info-main" class="kpis"></div></div>
-  <div class="grp"><h3>Przychody</h3><div id="info-in" class="kpis"></div></div>
-  <div class="grp"><h3>Wydatki</h3><div id="info-out" class="kpis"></div></div>
+  <div class="grp accent"><h3>Bilans ogólny (konto)</h3><div id="g-ogolny" class="kpis"></div></div>
+  <div class="grp"><h3>Handel PP (wybrany świat)</h3><div id="g-handel" class="kpis"></div></div>
+  <div class="grp"><h3>Handel surowce (wybrany świat)</h3><div id="g-surowce" class="kpis"></div></div>
+  <div class="grp"><h3>Wydatki poza handlem (wybrany świat)</h3><div id="g-poza" class="kpis"></div></div>
 </section>
-<section id="otherworlds" class="otherworlds" style="display:none"></section>
 
 <section class="card"><div id="chart-saldo"></div></section>
 <section class="card"><div id="chart-balance"></div></section>
 
-<section class="grid">
-  <div class="card"><h3>Efektywny kurs (surowce na 1 PP)</h3><table id="rates"></table></div>
-  <div class="card"><h3>Wolumen surowców (Handel)</h3><table id="res"></table></div>
-</section>
+<section class="card"><h3>Surowce i efektywny kurs (Handel, wybrany świat)</h3><table id="restable"></table></section>
 
-<h2 class="sect">Rozbicie na kategorie</h2>
-<section id="breakdown" class="grid"></section>
-
-<section class="card"><h3>Bilans wg okresu</h3><table id="buckets"></table></section>
+<div class="grid">
+  <section class="card"><h3>Szczegółowy bilans PP (wybrany świat)</h3><table id="detail"></table></section>
+  <section class="card"><h3>Bilans wg okresu (wybrany świat)</h3><table id="buckets"></table></section>
+</div>
 </main>
 <script type="module">/*INJECT:js*/</script>
 </body>

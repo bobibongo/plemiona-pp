@@ -54,14 +54,13 @@ if (typeof document !== 'undefined') {
   const fmt = n => (n > 0 ? '+' : '') + Math.round(n).toLocaleString('pl-PL');
   const fmtNum = n => Math.round(n).toLocaleString('pl-PL');
   const fmtRate = n => n == null ? '—' : n.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
+  const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
 
-  const CATS = [
-    ['handel', 'Handel'],
-    ['zakup_pp', 'Zakup PP'],
-    ['subskrypcje', 'Subskrypcje'],
-    ['uslugi', 'Usługi'],
-    ['eventy', 'Eventy'],
-  ];
+  const tile = (label, val, { unit = 'PP', signed = true, cls, sum = false } = {}) => {
+    const txt = signed ? fmt(val) : fmtNum(val);
+    const c = cls !== undefined ? cls : sc(val);
+    return `<div class="kpi${sum ? ' sum' : ''}"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
+  };
 
   function dateBounds() {
     const from = $('#f-from').value ? new Date($('#f-from').value + 'T00:00:00Z') : null;
@@ -82,97 +81,94 @@ if (typeof document !== 'undefined') {
       worlds.map(w => `<option value="${w}">${w}</option>`).join('');
     sel.value = [...sel.options].some(o => o.value === prev) ? prev : ALL;
     const world = sel.value;
+    const worldName = world === ALL ? 'wszystkie światy' : world;
+    const chosen = world !== ALL;
 
     const { from, to } = dateBounds();
-    const dateFiltered = store.filter(e => inDate(e, from, to));           // wszystkie światy w okresie
-    const scoped = world === ALL ? dateFiltered : dateFiltered.filter(e => e.world === world);
+    const dateFiltered = store.filter(e => inDate(e, from, to));               // wszystkie światy
+    const scoped = chosen ? dateFiltered.filter(e => e.world === world) : dateFiltered;
 
     const gran = $('#f-gran').value;
-    const { buckets, totals } = aggregate(scoped, { granularity: gran });
+    const { buckets, totals: t } = aggregate(scoped, { granularity: gran });
     const rates = effectiveRates(scoped);
-    const bilansPP = dateFiltered.reduce((s, e) => s + e.change, 0);       // wszystkie światy
 
-    // Sekcja informacyjna: podsumowanie / przychody / wydatki
-    const signCls = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
-    const tile = (label, val, { unit = 'PP', signed = true, cls } = {}) => {
-      const txt = signed ? fmt(val) : fmtNum(val);
-      const c = cls !== undefined ? cls : signCls(val);
-      return `<div class="kpi"><span>${label}</span><b class="${c}">${txt}<i>${unit}</i></b></div>`;
-    };
-    const t = totals;
-    $('#info-main').innerHTML =
-      tile('Bilans PP', bilansPP, { cls: signCls(bilansPP) }) +
-      tile('Bilans PP (Handel)', t.handel) +
-      tile('Bilans surowców (Handel)', t.resTotal.diff, { unit: 'szt.' });
-    $('#info-in').innerHTML =
-      tile('Kupione PP (łącznie)', t.earned, { cls: 'pos' }) +
-      tile('Kupione surowce', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
-      tile('Zakupione PP', t.zakup_pp, { cls: signCls(t.zakup_pp) });
-    $('#info-out').innerHTML =
-      tile('Wydane PP (łącznie)', t.spent, { cls: 'neg' }) +
-      tile('Wydane surowce', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
+    // === BILANS OGÓLNY (konto = wszystkie światy) ===
+    const bilansOgolny = dateFiltered.reduce((s, e) => s + e.change, 0);
+    const bilansWybrany = scoped.reduce((s, e) => s + e.change, 0);
+    const bilansInne = bilansOgolny - bilansWybrany;
+    $('#g-ogolny').innerHTML =
+      tile('Bilans ogólny (konto)', bilansOgolny, { cls: sc(bilansOgolny), sum: true }) +
+      tile(`Świat: ${worldName}`, bilansWybrany) +
+      tile('Inne światy', bilansInne);
+
+    // === HANDEL PP (wybrany świat) ===
+    const handelIn = t.breakdown.handel['Sprzedaż'] || 0;
+    const handelOut = t.breakdown.handel['Kupno'] || 0;
+    $('#g-handel').innerHTML =
+      tile('Zyskane (sprzedaż)', handelIn, { cls: 'pos' }) +
+      tile('Wydane (kupno)', handelOut, { cls: 'neg' }) +
+      tile('Suma', t.handel, { sum: true });
+
+    // === HANDEL SUROWCE (wybrany świat) ===
+    $('#g-surowce').innerHTML =
+      tile('Kupione', t.resTotal.bought, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Sprzedane', t.resTotal.sold, { unit: 'szt.', signed: false, cls: '' }) +
+      tile('Suma (różnica)', t.resTotal.diff, { unit: 'szt.', sum: true });
+
+    // === WYDATKI POZA HANDLEM (wybrany świat) ===
+    const pozaSuma = t.subskrypcje + t.uslugi + t.eventy;
+    $('#g-poza').innerHTML =
       tile('Subskrypcje', t.subskrypcje, { cls: 'neg' }) +
       tile('Usługi', t.uslugi, { cls: 'neg' }) +
-      tile('Eventy', t.eventy, { cls: signCls(t.eventy) });
+      tile('Eventy', t.eventy, { cls: sc(t.eventy) }) +
+      tile('Suma', pozaSuma, { sum: true });
 
-    // Inne światy: jedna liczba netto (tylko gdy wybrano konkretny świat)
-    const ow = $('#otherworlds');
-    if (world === ALL) {
-      ow.style.display = 'none';
+    // === WYKRES: Saldo PP w czasie (konto, wszystkie światy, zawsze widoczny) ===
+    const saldoPts = [...dateFiltered]
+      .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))
+      .map(e => ({ x: e.ts.slice(0, 16).replace('T', ' '), y: e.balance }));
+    $('#chart-saldo').innerHTML = lineChartSVG(saldoPts, { title: 'Saldo PP w czasie (całe konto)' });
+
+    // === WYKRES: Bilans netto wg okresu (po wybraniu świata) ===
+    if (chosen) {
+      $('#chart-balance').innerHTML = barChartSVG(
+        buckets.map(b => ({ label: b.key, value: b.net })), { title: `Bilans netto PP wg okresu — ${world}` });
     } else {
-      const other = dateFiltered.filter(e => e.world !== world).reduce((s, e) => s + e.change, 0);
-      ow.style.display = '';
-      ow.innerHTML = `<span>Inne światy razem (netto PP, ten sam okres):</span> <b class="${other >= 0 ? 'pos' : 'neg'}">${fmt(other)}</b>`;
+      $('#chart-balance').innerHTML = `<p class="hint">Wybierz świat w filtrze, aby zobaczyć bilans netto dzień po dniu.</p>`;
     }
 
-    // Wykresy — saldo najpierw, potem netto
-    if (world === ALL) {
-      $('#chart-saldo').innerHTML = `<p class="hint">Saldo PP w czasie pokazujemy dla pojedynczego świata — wybierz świat w filtrze.</p>`;
-    } else {
-      $('#chart-saldo').innerHTML = lineChartSVG(
-        [...scoped].reverse().map(e => ({ x: e.ts.slice(0, 16).replace('T', ' '), y: e.balance })),
-        { title: 'Saldo PP w czasie' });
-    }
-    $('#chart-balance').innerHTML = barChartSVG(
-      buckets.map(b => ({ label: b.key, value: b.net })), { title: 'Bilans netto PP wg okresu' });
-
-    // Kurs (surowce na 1 PP)
-    const rr = r => `<tr><td>${r}</td><td>${fmtRate(rates[r].buy)}</td><td>${fmtRate(rates[r].sell)}</td></tr>`;
-    $('#rates').innerHTML = `<tr><th>Surowiec</th><th>Kupno (szt./PP)</th><th>Sprzedaż (szt./PP)</th></tr>` +
-      ['drewno', 'glina', 'zelazo'].map(rr).join('');
-
-    // Wolumen surowców + różnica
-    $('#res').innerHTML = `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th></tr>` +
+    // === Surowce + efektywny kurs (jedna tabela) ===
+    $('#restable').innerHTML =
+      `<tr><th>Surowiec</th><th>Kupione</th><th>Sprzedane</th><th>Różnica</th><th>Kurs kupno (szt./PP)</th><th>Kurs sprzedaż (szt./PP)</th></tr>` +
       ['drewno', 'glina', 'zelazo'].map(r => {
-        const x = totals.resources[r];
-        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td><td class="${x.diff >= 0 ? 'pos' : 'neg'}">${fmt(x.diff)}</td></tr>`;
+        const x = t.resources[r];
+        return `<tr><td>${r}</td><td>${fmtNum(x.bought)}</td><td>${fmtNum(x.sold)}</td>` +
+          `<td class="${sc(x.diff)}">${fmt(x.diff)}</td><td>${fmtRate(rates[r].buy)}</td><td>${fmtRate(rates[r].sell)}</td></tr>`;
       }).join('');
 
-    // Rozbicie kategorii
-    $('#breakdown').innerHTML = CATS.map(([key, label]) => {
-      const rowsObj = totals.breakdown[key] || {};
-      const rows = Object.entries(rowsObj).sort((a, b) => a[1] - b[1]);
-      const body = rows.length
-        ? rows.map(([k, v]) => `<tr><td>${k}</td><td class="${v >= 0 ? 'pos' : 'neg'}">${fmt(v)}</td></tr>`).join('')
-        : `<tr><td colspan="2" class="muted">brak</td></tr>`;
-      return `<div class="card"><h3>${label} <small>(${fmt(totals[key])} PP)</small></h3><table>` +
-        `<tr><th>Pozycja</th><th>PP</th></tr>${body}</table></div>`;
-    }).join('');
+    // === Szczegółowy bilans PP (pionowo: przychody → wydatki → bilans) ===
+    const subRows = obj => Object.entries(obj).sort((a, b) => a[1] - b[1])
+      .map(([k, v]) => `<tr class="sub"><td>${k}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`).join('');
+    let d = `<tr class="grp-row"><td>PRZYCHODY</td><td></td></tr>`;
+    d += `<tr><td>Sprzedaż na giełdzie</td><td class="pos">${fmt(handelIn)}</td></tr>`;
+    if (t.zakup_pp) d += `<tr><td>Zakup PP</td><td class="${sc(t.zakup_pp)}">${fmt(t.zakup_pp)}</td></tr>`;
+    d += `<tr class="grp-row"><td>WYDATKI</td><td></td></tr>`;
+    d += `<tr><td>Zakup na giełdzie</td><td class="neg">${fmt(handelOut)}</td></tr>`;
+    d += `<tr class="cat"><td>Subskrypcje</td><td class="${sc(t.subskrypcje)}">${fmt(t.subskrypcje)}</td></tr>${subRows(t.breakdown.subskrypcje)}`;
+    d += `<tr class="cat"><td>Usługi</td><td class="${sc(t.uslugi)}">${fmt(t.uslugi)}</td></tr>${subRows(t.breakdown.uslugi)}`;
+    d += `<tr class="cat"><td>Eventy</td><td class="${sc(t.eventy)}">${fmt(t.eventy)}</td></tr>${subRows(t.breakdown.eventy)}`;
+    d += `<tr class="total-row"><td>BILANS PP (${worldName})</td><td class="${sc(t.net)}">${fmt(t.net)}</td></tr>`;
+    $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
 
-    // Tabela wg okresu z głównymi pozycjami
-    const sc = v => v > 0 ? 'pos' : v < 0 ? 'neg' : '';
+    // === Bilans wg okresu (prosty) ===
     $('#buckets').innerHTML =
-      `<tr><th>Okres</th><th>Bilans PP</th><th>Handel</th><th>Surowce Δ</th><th>Zakup PP</th><th>Subskrypcje</th><th>Usługi</th><th>Eventy</th></tr>` +
+      `<tr><th>Data</th><th>Bilans PP</th><th>PP z handlu</th><th>Różnica surowców</th></tr>` +
       buckets.map(b => `<tr><td>${b.key}</td>` +
         `<td class="${sc(b.net)}">${fmt(b.net)}</td>` +
         `<td class="${sc(b.handel)}">${fmt(b.handel)}</td>` +
-        `<td class="${sc(b.resDiff)}">${fmt(b.resDiff)}</td>` +
-        `<td class="${sc(b.zakup_pp)}">${fmt(b.zakup_pp)}</td>` +
-        `<td class="${sc(b.subskrypcje)}">${fmt(b.subskrypcje)}</td>` +
-        `<td class="${sc(b.uslugi)}">${fmt(b.uslugi)}</td>` +
-        `<td class="${sc(b.eventy)}">${fmt(b.eventy)}</td></tr>`).join('');
+        `<td class="${sc(b.resDiff)}">${b.resDiff ? fmt(b.resDiff) : '—'}</td></tr>`).join('');
 
-    $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${world === ALL ? 'wszystkie światy' : world})`;
+    $('#count').textContent = `${store.length} wpisów w magazynie, ${scoped.length} w widoku (${worldName})`;
   }
 
   async function handleFiles(fileList) {
@@ -189,7 +185,6 @@ if (typeof document !== 'undefined') {
     render();
   }
 
-  // Dymek (tooltip) dzielony dla wszystkich wykresów
   function setupTooltip() {
     const tt = document.createElement('div');
     tt.id = 'tt';
