@@ -1,7 +1,7 @@
 // src/ui.js
 import { enrich, entryKey } from './parse.js';
 import { dedupeMerge } from './merge.js';
-import { aggregate, effectiveRates } from './aggregate.js';
+import { aggregate, effectiveRates, bucketKey } from './aggregate.js';
 import { barChartSVG, lineChartSVG } from './charts.js';
 
 export function parseCSV(text) {
@@ -105,7 +105,7 @@ if (typeof document !== 'undefined') {
       `<div class="ledger-hero">` +
         `<div class="eyebrow">Bilans ogólny · konto</div>` +
         `<div class="hero-num ${sc(bilansOgolny)}">${fmt(bilansOgolny)}<i>PP</i></div>` +
-        `<div class="hero-recon">Świat ${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
+        `<div class="hero-recon">${worldName}: <b class="${sc(bilansWybrany)}">${fmt(bilansWybrany)}</b> · ` +
         `Inne światy: <b class="${sc(bilansInne)}">${fmt(bilansInne)}</b></div>` +
       `</div>` +
       lsec('Handel PP · wybrany świat',
@@ -122,16 +122,19 @@ if (typeof document !== 'undefined') {
         lrow('Eventy', t.eventy, { cls: sc(t.eventy) }) +
         lrow('Suma', pozaSuma, { sum: true }));
 
-    // === WYKRES: Saldo PP w czasie (konto, wszystkie światy, zawsze widoczny) ===
-    const saldoPts = [...dateFiltered]
-      .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))
-      .map(e => ({ x: e.ts.slice(0, 16).replace('T', ' '), y: e.balance }));
-    $('#chart-saldo').innerHTML = lineChartSVG(saldoPts, { title: 'Saldo PP w czasie (całe konto)' });
+    // === WYKRES: Saldo PP w czasie (konto, saldo na koniec okresu = czytelniej) ===
+    const shortKey = k => k.length === 10 ? k.slice(8, 10) + '.' + k.slice(5, 7) : k.replace(/^\d{4}-/, '');
+    const closing = new Map();
+    for (const e of [...dateFiltered].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0))) {
+      closing.set(bucketKey(e.ts, gran), e.balance);   // ostatni wpis okresu wygrywa = saldo zamknięcia
+    }
+    const saldoPts = [...closing].map(([k, v]) => ({ x: shortKey(k), y: v }));
+    $('#chart-saldo').innerHTML = lineChartSVG(saldoPts, { title: 'Saldo PP — całe konto' });
 
     // === WYKRES: Bilans netto wg okresu (po wybraniu świata) ===
     if (chosen) {
       $('#chart-balance').innerHTML = barChartSVG(
-        buckets.map(b => ({ label: b.key, value: b.net })), { title: `Bilans netto PP wg okresu — ${world}` });
+        buckets.map(b => ({ label: shortKey(b.key), value: b.net })), { title: `Bilans netto PP wg okresu — ${world}` });
     } else {
       $('#chart-balance').innerHTML = `<p class="hint">Wybierz świat w filtrze, aby zobaczyć bilans netto dzień po dniu.</p>`;
     }

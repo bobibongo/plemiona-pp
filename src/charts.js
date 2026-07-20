@@ -88,20 +88,23 @@ export function lineChartSVG(points, opts = {}) {
   if (domainMin === domainMax) { domainMin -= 1; domainMax += 1; }
   const { plotW, plotH, yOf, grid, titleEl } = frame(width, height, title, domainMin, domainMax);
   const xOf = i => M.left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+  const bottomY = M.top + plotH;
   const coords = points.map((p, i) => `${xOf(i).toFixed(1)},${yOf(p.y).toFixed(1)}`).join(' ');
-  const showDots = points.length <= 60;
+  // wypełnienie pod linią (obszar) dla czytelności
+  const areaPts = `${xOf(0).toFixed(1)},${bottomY.toFixed(1)} ${coords} ${xOf(points.length - 1).toFixed(1)},${bottomY.toFixed(1)}`;
+  const showDots = points.length <= 45;
   let dots = '';
   for (let i = 0; i < points.length; i++) {
-    const r = showDots ? 2.5 : 0;
-    dots += `<circle class="dot" cx="${xOf(i).toFixed(1)}" cy="${yOf(points[i].y).toFixed(1)}" r="${r}" fill="${LINE}" data-label="${esc(points[i].x)}" data-value="${points[i].y}"><title>${esc(points[i].x)}: ${points[i].y}</title></circle>`;
+    const r = showDots ? 2.6 : 0;
+    dots += `<circle class="dot" cx="${xOf(i).toFixed(1)}" cy="${yOf(points[i].y).toFixed(1)}" r="${r}" fill="${LINE}" stroke="var(--c-surface, #fff)" stroke-width="1" data-label="${esc(points[i].x)}" data-value="${points[i].y}"><title>${esc(points[i].x)}: ${points[i].y}</title></circle>`;
   }
-  const axis = `<line x1="${M.left}" y1="${(M.top + plotH).toFixed(1)}" x2="${width - M.right}" y2="${(M.top + plotH).toFixed(1)}" stroke="${BASE}"/>`;
-  const everyX = Math.ceil(points.length / 7);
+  const axis = `<line x1="${M.left}" y1="${bottomY.toFixed(1)}" x2="${width - M.right}" y2="${bottomY.toFixed(1)}" stroke="${BASE}"/>`;
+  const everyX = Math.ceil(points.length / 6);
   let xlabels = '';
   for (let i = 0; i < points.length; i += everyX) {
-    const label = String(points[i].x).slice(0, 10);
-    xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="9.5" fill="${INK}">${esc(label)}</text>`;
+    xlabels += `<text x="${xOf(i).toFixed(1)}" y="${(height - M.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${INK}">${esc(String(points[i].x))}</text>`;
   }
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${axis}` +
-    `<polyline fill="none" stroke="${LINE}" stroke-width="1.8" points="${coords}"/>${dots}${xlabels}</svg>`;
+    `<polygon points="${areaPts}" fill="${LINE}" fill-opacity="0.10"/>` +
+    `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${xlabels}</svg>`;
 }
