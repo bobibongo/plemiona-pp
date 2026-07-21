@@ -341,26 +341,42 @@ if (typeof document !== 'undefined') {
       ['drewno', 'glina', 'zelazo'].map(r =>
         `<tr><td>${r}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`).join('');
 
-    // wszystkie pozycje jako lista {label, v}, rozdzielone po znaku (przychody / wydatki)
-    const CATLABEL = { subskrypcje: 'Subskrypcje', uslugi: 'Usługi', eventy: 'Eventy' };
-    const items = [
-      { label: 'Sprzedaż na giełdzie', v: ct.breakdown.handel['Sprzedaż'] || 0 },
-      { label: 'Zakup na giełdzie', v: ct.breakdown.handel['Kupno'] || 0 },
-      { label: 'Zakup / otrzymanie PP', v: ct.zakup_pp },
-    ];
+    // Szczegółowy bilans: PRZYCHODY (Sprzedaż / Zakup-otrzymane / Inne)
+    // oraz WYDATKI pogrupowane po kategoriach (Handel / Usługi / Subskrypcje / Eventy) z sumami.
+    const catRow = (name, v) => `<tr class="cat"><td>${name}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`;
+    const subRow = (label, v) => `<tr class="sub"><td>${label}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`;
+    const sortItems = obj => Object.entries(obj).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+
+    const handelItems = Object.entries(ct.breakdown.handel);
+    const handelPos = handelItems.filter(([, v]) => v > 0).reduce((s, [, v]) => s + v, 0);
+    const handelNeg = handelItems.filter(([, v]) => v < 0).map(([l, v]) => [l === 'Kupno' ? 'Zakup na giełdzie' : l, v]);
+    const inne = [];
     for (const cat of ['subskrypcje', 'uslugi', 'eventy'])
-      for (const [lbl, v] of Object.entries(ct.breakdown[cat]))
-        items.push({ label: `${CATLABEL[cat]} · ${lbl}`, v });
-    const przychody = items.filter(i => i.v > 0).sort((a, b) => b.v - a.v);
-    const wydatki = items.filter(i => i.v < 0).sort((a, b) => a.v - b.v);
-    const sumIn = przychody.reduce((s, i) => s + i.v, 0);
-    const sumOut = wydatki.reduce((s, i) => s + i.v, 0);
-    const rowsHtml = arr => arr.map(i => `<tr><td>${i.label}</td><td class="${sc(i.v)}">${fmt(i.v)}</td></tr>`).join('')
-      || `<tr><td colspan="2" class="muted">brak</td></tr>`;
-    const d =
-      `<tr class="grp-row"><td>Przychody</td><td class="pos">${fmt(sumIn)}</td></tr>${rowsHtml(przychody)}` +
-      `<tr class="grp-row"><td>Wydatki</td><td class="neg">${fmt(sumOut)}</td></tr>${rowsHtml(wydatki)}` +
-      `<tr class="total-row"><td>Bilans PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
+      for (const [l, v] of Object.entries(ct.breakdown[cat])) if (v > 0) inne.push([l, v]);
+    inne.sort((a, b) => b[1] - a[1]);
+    const inneSum = inne.reduce((s, [, v]) => s + v, 0);
+    const zPos = ct.zakup_pp > 0 ? ct.zakup_pp : 0;
+    const sumIn = handelPos + zPos + inneSum;
+
+    const wydCats = [];
+    if (handelNeg.length) wydCats.push(['Handel', handelNeg]);
+    for (const [key, name] of [['uslugi', 'Usługi'], ['subskrypcje', 'Subskrypcje'], ['eventy', 'Eventy']]) {
+      const neg = sortItems(ct.breakdown[key]).filter(([, v]) => v < 0);
+      if (neg.length) wydCats.push([name, neg]);
+    }
+    if (ct.zakup_pp < 0) wydCats.push(['Przeniesienie PP', [['Wyjście PP', ct.zakup_pp]]]);
+    const sumOut = wydCats.reduce((s, [, it]) => s + it.reduce((a, [, v]) => a + v, 0), 0);
+
+    let d = `<tr class="grp-row"><td>Przychody</td><td class="pos">${fmt(sumIn)}</td></tr>`;
+    if (handelPos) d += catRow('Sprzedaż na giełdzie', handelPos);
+    if (zPos) d += catRow('Zakup / otrzymane PP', zPos);
+    if (inne.length) { d += catRow('Inne', inneSum); d += inne.map(([l, v]) => subRow(l, v)).join(''); }
+    d += `<tr class="grp-row"><td>Wydatki</td><td class="neg">${fmt(sumOut)}</td></tr>`;
+    for (const [name, it] of wydCats) {
+      d += catRow(name, it.reduce((s, [, v]) => s + v, 0));
+      d += it.map(([l, v]) => subRow(l, v)).join('');
+    }
+    d += `<tr class="total-row"><td>Bilans PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
     $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
 
     // aktualne saldo konta = "Nowe saldo PP" najnowszego wpisu (całe konto, niezależnie od filtrów)
