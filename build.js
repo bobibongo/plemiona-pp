@@ -32,17 +32,7 @@ export function buildBookmarklet() {
   return oneLine;
 }
 
-function buildInstallPage(bm) {
-  const href = bm.replace(/"/g, '&quot;');
-  return `<!doctype html><meta charset="utf-8"><title>Instalacja kolektora</title>
-<body style="font-family:system-ui;max-width:640px;margin:40px auto;padding:0 16px">
-<h1>Kolektor logu PP</h1>
-<p>Przeciągnij poniższy przycisk na pasek zakładek. Potem wejdź na stronę logu premium w grze i kliknij zakładkę.</p>
-<p><a href="${href}" style="display:inline-block;padding:10px 16px;background:#5b3a1e;color:#f4e9d8;border-radius:6px;text-decoration:none">Pobierz log PP</a></p>
-<p style="color:#666">Tryb pobierania i opóźnienie wybierzesz w oknach dialogowych po kliknięciu.</p>`;
-}
-
-// Strona główna (landing) dla hostingu — intro, bookmarklet i wejście do dashboardu.
+// Strona kolektora (/kolektor) — bookmarklet + instrukcja + wejście do dashboardu.
 export function buildLanding(bm) {
   const href = bm.replace(/"/g, '&quot;');
   return `<!doctype html>
@@ -99,7 +89,7 @@ export function buildLanding(bm) {
   <span class="step">Krok 3</span>
   <h2>Analizuj</h2>
   <p class="muted">Otwórz dashboard i przeciągnij na niego swój plik JSON (lub CSV). Dane zostają u Ciebie.</p>
-  <p><a class="btn go" href="./dashboard.html">Otwórz dashboard →</a></p>
+  <p><a class="btn go" href="../">Otwórz dashboard →</a></p>
 </div>
 
 <footer>Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</footer>
@@ -107,10 +97,8 @@ export function buildLanding(bm) {
 }
 
 if (process.argv[1] && process.argv[1].endsWith('build.js')) {
-  mkdirSync(new URL('./dist/', import.meta.url), { recursive: true });
-  writeFileSync(new URL('./dist/dashboard.html', import.meta.url), buildDashboard());
-  const bm = buildBookmarklet();
-  writeFileSync(new URL('./dist/collector-install.html', import.meta.url), buildInstallPage(bm));
-  writeFileSync(new URL('./dist/index.html', import.meta.url), buildLanding(bm));
-  console.log('Zbudowano dist/: index.html, dashboard.html, collector-install.html');
+  mkdirSync(new URL('./dist/kolektor/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/index.html', import.meta.url), buildDashboard());            // dashboard = strona główna
+  writeFileSync(new URL('./dist/kolektor/index.html', import.meta.url), buildLanding(buildBookmarklet())); // kolektor pod /kolektor/
+  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor)');
 }
