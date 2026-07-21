@@ -70,6 +70,43 @@ export function aggregate(entries, { granularity }) {
   return { buckets, totals };
 }
 
+// Stan/zdrowie logu: zakres, liczba wpisów/światów i wykrywanie LUK.
+// Luki wykrywamy rekonstruując łańcuch salda: dla każdego wpisu (saldo − zmiana)
+// powinno równać się saldu po poprzednim wpisie. W obrębie tej samej minuty
+// odtwarzamy właściwą kolejność po saldzie (ts ma rozdzielczość do minuty),
+// więc metoda jest odporna na dwuznaczność kolejności w minucie.
+export function logHealth(entries) {
+  const count = entries.length;
+  if (!count) return { count: 0, worlds: 0, minTs: null, maxTs: null, gaps: [], gapCount: 0, missingPP: 0, complete: true };
+  const sorted = [...entries].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+  const worlds = new Set(entries.map(e => e.world)).size;
+  const gaps = [];
+  let expected = null;
+  for (let i = 0; i < sorted.length;) {
+    let j = i; while (j < sorted.length && sorted[j].ts === sorted[i].ts) j++;
+    const pool = sorted.slice(i, j);
+    let exp = expected;
+    while (pool.length) {
+      let idx = exp === null ? -1 : pool.findIndex(e => e.balance - e.change === exp);
+      if (idx === -1) {
+        // głowa łańcucha w grupie: wpis, którego poprzednie saldo nie jest wśród pozostałych
+        const produced = new Set(pool.map(e => e.balance));
+        idx = pool.findIndex(e => !produced.has(e.balance - e.change));
+        if (idx === -1) idx = 0;
+        if (exp !== null) gaps.push({ ts: sorted[i].ts, missing: (pool[idx].balance - pool[idx].change) - exp });
+      }
+      exp = pool[idx].balance;
+      pool.splice(idx, 1);
+    }
+    expected = exp;
+    i = j;
+  }
+  const missingPP = gaps.reduce((s, g) => s + g.missing, 0);
+  // Werdykt po missingPP (netto): mówi, czy sumy PP są wiarygodne. Sama liczba
+  // „gaps” bywa zawyżona przez dwuznaczność kolejności w minucie (netto 0).
+  return { count, worlds, minTs: sorted[0].ts, maxTs: sorted[sorted.length - 1].ts, gaps, gapCount: gaps.length, missingPP, complete: missingPP === 0 };
+}
+
 // Efektywny kurs jako ILOŚĆ SUROWCA na 1 PP (kupno i sprzedaż osobno).
 export function effectiveRates(entries) {
   const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));

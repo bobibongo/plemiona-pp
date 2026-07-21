@@ -1,7 +1,7 @@
 // test/aggregate.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bucketKey, aggregate, effectiveRates } from '../src/aggregate.js';
+import { bucketKey, aggregate, effectiveRates, logHealth } from '../src/aggregate.js';
 
 const E = (ts, change, category, extra = {}) =>
   ({ ts, world: 'Świat 231', change, category, info: '', ...extra });
@@ -52,6 +52,35 @@ test('aggregate: wolumen surowców z różnicą (per surowiec i sumarycznie)', (
   assert.equal(totals.resTotal.sold, 905);
   assert.equal(totals.resTotal.diff, 20076 + 8000 - 905);
   assert.equal(buckets[0].resDiff, 20076 + 8000 - 905);   // różnica surowców w okresie
+});
+
+test('logHealth: ciągły łańcuch salda = bez luk', () => {
+  const H = (ts, change, balance) => ({ ts, change, balance, world: 'Świat 1' });
+  // saldo przed pierwszym = 100
+  const e = [H('2026-07-19T10:00:00Z', 10, 110), H('2026-07-19T11:00:00Z', -5, 105), H('2026-07-19T12:00:00Z', 20, 125)];
+  const h = logHealth(e);
+  assert.equal(h.complete, true);
+  assert.equal(h.gapCount, 0);
+  assert.equal(h.count, 3);
+  assert.equal(h.worlds, 1);
+});
+
+test('logHealth: brak strony = wykryta luka i brakujące PP', () => {
+  const H = (ts, change, balance) => ({ ts, change, balance, world: 'Świat 1' });
+  // 110 -> (brak wpisów o zmianie -530) -> 580, potem +20 = 600
+  const e = [H('2026-07-19T10:00:00Z', 10, 110), H('2026-07-19T12:00:00Z', 20, 600)];
+  const h = logHealth(e);
+  assert.equal(h.complete, false);
+  assert.equal(h.gapCount, 1);
+  assert.equal(h.missingPP, 470);   // (600-20) - 110
+});
+
+test('logHealth: odtwarza kolejność w obrębie minuty', () => {
+  const H = (ts, change, balance) => ({ ts, change, balance, world: 'Świat 1' });
+  // ta sama minuta, podane w złej kolejności; łańcuch: 100 -> 90 -> 80 -> 70
+  const e = [H('2026-07-19T09:34:00Z', -10, 70), H('2026-07-19T09:34:00Z', -10, 90), H('2026-07-19T09:34:00Z', -10, 80)];
+  const h = logHealth(e);
+  assert.equal(h.complete, true);
 });
 
 test('effectiveRates: surowce na 1 PP', () => {

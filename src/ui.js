@@ -1,7 +1,7 @@
 // src/ui.js
 import { enrich, entryKey, classify } from './parse.js';
 import { dedupeMerge } from './merge.js';
-import { aggregate, effectiveRates, bucketKey } from './aggregate.js';
+import { aggregate, effectiveRates, bucketKey, logHealth } from './aggregate.js';
 import { barChartSVG, lineChartSVG } from './charts.js';
 
 const LOG_DATE_RE = /^\s*\d{2}\.\d{2}\./;   // komórka daty: "DD.MM." (odsiewa nagłówki/śmieci)
@@ -37,20 +37,36 @@ export function normalizeImport(fileText, fileName, now = new Date()) {
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  // CSV/TSV (także wklejony log ze strony): bierzemy tylko wiersze zaczynające się od daty,
-  // więc nagłówki i śmieci między stronami są automatycznie pomijane.
-  return parseCSV(fileText)
-    .filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || ''))
-    .map(cells => {
-      const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
-      return enrich(raw, now);
-    });
+  // CSV/TSV (także wklejony log ze strony): bierzemy tylko rekordy zaczynające się od daty.
+  return logRecords(fileText).map(cells => {
+    const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
+    return enrich(raw, now);
+  });
+}
+
+// Zamienia tekst (wklejona tabela TSV albo CSV) na rekordy po 6 pól.
+// Dla TSV: spłaszcza tokeny i grupuje po dacie (data + 5 kolejnych, aż do następnej daty)
+// — odporne na sklejone wiersze/strony i powtórzone nagłówki. Info nie zawiera tabów.
+function logRecords(text) {
+  if (text.includes('\t')) {
+    const toks = [];
+    for (const line of text.split(/\r?\n/)) for (const c of line.split('\t')) toks.push(c);
+    const recs = [];
+    for (let i = 0; i < toks.length;) {
+      if (LOG_DATE_RE.test(toks[i])) {
+        const rec = [toks[i++]];
+        while (rec.length < 6 && i < toks.length && !LOG_DATE_RE.test(toks[i])) rec.push(toks[i++]);
+        if (rec.length === 6) recs.push(rec);
+      } else i++;
+    }
+    return recs;
+  }
+  return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).map(r => r.slice(0, 6));
 }
 
 // Ile wierszy logu rozpoznano we wklejonym tekście (do licznika na żywo).
 export function countLogRows(text) {
-  try { return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).length; }
-  catch { return 0; }
+  try { return logRecords(text).length; } catch { return 0; }
 }
 
 // ——— Część DOM (przeglądarka) ———
@@ -63,6 +79,14 @@ if (typeof document !== 'undefined') {
   // kompaktową (bez pól pochodnych) skompresowaną gzipem — pełny wieloletni log
   // (dziesiątki tys. wpisów) nie mieści się w localStorage jako pełny JSON.
   let STORE = [];
+
+  const META_KEY = 'plemiona_pp_meta_v1';
+  let lastImportTs = (() => { try { return JSON.parse(localStorage.getItem(META_KEY) || '{}').importedAt || null; } catch { return null; } })();
+  const markImport = () => { lastImportTs = Date.now(); try { localStorage.setItem(META_KEY, JSON.stringify({ importedAt: lastImportTs })); } catch {} };
+  let storeInfo = null, healthRef = null;
+
+  const fmtDate = ts => { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
+  const fmtWhen = ms => ms ? new Date(ms).toLocaleString('pl-PL') : '—';
 
   const COMPACT_FIELDS = ['ts', 'world', 'txType', 'change', 'balance', 'info'];
   const toCompact = e => { const o = {}; for (const k of COMPACT_FIELDS) o[k] = e[k]; return o; };
@@ -172,6 +196,24 @@ if (typeof document !== 'undefined') {
 
   function render() {
     const store = STORE;
+
+    // Panel „stan logu” (liczony raz na zmianę magazynu)
+    if (STORE !== healthRef) { storeInfo = logHealth(STORE); healthRef = STORE; }
+    const li = $('#loginfo');
+    if (!store.length) { li.hidden = true; }
+    else {
+      const h = storeInfo;
+      const verdykt = h.complete
+        ? `<b class="ok">spójny — brak luk w saldzie</b>`
+        : `<b class="warn">niekompletny — brakuje ≈ ${fmt(h.missingPP)} PP</b>`;
+      li.hidden = false;
+      li.innerHTML =
+        `<span><b>${fmtNum(h.count)}</b> wpisów · <b>${h.worlds}</b> światów</span>` +
+        `<span>zakres: <b>${fmtDate(h.minTs)}</b> – <b>${fmtDate(h.maxTs)}</b></span>` +
+        `<span>${verdykt}</span>` +
+        `<span class="li-when">wczytano: ${fmtWhen(lastImportTs)}</span>`;
+    }
+
     const worlds = [...new Set(store.map(e => e.world))].sort(worldCmp);
     const sel = $('#f-world');
     const prev = sel.value || ALL;
@@ -340,6 +382,7 @@ if (typeof document !== 'undefined') {
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
     await persist(STORE);
+    markImport();
     render();
   }
 
@@ -404,6 +447,18 @@ if (typeof document !== 'undefined') {
     $('#paste-cancel').addEventListener('click', closePaste);
     modal.addEventListener('click', e => { if (e.target === modal) closePaste(); });
     area.addEventListener('input', () => { $('#paste-count').innerHTML = `Rozpoznano: <b>${countLogRows(area.value)}</b> wpisów`; });
+    // wklejenie kolejnej strony zaczyna się od nowej linii (żeby wiersze się nie sklejały)
+    area.addEventListener('paste', e => {
+      const s = area.selectionStart, en = area.selectionEnd, before = area.value.slice(0, s);
+      if (before && !before.endsWith('\n')) {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        const ins = '\n' + pasted;
+        area.value = before + ins + area.value.slice(en);
+        area.selectionStart = area.selectionEnd = s + ins.length;
+        area.dispatchEvent(new Event('input'));
+      }
+    });
     $('#paste-done').addEventListener('click', async () => {
       const text = area.value.trim();
       if (!text) { closePaste(); return; }
@@ -412,6 +467,7 @@ if (typeof document !== 'undefined') {
         if (!entries.length) { alert('Nie rozpoznano żadnych wierszy logu. Skopiuj tabelę logu ze strony gry.'); return; }
         STORE = dedupeMerge(STORE, entries);
         await persist(STORE);
+        markImport();
         render();
         closePaste();
       } catch (e) { alert('Błąd wczytywania wklejki: ' + e.message); }
