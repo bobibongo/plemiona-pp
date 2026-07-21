@@ -39,6 +39,8 @@ section { margin: 16px 0; }
 #dropzone { border: 1.5px dashed var(--line-strong); background: rgba(244,234,210,.9); border-radius: 6px;
   padding: 15px; text-align: center; color: var(--ink-2); font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 #dropzone .privacy { margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+#import-info { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-2); min-height: 1em; }
+#import-info.err { color: var(--neg); font-weight: 600; }
 .link { color: var(--accent); cursor: pointer; font-weight: 700; text-decoration: underline; }
 .actions { margin-top: 10px; }
 button { margin: 0 4px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line-strong);
@@ -56,6 +58,7 @@ button.primary { background: var(--accent); color: #f6ecd4; border-color: var(--
   border: 1px solid var(--line-strong); background: var(--surface-2); }
 .sig b { font-family: var(--mono); font-size: 16px; }
 .sig .k { font-weight: 700; }
+.sig .res { color: var(--ink-2); font-size: 12px; }
 .sig .act { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
 .sig.kupuj { border-color: var(--pos); } .sig.kupuj .act { color: var(--pos); }
 .sig.sprzedawaj { border-color: var(--neg); } .sig.sprzedawaj .act { color: var(--neg); }
@@ -102,8 +105,13 @@ td .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2p
 
 <main class="wrap">
 <section id="dropzone">
-  Wklej dane skopiowane w grze przyciskiem <b>Eksportuj</b> — <span class="link" id="paste-open">wklej odczyty</span>.
-  <div class="actions"><button id="reset">Wyczyść historię</button></div>
+  Skopiuj dane w grze przyciskiem <b>Eksportuj</b>, potem kliknij tutaj.
+  <div class="actions">
+    <button id="paste-clipboard" class="primary">Wklej ze schowka</button>
+    <button id="paste-open">Wklej ręcznie</button>
+    <button id="reset">Wyczyść historię</button>
+  </div>
+  <p id="import-info"></p>
   <p class="privacy">Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</p>
 </section>
 
@@ -234,6 +242,19 @@ function seriesByContinent(history) {
 // Progi i okazje. Kurs to ilość surowca za 1 PP, więc wysoka wartość znaczy,
 // że surowce są tanie (opłaca się kupować), a niska — że drogie (opłaca się
 // sprzedawać).
+
+// Kolejność stała, żeby przy remisie zawsze wygrywał ten sam surowiec.
+const SUROWCE = [['wood', 'drewno'], ['stone', 'glina'], ['iron', 'żelazo']];
+
+function skrajny(r, wybierz) {
+  let najlepszy = null;
+  for (const [key, label] of SUROWCE) {
+    const value = r[key];
+    if (!Number.isFinite(value)) continue;
+    if (najlepszy === null || wybierz(value, najlepszy.value)) najlepszy = { key, label, value };
+  }
+  return najlepszy;
+}
 function parseThreshold(value) {
   if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
@@ -247,11 +268,20 @@ function evaluateSignals(latest, { high, low }) {
     return { ready: false, signals: [], message: 'Próg dolny musi być mniejszy niż górny.' };
   }
 
+  // Liczymy z ekstremum, nie ze średniej — średnia rozcieńcza okazję:
+  // żelazo 430 przy glinie 380 daje 405 i sygnał by przepadł.
+  // Oba warunki mogą zajść naraz przy rozstrzelonych kursach. To nie pomyłka,
+  // tylko dwie różne transakcje na dwóch różnych surowcach.
   const signals = [];
   for (const r of latest) {
-    const avg = average(r);
-    if (avg >= high) signals.push({ continent: r.continent, avg, action: 'kupuj' });
-    else if (avg <= low) signals.push({ continent: r.continent, avg, action: 'sprzedawaj' });
+    const gora = skrajny(r, (a, b) => a > b);
+    if (gora && gora.value >= high) {
+      signals.push({ continent: r.continent, resource: gora.key, label: gora.label, value: gora.value, action: 'kupuj' });
+    }
+    const dol = skrajny(r, (a, b) => a < b);
+    if (dol && dol.value <= low) {
+      signals.push({ continent: r.continent, resource: dol.key, label: dol.label, value: dol.value, action: 'sprzedawaj' });
+    }
   }
   // Kolejność kontynentów, żeby pasek nie skakał między odświeżeniami.
   const kolejnosc = continentsOf(latest);
@@ -458,7 +488,8 @@ function renderSygnaly(najnowsze) {
   const { signals, message } = evaluateSignals(najnowsze, PROGI);
   $('signals').innerHTML = signals.length
     ? signals.map(s => `<span class="sig ${s.action}"><span class="k">${escXml(s.continent)}</span>`
-        + `<b>${s.avg}</b><span class="act">${escXml(s.action)}</span></span>`).join('')
+        + `<span class="res">${escXml(s.label)}</span><b>${s.value}</b>`
+        + `<span class="act">${escXml(s.action)}</span></span>`).join('')
     : `<span class="sig-none">${escXml(message)}</span>`;
 }
 
@@ -491,14 +522,11 @@ function render() {
   $('chart').innerHTML = ratesChartSVG(serie, { thresholds: PROGI, width: 1000, height: 340 });
 }
 
-function wczytajWklejone() {
-  const wynik = parseImport($('paste-area').value);
-  const info = $('paste-info');
-  if (!wynik.ok) {
-    info.textContent = wynik.error;
-    info.classList.add('err');
-    return;
-  }
+// Jedna ścieżka wczytywania dla obu wejść: schowka i ręcznego wklejenia.
+function wczytajTekst(tekst) {
+  const wynik = parseImport(tekst);
+  if (!wynik.ok) return { ok: false, komunikat: wynik.error };
+
   const scalone = mergeHistory(HISTORIA, wynik.records);
   HISTORIA = scalone.history;
   const zapisano = zapiszHistorie();
@@ -508,22 +536,50 @@ function wczytajWklejone() {
   if (scalone.duplicates) czesci.push(`pominięto ${scalone.duplicates} powtórzonych`);
   if (wynik.skipped) czesci.push(`odrzucono ${wynik.skipped} niepełnych`);
   if (!zapisano) czesci.push('UWAGA: nie udało się zapisać — magazyn pełny');
-  info.textContent = czesci.join(', ') + '.';
-  info.classList.toggle('err', !zapisano);
-  $('paste-area').value = '';
+  return { ok: zapisano, komunikat: czesci.join(', ') + '.' };
+}
+
+function pokazInfo(el, wynik) {
+  el.textContent = wynik.komunikat;
+  el.classList.toggle('err', !wynik.ok);
+}
+
+function otworzOkno(powod = '') {
+  pokazInfo($('paste-info'), { ok: !powod, komunikat: powod });
+  $('paste-modal').hidden = false;
+  $('paste-area').focus();
+}
+
+// Odczyt schowka wymaga zgody przeglądarki, a strona otwierana z dysku bywa
+// traktowana surowo. Gdy zgody nie ma, otwieramy okno ręczne z wyjaśnieniem —
+// zamiast zostawiać gracza z przyciskiem, który nic nie robi.
+function wklejZeSchowka() {
+  if (!navigator.clipboard || !navigator.clipboard.readText) {
+    otworzOkno('Ta przeglądarka nie daje dostępu do schowka — wklej ręcznie (Ctrl+V).');
+    return;
+  }
+  navigator.clipboard.readText().then(tekst => {
+    if (!tekst || !tekst.trim()) {
+      pokazInfo($('import-info'), { ok: false, komunikat: 'Schowek jest pusty — najpierw kliknij Eksportuj w grze.' });
+      return;
+    }
+    pokazInfo($('import-info'), wczytajTekst(tekst));
+  }, () => {
+    otworzOkno('Przeglądarka nie wpuściła nas do schowka — wklej ręcznie (Ctrl+V).');
+  });
 }
 
 wczytajMagazyn();
 render();
 
-$('paste-open').addEventListener('click', () => {
-  $('paste-info').textContent = '';
-  $('paste-info').classList.remove('err');
-  $('paste-modal').hidden = false;
-  $('paste-area').focus();
-});
+$('paste-clipboard').addEventListener('click', wklejZeSchowka);
+$('paste-open').addEventListener('click', () => otworzOkno());
 $('paste-cancel').addEventListener('click', () => { $('paste-modal').hidden = true; });
-$('paste-done').addEventListener('click', wczytajWklejone);
+$('paste-done').addEventListener('click', () => {
+  const wynik = wczytajTekst($('paste-area').value);
+  pokazInfo($('paste-info'), wynik);
+  if (wynik.ok) $('paste-area').value = '';
+});
 
 $('f-world').addEventListener('change', e => { SWIAT = e.target.value; render(); });
 

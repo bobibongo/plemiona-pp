@@ -56,7 +56,8 @@ function renderSygnaly(najnowsze) {
   const { signals, message } = evaluateSignals(najnowsze, PROGI);
   $('signals').innerHTML = signals.length
     ? signals.map(s => `<span class="sig ${s.action}"><span class="k">${escXml(s.continent)}</span>`
-        + `<b>${s.avg}</b><span class="act">${escXml(s.action)}</span></span>`).join('')
+        + `<span class="res">${escXml(s.label)}</span><b>${s.value}</b>`
+        + `<span class="act">${escXml(s.action)}</span></span>`).join('')
     : `<span class="sig-none">${escXml(message)}</span>`;
 }
 
@@ -89,14 +90,11 @@ function render() {
   $('chart').innerHTML = ratesChartSVG(serie, { thresholds: PROGI, width: 1000, height: 340 });
 }
 
-function wczytajWklejone() {
-  const wynik = parseImport($('paste-area').value);
-  const info = $('paste-info');
-  if (!wynik.ok) {
-    info.textContent = wynik.error;
-    info.classList.add('err');
-    return;
-  }
+// Jedna ścieżka wczytywania dla obu wejść: schowka i ręcznego wklejenia.
+function wczytajTekst(tekst) {
+  const wynik = parseImport(tekst);
+  if (!wynik.ok) return { ok: false, komunikat: wynik.error };
+
   const scalone = mergeHistory(HISTORIA, wynik.records);
   HISTORIA = scalone.history;
   const zapisano = zapiszHistorie();
@@ -106,22 +104,50 @@ function wczytajWklejone() {
   if (scalone.duplicates) czesci.push(`pominięto ${scalone.duplicates} powtórzonych`);
   if (wynik.skipped) czesci.push(`odrzucono ${wynik.skipped} niepełnych`);
   if (!zapisano) czesci.push('UWAGA: nie udało się zapisać — magazyn pełny');
-  info.textContent = czesci.join(', ') + '.';
-  info.classList.toggle('err', !zapisano);
-  $('paste-area').value = '';
+  return { ok: zapisano, komunikat: czesci.join(', ') + '.' };
+}
+
+function pokazInfo(el, wynik) {
+  el.textContent = wynik.komunikat;
+  el.classList.toggle('err', !wynik.ok);
+}
+
+function otworzOkno(powod = '') {
+  pokazInfo($('paste-info'), { ok: !powod, komunikat: powod });
+  $('paste-modal').hidden = false;
+  $('paste-area').focus();
+}
+
+// Odczyt schowka wymaga zgody przeglądarki, a strona otwierana z dysku bywa
+// traktowana surowo. Gdy zgody nie ma, otwieramy okno ręczne z wyjaśnieniem —
+// zamiast zostawiać gracza z przyciskiem, który nic nie robi.
+function wklejZeSchowka() {
+  if (!navigator.clipboard || !navigator.clipboard.readText) {
+    otworzOkno('Ta przeglądarka nie daje dostępu do schowka — wklej ręcznie (Ctrl+V).');
+    return;
+  }
+  navigator.clipboard.readText().then(tekst => {
+    if (!tekst || !tekst.trim()) {
+      pokazInfo($('import-info'), { ok: false, komunikat: 'Schowek jest pusty — najpierw kliknij Eksportuj w grze.' });
+      return;
+    }
+    pokazInfo($('import-info'), wczytajTekst(tekst));
+  }, () => {
+    otworzOkno('Przeglądarka nie wpuściła nas do schowka — wklej ręcznie (Ctrl+V).');
+  });
 }
 
 wczytajMagazyn();
 render();
 
-$('paste-open').addEventListener('click', () => {
-  $('paste-info').textContent = '';
-  $('paste-info').classList.remove('err');
-  $('paste-modal').hidden = false;
-  $('paste-area').focus();
-});
+$('paste-clipboard').addEventListener('click', wklejZeSchowka);
+$('paste-open').addEventListener('click', () => otworzOkno());
 $('paste-cancel').addEventListener('click', () => { $('paste-modal').hidden = true; });
-$('paste-done').addEventListener('click', wczytajWklejone);
+$('paste-done').addEventListener('click', () => {
+  const wynik = wczytajTekst($('paste-area').value);
+  pokazInfo($('paste-info'), wynik);
+  if (wynik.ok) $('paste-area').value = '';
+});
 
 $('f-world').addEventListener('change', e => { SWIAT = e.target.value; render(); });
 

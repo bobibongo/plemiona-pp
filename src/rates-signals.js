@@ -3,7 +3,20 @@
 // że surowce są tanie (opłaca się kupować), a niska — że drogie (opłaca się
 // sprzedawać).
 
-import { average, continentsOf } from './rates-history.js';
+import { continentsOf } from './rates-history.js';
+
+// Kolejność stała, żeby przy remisie zawsze wygrywał ten sam surowiec.
+const SUROWCE = [['wood', 'drewno'], ['stone', 'glina'], ['iron', 'żelazo']];
+
+function skrajny(r, wybierz) {
+  let najlepszy = null;
+  for (const [key, label] of SUROWCE) {
+    const value = r[key];
+    if (!Number.isFinite(value)) continue;
+    if (najlepszy === null || wybierz(value, najlepszy.value)) najlepszy = { key, label, value };
+  }
+  return najlepszy;
+}
 
 export function parseThreshold(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -19,11 +32,20 @@ export function evaluateSignals(latest, { high, low }) {
     return { ready: false, signals: [], message: 'Próg dolny musi być mniejszy niż górny.' };
   }
 
+  // Liczymy z ekstremum, nie ze średniej — średnia rozcieńcza okazję:
+  // żelazo 430 przy glinie 380 daje 405 i sygnał by przepadł.
+  // Oba warunki mogą zajść naraz przy rozstrzelonych kursach. To nie pomyłka,
+  // tylko dwie różne transakcje na dwóch różnych surowcach.
   const signals = [];
   for (const r of latest) {
-    const avg = average(r);
-    if (avg >= high) signals.push({ continent: r.continent, avg, action: 'kupuj' });
-    else if (avg <= low) signals.push({ continent: r.continent, avg, action: 'sprzedawaj' });
+    const gora = skrajny(r, (a, b) => a > b);
+    if (gora && gora.value >= high) {
+      signals.push({ continent: r.continent, resource: gora.key, label: gora.label, value: gora.value, action: 'kupuj' });
+    }
+    const dol = skrajny(r, (a, b) => a < b);
+    if (dol && dol.value <= low) {
+      signals.push({ continent: r.continent, resource: dol.key, label: dol.label, value: dol.value, action: 'sprzedawaj' });
+    }
   }
   // Kolejność kontynentów, żeby pasek nie skakał między odświeżeniami.
   const kolejnosc = continentsOf(latest);

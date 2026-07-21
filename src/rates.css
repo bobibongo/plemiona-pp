@@ -33,6 +33,8 @@ section { margin: 16px 0; }
 #dropzone { border: 1.5px dashed var(--line-strong); background: rgba(244,234,210,.9); border-radius: 6px;
   padding: 15px; text-align: center; color: var(--ink-2); font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 #dropzone .privacy { margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+#import-info { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-2); min-height: 1em; }
+#import-info.err { color: var(--neg); font-weight: 600; }
 .link { color: var(--accent); cursor: pointer; font-weight: 700; text-decoration: underline; }
 .actions { margin-top: 10px; }
 button { margin: 0 4px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line-strong);
@@ -50,6 +52,7 @@ button.primary { background: var(--accent); color: #f6ecd4; border-color: var(--
   border: 1px solid var(--line-strong); background: var(--surface-2); }
 .sig b { font-family: var(--mono); font-size: 16px; }
 .sig .k { font-weight: 700; }
+.sig .res { color: var(--ink-2); font-size: 12px; }
 .sig .act { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
 .sig.kupuj { border-color: var(--pos); } .sig.kupuj .act { color: var(--pos); }
 .sig.sprzedawaj { border-color: var(--neg); } .sig.sprzedawaj .act { color: var(--neg); }

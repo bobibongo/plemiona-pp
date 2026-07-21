@@ -45,7 +45,7 @@ Poza zakresem:
 
 1. Gracz kończy obchód wiosek, w grze klika **Eksportuj** (JSON w schowku).
 2. Otwiera stronę analizy z dysku.
-3. Wkleja JSON w oknie importu.
+3. Klika **Wklej ze schowka** — jedno kliknięcie, bez otwierania okna.
 4. Strona dokłada nowe odczyty do historii i przelicza widok.
 5. Pasek okazji mówi, gdzie warto handlować; wykres pokazuje, czy to
    wyjątkowa okazja, czy zwykły poziom.
@@ -101,11 +101,23 @@ Kurs oznacza **ilość surowca za 1 PP**, więc:
 
 | Warunek | Znaczenie | Etykieta |
 |---|---|---|
-| średnia ≥ próg górny | dużo surowca za 1 PP, surowce tanie | **kupuj** surowce za punkty |
-| średnia ≤ próg dolny | mało surowca za 1 PP, surowce drogie | **sprzedawaj** surowce za punkty |
+| najwyższy surowiec ≥ próg górny | dużo surowca za 1 PP, surowiec tani | **kupuj** ten surowiec za punkty |
+| najniższy surowiec ≤ próg dolny | mało surowca za 1 PP, surowiec drogi | **sprzedawaj** ten surowiec za punkty |
+
+Sygnał liczymy z **ekstremum**, nie ze średniej. Średnia rozcieńcza okazję:
+żelazo po 430 przy glinie 380 daje 405 i sygnał by przepadł. Skoro liczymy
+z ekstremum, wiemy też **który surowiec** wywołał sygnał — i to pokazujemy.
+
+Oba warunki mogą zajść naraz przy rozstrzelonych kursach. Wtedy pokazujemy
+**oba sygnały** — to nie sprzeczność, tylko dwie różne transakcje na dwóch
+różnych surowcach.
 
 Sygnał liczymy z **najświeższego** odczytu każdego kontynentu — nie z całej
-historii. Pasek okazji pokazuje wiersze w postaci `K55 · 412 · kupuj`.
+historii. Pasek okazji pokazuje wiersze w postaci `K55 · żelazo · 402 · kupuj`.
+
+Wykres i tabela nadal pokazują **średnią** — służą do oceny poziomu, a nie do
+łapania pojedynczej okazji. Rozbicie na surowce jest w tabeli i w podpowiedzi
+wykresu.
 
 Gdy nic nie przebija progów, pasek mówi to wprost („Brak okazji przy obecnych
 progach") zamiast znikać. Puste miejsce jest dwuznaczne: nie wiadomo, czy nie
@@ -136,8 +148,14 @@ siatki dni.
 
 Od góry:
 
-1. **Pasek importu** — przycisk „Wklej dane", licznik odczytów w historii,
-   przełącznik świata (widoczny, gdy światów jest więcej niż jeden).
+1. **Pasek importu** — „Wklej ze schowka", „Wklej ręcznie", „Wyczyść historię",
+   licznik odczytów oraz przełącznik świata (widoczny, gdy światów jest więcej
+   niż jeden).
+
+   **Wklej ze schowka** czyta schowek jednym kliknięciem. Odczyt schowka
+   wymaga zgody przeglądarki, a strona otwierana z dysku bywa traktowana
+   surowo — gdy zgody nie ma, otwieramy okno ręcznego wklejania
+   z wyjaśnieniem, zamiast zostawiać przycisk, który nic nie robi.
 2. **Progi i pasek okazji** — dwa pola liczbowe i lista sygnałów.
 3. **Wykres**.
 4. **Tabela aktualnego stanu** — kontynent, średnia, drewno, glina, żelazo,
