@@ -141,3 +141,19 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
 #tt { position: fixed; z-index: 9999; display: none; pointer-events: none; background: var(--wood-1); color: #f6ecd4; border: 1px solid var(--gold);
   padding: 7px 10px; border-radius: 6px; font-size: 12px; line-height: 1.4; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
 #tt b { font-family: var(--mono); }
+
+.modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
+  background: rgba(20,12,6,.6); padding: 16px; }
+.modal[hidden] { display: none; }
+.modal-box { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 18px 20px;
+  width: 100%; max-width: 720px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.modal-box h3 { margin: 0 0 6px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.modal-box .muted { margin: 0 0 12px; }
+#paste-area { width: 100%; height: 260px; resize: vertical; font-family: var(--mono); font-size: 12px; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 6px; padding: 10px; }
+.modal-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal-foot .spacer { flex: 1; }
+#paste-count { font-size: 13px; color: var(--ink-2); }
+#paste-count b { font-family: var(--mono); color: var(--ink); }
+button.primary { background: var(--accent); color: #f6ecd4; border-color: var(--accent); }
+button.primary:hover { background: var(--accent-deep); color: #fff; }

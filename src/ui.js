@@ -4,9 +4,12 @@ import { dedupeMerge } from './merge.js';
 import { aggregate, effectiveRates, bucketKey } from './aggregate.js';
 import { barChartSVG, lineChartSVG } from './charts.js';
 
+const LOG_DATE_RE = /^\s*\d{2}\.\d{2}\./;   // komórka daty: "DD.MM." (odsiewa nagłówki/śmieci)
+
 export function parseCSV(text) {
-  const firstLine = text.split('\n')[0];
-  const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
+  const firstLine = text.split('\n')[0] || '';
+  const sep = firstLine.includes('\t') ? '\t'
+    : (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
   const rows = [];
   for (const line of text.replace(/\r/g, '').split('\n')) {
     if (line === '') continue;
@@ -34,12 +37,20 @@ export function normalizeImport(fileText, fileName, now = new Date()) {
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  const rows = parseCSV(fileText);
-  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;
-  return rows.slice(start).filter(r => r.length >= 6).map(cells => {
-    const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
-    return enrich(raw, now);
-  });
+  // CSV/TSV (także wklejony log ze strony): bierzemy tylko wiersze zaczynające się od daty,
+  // więc nagłówki i śmieci między stronami są automatycznie pomijane.
+  return parseCSV(fileText)
+    .filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || ''))
+    .map(cells => {
+      const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
+      return enrich(raw, now);
+    });
+}
+
+// Ile wierszy logu rozpoznano we wklejonym tekście (do licznika na żywo).
+export function countLogRows(text) {
+  try { return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).length; }
+  catch { return 0; }
 }
 
 // ——— Część DOM (przeglądarka) ———
@@ -385,6 +396,27 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); STORE = []; render(); } });
+
+    // Wklejanie logu ze strony (bez skryptu na stronie gry)
+    const modal = $('#paste-modal'), area = $('#paste-area');
+    const closePaste = () => { modal.hidden = true; area.value = ''; };
+    $('#paste-open').addEventListener('click', () => { modal.hidden = false; area.value = ''; $('#paste-count').innerHTML = 'Rozpoznano: <b>0</b> wpisów'; area.focus(); });
+    $('#paste-cancel').addEventListener('click', closePaste);
+    modal.addEventListener('click', e => { if (e.target === modal) closePaste(); });
+    area.addEventListener('input', () => { $('#paste-count').innerHTML = `Rozpoznano: <b>${countLogRows(area.value)}</b> wpisów`; });
+    $('#paste-done').addEventListener('click', async () => {
+      const text = area.value.trim();
+      if (!text) { closePaste(); return; }
+      try {
+        const entries = normalizeImport(text, 'wklejka', new Date());
+        if (!entries.length) { alert('Nie rozpoznano żadnych wierszy logu. Skopiuj tabelę logu ze strony gry.'); return; }
+        STORE = dedupeMerge(STORE, entries);
+        await persist(STORE);
+        render();
+        closePaste();
+      } catch (e) { alert('Błąd wczytywania wklejki: ' + e.message); }
+    });
+
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
     STORE = await loadStore();

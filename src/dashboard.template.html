@@ -17,7 +17,7 @@
 
 <main class="wrap">
 <section id="dropzone">
-  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — albo <label class="link">wybierz<input id="file" type="file" multiple hidden></label>.
+  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — <label class="link">wybierz plik<input id="file" type="file" multiple hidden></label>, albo <span class="link" id="paste-open">wklej log ze strony</span>.
   <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
 </section>
 
@@ -49,6 +49,20 @@
   </div>
 </div>
 </main>
+
+<div id="paste-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Wklej log ze strony</h3>
+    <p class="muted">Na stronie gry (<b>Premium → Log punktów</b>) zaznacz tabelę logu, skopiuj (<b>Ctrl+C</b>) i wklej tutaj. Możesz wklejać kolejne strony jedna pod drugą — nagłówki i śmieci są pomijane.</p>
+    <textarea id="paste-area" spellcheck="false" placeholder="Wklej tu skopiowane wiersze logu…"></textarea>
+    <div class="modal-foot">
+      <span id="paste-count">Rozpoznano: <b>0</b> wpisów</span>
+      <span class="spacer"></span>
+      <button id="paste-cancel">Anuluj</button>
+      <button id="paste-done" class="primary">Zakończ i wczytaj</button>
+    </div>
+  </div>
+</div>
 <script type="module">/*INJECT:js*/</script>
 </body>
 </html>
