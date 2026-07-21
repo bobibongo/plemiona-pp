@@ -80,13 +80,10 @@ if (typeof document !== 'undefined') {
   // (dziesiątki tys. wpisów) nie mieści się w localStorage jako pełny JSON.
   let STORE = [];
 
-  const META_KEY = 'plemiona_pp_meta_v1';
-  let lastImportTs = (() => { try { return JSON.parse(localStorage.getItem(META_KEY) || '{}').importedAt || null; } catch { return null; } })();
-  const markImport = () => { lastImportTs = Date.now(); try { localStorage.setItem(META_KEY, JSON.stringify({ importedAt: lastImportTs })); } catch {} };
   let storeInfo = null, healthRef = null;
 
   const fmtDate = ts => { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
-  const fmtWhen = ms => ms ? new Date(ms).toLocaleString('pl-PL') : '—';
+  const fmtDateTime = ts => { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return `${fmtDate(ts)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`; };
 
   const COMPACT_FIELDS = ['ts', 'world', 'txType', 'change', 'balance', 'info'];
   const toCompact = e => { const o = {}; for (const k of COMPACT_FIELDS) o[k] = e[k]; return o; };
@@ -204,14 +201,15 @@ if (typeof document !== 'undefined') {
     else {
       const h = storeInfo;
       const verdykt = h.complete
-        ? `<b class="ok">spójny — brak luk w saldzie</b>`
-        : `<b class="warn">niekompletny — brakuje ≈ ${fmt(h.missingPP)} PP</b>`;
+        ? `<b class="ok">Kompletny</b>`
+        : `<b class="warn">Niekompletny (≈ ${fmt(h.missingPP)} PP)</b>`;
       li.hidden = false;
       li.innerHTML =
-        `<span><b>${fmtNum(h.count)}</b> wpisów · <b>${h.worlds}</b> światów</span>` +
-        `<span>zakres: <b>${fmtDate(h.minTs)}</b> – <b>${fmtDate(h.maxTs)}</b></span>` +
+        `<span>Wpisów: <b>${fmtNum(h.count)}</b></span>` +
+        `<span>Światów: <b>${h.worlds}</b></span>` +
+        `<span>Zakres: <b>${fmtDate(h.minTs)}</b> – <b>${fmtDate(h.maxTs)}</b></span>` +
         `<span>${verdykt}</span>` +
-        `<span class="li-when">wczytano: ${fmtWhen(lastImportTs)}</span>`;
+        `<span class="li-when">Ostatni wpis: <b>${fmtDateTime(h.maxTs)}</b></span>`;
     }
 
     const worlds = [...new Set(store.map(e => e.world))].sort(worldCmp);
@@ -382,7 +380,6 @@ if (typeof document !== 'undefined') {
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
     await persist(STORE);
-    markImport();
     render();
   }
 
@@ -467,7 +464,6 @@ if (typeof document !== 'undefined') {
         if (!entries.length) { alert('Nie rozpoznano żadnych wierszy logu. Skopiuj tabelę logu ze strony gry.'); return; }
         STORE = dedupeMerge(STORE, entries);
         await persist(STORE);
-        markImport();
         render();
         closePaste();
       } catch (e) { alert('Błąd wczytywania wklejki: ' + e.message); }
