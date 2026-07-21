@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analiza PP — Plemiona</title>
+<style>/*INJECT:css*/</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">
+    <div class="eyebrow">Plemiona · analiza PP</div>
+    <h1>Bilans punktów premium</h1>
+  </div>
+  <p id="count">0 wpisów</p>
+</div></header>
+
+<main class="wrap">
+<section id="dropzone">
+  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — albo <label class="link">wybierz<input id="file" type="file" multiple hidden></label>.
+  <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
+</section>
+
+<section class="filters">
+  <label>Świat: <select id="f-world"></select></label>
+  <label>Od: <input id="f-from" type="date"></label>
+  <label>Do: <input id="f-to" type="date"></label>
+  <label>Granulacja: <select id="f-gran"><option value="day">dzień</option><option value="week">tydzień</option><option value="month">miesiąc</option></select></label>
+</section>
+
+<section class="kpirow" id="kpi-row"></section>
+<section class="blocks" id="blocks"></section>
+
+<section class="card" id="saldo-card"><div id="chart-saldo"></div></section>
+<section class="card" id="netto-card"><div id="chart-balance"></div></section>
+
+<div class="cols">
+  <section class="card">
+    <h3>Bilans okresowy</h3>
+    <div class="subhint" id="period-hint"></div>
+    <table id="buckets"></table>
+  </section>
+  <div class="col-right">
+    <div class="rescols">
+      <section class="card"><h3>Surowce (Handel)</h3><table id="restable"></table></section>
+      <section class="card"><h3>Efektywny kurs (szt. / 1 PP)</h3><table id="rates"></table></section>
+    </div>
+    <section class="card"><h3>Szczegółowy bilans PP</h3><table id="detail"></table></section>
+  </div>
+</div>
+</main>
+<script type="module">/*INJECT:js*/</script>
+</body>
+</html>

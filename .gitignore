@@ -1,0 +1,7 @@
+node_modules/
+dist/
+_share/
+*.xlsx
+*.log
+plemiona-log-*.json
+.DS_Store
