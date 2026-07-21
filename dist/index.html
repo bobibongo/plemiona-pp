@@ -71,6 +71,7 @@ h2.sect { margin: 26px 0 8px; font-family: var(--serif); font-size: 17px; color:
 
 #dropzone { border: 1.5px dashed var(--line-strong); background: rgba(244,234,210,.9); border-radius: 6px; padding: 15px; text-align: center; color: var(--ink-2); font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 #dropzone.over { background: #f6eecf; border-color: var(--accent); }
+#dropzone .privacy { margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
 .link { color: var(--accent); cursor: pointer; font-weight: 700; }
 .actions { margin-top: 10px; }
 button { margin: 0 4px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 5px; color: var(--ink); font-size: 13px; font-weight: 600; }
@@ -187,6 +188,7 @@ button.primary:hover { background: var(--accent-deep); color: #fff; }
 <section id="dropzone">
   Przeciągnij tu pliki JSON lub CSV — <label class="link">wybierz plik<input id="file" type="file" multiple hidden></label>, albo <span class="link" id="paste-open">wklej log ze strony</span>.
   <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
+  <p class="privacy">Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</p>
 </section>
 
 <section class="loginfo" id="loginfo" hidden></section>
