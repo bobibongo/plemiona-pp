@@ -48,7 +48,9 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       if (!v) return;
       sinceDate = new Date(v + 'T00:00:00');
     }
-    const delayMs = Number(prompt('Opóźnienie między stronami (ms), 0 = bez:', '0')) || 0;
+    // Dwa tryby tempa: grzeczny (pauza ~1s/stronę — mały ślad) lub szybki (bez pauzy).
+    const grzecznie = confirm('Tempo pobierania:\n\nOK = GRZECZNY — pauza ~1 s na stronę (mały ślad, tempo jak przeglądanie)\nAnuluj = SZYBKI — bez pauzy');
+    const delayMs = grzecznie ? 1000 : 0;
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
     const all = [];
