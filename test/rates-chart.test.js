@@ -85,6 +85,16 @@ test('podpowiedź działa też bez rozbicia w punkcie', () => {
   assert.match(svg, /<title>[^<]*385[^<]*<\/title>/);
 });
 
+test('oś czasu nie powtarza tej samej daty dwa razy', () => {
+  // Pięć dni na siedem pozycji etykiet — bez odsiewu dwie wypadłyby tego
+  // samego dnia, a powtórzony znacznik czyta się jak usterka.
+  const svg = ratesChartSVG([seria('K45', '#c0392b', [320, 330, 340, 350, 360])],
+    { thresholds: {} });
+  const etykiety = [...svg.matchAll(/>(\d{2}\.\d{2})<\/text>/g)].map(m => m[1]);
+  assert.deepEqual(etykiety, [...new Set(etykiety)]);
+  assert.ok(etykiety.length >= 2);
+});
+
 test('pojedynczy punkt w czasie nie dzieli przez zero', () => {
   const svg = ratesChartSVG([{ continent: 'K45', color: '#c0392b', points: [{ t: T(20), y: 350 }] }],
     { thresholds: {} });

@@ -32,6 +32,18 @@ export function buildBookmarklet() {
   return oneLine;
 }
 
+const RATES_LOGIC = ['src/rates-history.js', 'src/rates-signals.js', 'src/rates-chart.js', 'src/rates-page.js'];
+
+// Strona analizy kursów (dist/kursy/index.html) — samowystarczalny plik,
+// otwierany z dysku. Nie sięga po nic z sieci.
+export function buildRatesPage() {
+  const css = read('./src/rates.css');
+  const js = RATES_LOGIC.map(p => stripModule(read('./' + p))).join('\n');
+  return read('./src/rates.template.html')
+    .replace('/*INJECT:css*/', () => css)
+    .replace('/*INJECT:js*/', () => js);
+}
+
 // Userscript (dist/kursy.user.js) — kolektor kursów giełdy premium.
 // Zostawiamy komentarze i nowe linie: userscript jest wielolinijkowy,
 // więc nie grozi mu problem sklejania, który dotyczy bookmarkletu.
@@ -122,5 +134,7 @@ if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   writeFileSync(new URL('./dist/index.html', import.meta.url), buildDashboard());            // dashboard = strona główna
   writeFileSync(new URL('./dist/kolektor/index.html', import.meta.url), buildLanding(buildBookmarklet())); // kolektor pod /kolektor/
   writeFileSync(new URL('./dist/kursy.user.js', import.meta.url), buildUserscript());
-  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (kursy giełdy)');
+  mkdirSync(new URL('./dist/kursy/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/kursy/index.html', import.meta.url), buildRatesPage());
+  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów)');
 }

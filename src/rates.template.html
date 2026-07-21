@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kursy giełdy — Plemiona</title>
+<style>/*INJECT:css*/</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">
+    <div class="eyebrow">Plemiona · kursy giełdy</div>
+    <h1>Przebieg kursów</h1>
+  </div>
+  <p id="count">0 odczytów</p>
+</div></header>
+
+<main class="wrap">
+<section id="dropzone">
+  Wklej dane skopiowane w grze przyciskiem <b>Eksportuj</b> — <span class="link" id="paste-open">wklej odczyty</span>.
+  <div class="actions"><button id="reset">Wyczyść historię</button></div>
+  <p class="privacy">Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</p>
+</section>
+
+<section class="filters">
+  <label>Świat: <select id="f-world"></select></label>
+  <label>Kupuj powyżej: <input id="th-high" type="number" min="1" step="1" inputmode="numeric"></label>
+  <label>Sprzedawaj poniżej: <input id="th-low" type="number" min="1" step="1" inputmode="numeric"></label>
+</section>
+
+<section class="card" id="signals-card"><h3>Okazje</h3><div id="signals"></div></section>
+
+<section class="card" id="chart-card"><div id="chart"></div></section>
+
+<section class="card"><h3>Aktualny stan</h3><table id="latest"></table></section>
+</main>
+
+<div id="paste-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Wklej odczyty</h3>
+    <p class="muted">W grze na ekranie giełdy kliknij <b>Eksportuj</b>, potem wklej tutaj (<b>Ctrl+V</b>).</p>
+    <textarea id="paste-area" spellcheck="false" placeholder="Wklej tu skopiowane dane…"></textarea>
+    <div class="modal-foot">
+      <span id="paste-info"></span>
+      <span class="spacer"></span>
+      <button id="paste-cancel">Anuluj</button>
+      <button id="paste-done" class="primary">Wczytaj</button>
+    </div>
+  </div>
+</div>
+<script type="module">/*INJECT:js*/</script>
+</body>
+</html>

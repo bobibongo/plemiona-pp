@@ -1,7 +1,7 @@
 // test/build.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDashboard, buildBookmarklet, buildUserscript } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -70,4 +70,28 @@ test('userscript nie wykonuje żadnych zapytań sieciowych', () => {
   for (const re of zakazane) {
     assert.doesNotMatch(js, re, `userscript zawiera zakazaną konstrukcję: ${re}`);
   }
+});
+
+test('strona kursów nie zawiera markerów ani importów', () => {
+  const html = buildRatesPage();
+  assert.doesNotMatch(html, /INJECT:/);
+  assert.doesNotMatch(html, /^\s*import\s/m);
+  assert.doesNotMatch(html, /^\s*export\s/m);
+});
+
+test('strona kursów zawiera logikę historii, sygnałów i wykresu', () => {
+  const html = buildRatesPage();
+  assert.match(html, /mergeHistory/);
+  assert.match(html, /evaluateSignals/);
+  assert.match(html, /ratesChartSVG/);
+});
+
+// Strona ma działać otwarta z dysku, więc nie wolno jej sięgać po nic z sieci.
+test('strona kursów jest samowystarczalna — zero odwołań na zewnątrz', () => {
+  const html = buildRatesPage();
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+  assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
+  assert.doesNotMatch(html, /<script[^>]+src=/);
+  assert.doesNotMatch(html, /<link[^>]+stylesheet/);
 });

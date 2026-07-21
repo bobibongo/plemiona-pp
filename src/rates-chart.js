@@ -115,11 +115,18 @@ export function ratesChartSVG(series, opts = {}) {
 
   const os = `<line x1="${MARGIN.left}" y1="${(MARGIN.top + plotH).toFixed(1)}" x2="${width - MARGIN.right}" y2="${(MARGIN.top + plotH).toFixed(1)}" stroke="${BASE_LINE}"/>`;
 
+  // Etykiety dat: przy krótkim zakresie kilka pozycji wypada tego samego dnia.
+  // Powtórzony znacznik czyta się jak usterka, więc pokazujemy każdą datę raz.
   let etykietyX = '';
   const krokow = 6;
+  let poprzedniaData = null;
   for (let i = 0; i <= krokow; i++) {
     const t = minT + (maxT - minT) * (i / krokow);
-    etykietyX += `<text x="${xOf(t).toFixed(1)}" y="${(height - MARGIN.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${AXIS_INK}">${dzienMiesiac(t)}</text>`;
+    const data = dzienMiesiac(t);
+    if (data !== poprzedniaData) {
+      etykietyX += `<text x="${xOf(t).toFixed(1)}" y="${(height - MARGIN.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${AXIS_INK}">${data}</text>`;
+      poprzedniaData = data;
+    }
     if (maxT === minT) break;
   }
 
