@@ -34,7 +34,7 @@ W zakresie:
 - ustalenie kontynentu bieżącej wioski,
 - pamięć migawkowa: jeden wiersz na kontynent, nadpisywany,
 - panel w rogu strony pokazujący zebrane kontynenty,
-- eksport zebranych danych do schowka jako JSON.
+- eksport zebranych danych do pliku JSON.
 
 Poza zakresem (osobny etap):
 
@@ -55,8 +55,8 @@ ruchu sieciowego oba warianty są identyczne (zero zapytań) — decyduje wygoda
 2. Skrypt odczytuje kursy i kontynent, zapisuje, rysuje panel w rogu.
 3. Gracz przeskakuje do wioski na innym kontynencie i znów wchodzi na giełdę.
 4. Panel odtwarza się z pamięci i dokłada nowy wiersz.
-5. Po obejściu wiosek gracz klika **Kopiuj do schowka**.
-6. JSON wkleja na stronie analizy.
+5. Po obejściu wiosek gracz klika **Eksportuj**.
+6. Pobrany plik JSON wczytuje na stronie analizy.
 
 Na ekranach innych niż giełda premium panel się nie pokazuje.
 
@@ -134,6 +134,18 @@ Eksport:
 Każdy odczyt niesie własny znacznik czasu. Kolektor trzyma tylko migawkę, ale
 strona analizy zbuduje z kolejnych eksportów historię kursu w czasie.
 
+## Eksport
+
+Przycisk **pobiera plik JSON** — ten sam sposób co kolektor logu PP, więc strona
+analizy przyjmie go tak samo jak pozostałe pliki, przeciągnięciem.
+
+Nazwa pliku niesie świat i moment eksportu, np.
+`plemiona-kursy-pl231-20260721-1432.json`. Dzięki temu kolejne eksporty odkładają
+się obok siebie zamiast nadpisywać, i da się z nich później odtworzyć historię
+kursu.
+
+Plik powstaje z obiektu `Blob` w pamięci przeglądarki — bez ruchu sieciowego.
+
 ## Pamięć
 
 - Jeden wiersz na kontynent; powtórny odczyt nadpisuje poprzedni.
@@ -158,7 +170,7 @@ Zakotwiczony w rogu okna, nad treścią gry.
 │ K45  │  325   │  331  │  254     │
 ├──────┴────────┴───────┴──────────┤
 │ 2 kontynenty · 14:32             │
-│ [ Kopiuj do schowka ] [ Wyczyść ]│
+│ [ Eksportuj ]        [ Wyczyść ] │
 └──────────────────────────────────┘
 ```
 
@@ -171,7 +183,8 @@ Zachowanie:
 - `✕` chowa panel do końca oglądania tej strony. Przy następnym wejściu na
   giełdę panel wraca — ukrycie nie wyłącza zbierania danych.
 - Kontynenty posortowane rosnąco po numerze.
-- **Kopiuj do schowka** kopiuje JSON i potwierdza to na przycisku.
+- **Eksportuj** pobiera plik JSON. Przycisk jest nieaktywny, dopóki pamięć jest
+  pusta — nie ma jak wyeksportować niczego.
 - **Wyczyść** kasuje pamięć po potwierdzeniu.
 
 Wygląd nawiązuje do motywu dashboardu (pergamin, oksbloodowy akcent), ale panel
@@ -186,9 +199,6 @@ jest samodzielny — style wstrzykiwane przez skrypt, bez zależności od CSS gr
 - **Kurs nie parsuje się do liczby**: odczyt odrzucony w całości.
 
 Zasada: popsuty odczyt nigdy nie nadpisuje dobrego.
-
-- **Schowek niedostępny** (brak uprawnień): panel pokazuje JSON w polu
-  tekstowym do ręcznego skopiowania.
 
 ## Struktura kodu
 
