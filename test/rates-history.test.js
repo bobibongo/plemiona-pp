@@ -1,7 +1,10 @@
 // test/rates-history.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseImport, recordKey, mergeHistory } from '../src/rates-history.js';
+import {
+  parseImport, recordKey, mergeHistory,
+  average, worlds, forWorld, continentsOf, latestPerContinent, seriesByContinent,
+} from '../src/rates-history.js';
 
 const eksport = (readings, world = 'pl231') =>
   JSON.stringify({ exportedAt: '2026-07-21T14:32:00.000Z', world, readings });
@@ -73,4 +76,52 @@ test('mergeHistory nie zmienia przekazanej historii', () => {
   const r = parseImport(eksport([odczyt('K64', 378, '2026-07-20T10:00:00.000Z')])).records;
   mergeHistory(historia, r);
   assert.equal(historia.length, 0);
+});
+
+const rec = (world, continent, at, wood = 300, stone = 300, iron = 300) =>
+  ({ world, continent, x: 1, y: 2, wood, stone, iron, at });
+
+test('average zaokrągla średnią z trzech surowców', () => {
+  assert.equal(average(rec('pl231', 'K64', 'x', 378, 372, 406)), 385);
+  assert.equal(average(rec('pl231', 'K64', 'x', 300, 300, 300)), 300);
+});
+
+test('worlds zwraca posortowane światy bez powtórzeń', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl217', 'K55', 'b'), rec('pl231', 'K55', 'c')];
+  assert.deepEqual(worlds(h), ['pl217', 'pl231']);
+});
+
+test('forWorld filtruje po świecie', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl217', 'K55', 'b')];
+  assert.deepEqual(forWorld(h, 'pl217').map(r => r.continent), ['K55']);
+});
+
+test('continentsOf sortuje po numerze, nie alfabetycznie', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl231', 'K5', 'b'), rec('pl231', 'K45', 'c')];
+  assert.deepEqual(continentsOf(h), ['K5', 'K45', 'K64']);
+});
+
+test('latestPerContinent bierze najświeższy odczyt każdego kontynentu', () => {
+  const h = [
+    rec('pl231', 'K64', '2026-07-20T10:00:00.000Z', 300, 300, 300),
+    rec('pl231', 'K64', '2026-07-21T10:00:00.000Z', 400, 400, 400),
+    rec('pl231', 'K55', '2026-07-19T10:00:00.000Z', 350, 350, 350),
+  ];
+  const out = latestPerContinent(h);
+  assert.deepEqual(out.map(r => r.continent), ['K55', 'K64']);
+  assert.equal(out.find(r => r.continent === 'K64').wood, 400);
+});
+
+test('seriesByContinent daje serię punktów na kontynent, rosnąco w czasie', () => {
+  const h = [
+    rec('pl231', 'K64', '2026-07-21T10:00:00.000Z', 400, 400, 400),
+    rec('pl231', 'K64', '2026-07-20T10:00:00.000Z', 300, 300, 300),
+    rec('pl231', 'K55', '2026-07-20T10:00:00.000Z', 350, 350, 350),
+  ];
+  const out = seriesByContinent(h);
+  assert.deepEqual(out.map(s => s.continent), ['K55', 'K64']);
+  const k64 = out.find(s => s.continent === 'K64');
+  assert.deepEqual(k64.points.map(p => p.y), [300, 400]);
+  assert.ok(k64.points[0].t < k64.points[1].t);
+  assert.equal(k64.points[1].rec.wood, 400);
 });

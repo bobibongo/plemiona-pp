@@ -53,3 +53,49 @@ export function mergeHistory(history, records) {
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
   return { history: merged, added: nowe.length, duplicates: records.length - nowe.length };
 }
+
+// Średnia z trzech surowców — sposób wyświetlania, nie forma przechowywania.
+// Surowce zostają w rekordzie, więc rozbicie zawsze da się odzyskać.
+export function average(r) {
+  return Math.round((r.wood + r.stone + r.iron) / 3);
+}
+
+export function worlds(history) {
+  return [...new Set(history.map(r => r.world))].sort();
+}
+
+export function forWorld(history, world) {
+  return history.filter(r => r.world === world);
+}
+
+// 'K5' < 'K45' < 'K64' — po numerze, bo alfabetycznie wyszłoby K45, K5, K64.
+function numerKontynentu(continent) {
+  const n = Number(String(continent).replace(/^K/, ''));
+  return Number.isFinite(n) ? n : Infinity;
+}
+
+export function continentsOf(history) {
+  return [...new Set(history.map(r => r.continent))]
+    .sort((a, b) => numerKontynentu(a) - numerKontynentu(b));
+}
+
+// Sygnał liczymy z najświeższego odczytu, nie z całej historii — interesuje nas
+// stan teraz, a nie średnia z tygodnia.
+export function latestPerContinent(history) {
+  const najnowsze = new Map();
+  for (const r of history) {
+    const poprzedni = najnowsze.get(r.continent);
+    if (!poprzedni || r.at > poprzedni.at) najnowsze.set(r.continent, r);
+  }
+  return continentsOf(history).map(c => najnowsze.get(c));
+}
+
+export function seriesByContinent(history) {
+  return continentsOf(history).map(continent => ({
+    continent,
+    points: history
+      .filter(r => r.continent === continent)
+      .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
+      .map(r => ({ t: Date.parse(r.at), y: average(r), rec: r })),
+  }));
+}
