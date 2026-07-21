@@ -1,7 +1,7 @@
 // test/build.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDashboard, buildBookmarklet } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -28,4 +28,46 @@ test('bookmarklet ma wykonywalny kod tuż po otwarciu IIFE (nie komentarz)', () 
   const body = bm.replace(/^javascript:\(\(\)=>\{/, '');
   assert.doesNotMatch(body.trimStart().slice(0, 3), /^\/\//);
   assert.match(bm, /parsePremiumDate/);
+});
+
+test('userscript ma nagłówek metadanych i pasuje do stron gry', () => {
+  const js = buildUserscript();
+  assert.match(js, /^\/\/ ==UserScript==/m);
+  assert.match(js, /\/\/ ==\/UserScript==/m);
+  assert.match(js, /@match\s+https:\/\/\*\.plemiona\.pl\/game\.php\*/);
+  assert.match(js, /@grant\s+none/);
+});
+
+test('userscript nie zawiera markerów modułów', () => {
+  const js = buildUserscript();
+  assert.doesNotMatch(js, /^\s*import\s/m);
+  assert.doesNotMatch(js, /^\s*export\s/m);
+});
+
+test('userscript zawiera logikę odczytu i panelu', () => {
+  const js = buildUserscript();
+  assert.match(js, /premium_exchange_rate_wood/);
+  assert.match(js, /mergeReading/);
+  assert.match(js, /panelHTML/);
+});
+
+// Warunek nadrzędny specyfikacji: skrypt czyta wyłącznie to, co gracz sam
+// otworzył, i nie generuje żadnego ruchu sieciowego. Ten test pilnuje, żeby
+// nikt tego nie rozmył przypadkiem przy późniejszej zmianie.
+test('userscript nie wykonuje żadnych zapytań sieciowych', () => {
+  const js = buildUserscript();
+  const zakazane = [
+    /\bfetch\s*\(/,
+    /XMLHttpRequest/,
+    /sendBeacon/,
+    /new\s+WebSocket/,
+    /EventSource/,
+    /\bimportScripts\s*\(/,
+    /location\s*\.\s*href\s*=[^=]/,
+    /location\s*\.\s*(reload|assign|replace)\s*\(/,
+    /\bform\s*\.\s*submit\s*\(/,
+  ];
+  for (const re of zakazane) {
+    assert.doesNotMatch(js, re, `userscript zawiera zakazaną konstrukcję: ${re}`);
+  }
 });

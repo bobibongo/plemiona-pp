@@ -32,6 +32,27 @@ export function buildBookmarklet() {
   return oneLine;
 }
 
+// Userscript (dist/kursy.user.js) — kolektor kursów giełdy premium.
+// Zostawiamy komentarze i nowe linie: userscript jest wielolinijkowy,
+// więc nie grozi mu problem sklejania, który dotyczy bookmarkletu.
+const USERSCRIPT_META = `// ==UserScript==
+// @name         Plemiona — kursy giełdy
+// @namespace    plemiona-pp
+// @version      1.0.0
+// @description  Odczytuje kursy giełdy premium z otwartej strony i zbiera je per kontynent. Nie wysyła żadnych zapytań.
+// @author       plemiona-pp
+// @match        https://*.plemiona.pl/game.php*
+// @run-at       document-idle
+// @grant        none
+// ==/UserScript==
+`;
+
+export function buildUserscript() {
+  const js = ['src/rates-parse.js', 'src/rates-store.js', 'src/rates-panel.js', 'src/rates-collector.js']
+    .map(p => stripModule(read('./' + p))).join('\n');
+  return USERSCRIPT_META + '\n(function () {\n' + js + '\n})();\n';
+}
+
 // Strona kolektora (/kolektor) — bookmarklet + instrukcja + wejście do dashboardu.
 export function buildLanding(bm) {
   const href = bm.replace(/"/g, '&quot;');
@@ -100,5 +121,6 @@ if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   mkdirSync(new URL('./dist/kolektor/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/index.html', import.meta.url), buildDashboard());            // dashboard = strona główna
   writeFileSync(new URL('./dist/kolektor/index.html', import.meta.url), buildLanding(buildBookmarklet())); // kolektor pod /kolektor/
-  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor)');
+  writeFileSync(new URL('./dist/kursy.user.js', import.meta.url), buildUserscript());
+  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (kursy giełdy)');
 }
