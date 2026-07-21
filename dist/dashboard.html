@@ -147,6 +147,22 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
 #tt { position: fixed; z-index: 9999; display: none; pointer-events: none; background: var(--wood-1); color: #f6ecd4; border: 1px solid var(--gold);
   padding: 7px 10px; border-radius: 6px; font-size: 12px; line-height: 1.4; box-shadow: 0 6px 18px rgba(0,0,0,.5); }
 #tt b { font-family: var(--mono); }
+
+.modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
+  background: rgba(20,12,6,.6); padding: 16px; }
+.modal[hidden] { display: none; }
+.modal-box { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 18px 20px;
+  width: 100%; max-width: 720px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.modal-box h3 { margin: 0 0 6px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.modal-box .muted { margin: 0 0 12px; }
+#paste-area { width: 100%; height: 260px; resize: vertical; font-family: var(--mono); font-size: 12px; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 6px; padding: 10px; }
+.modal-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal-foot .spacer { flex: 1; }
+#paste-count { font-size: 13px; color: var(--ink-2); }
+#paste-count b { font-family: var(--mono); color: var(--ink); }
+button.primary { background: var(--accent); color: #f6ecd4; border-color: var(--accent); }
+button.primary:hover { background: var(--accent-deep); color: #fff; }
 </style>
 </head>
 <body>
@@ -160,7 +176,7 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
 
 <main class="wrap">
 <section id="dropzone">
-  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — albo <label class="link">wybierz<input id="file" type="file" multiple hidden></label>.
+  Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — <label class="link">wybierz plik<input id="file" type="file" multiple hidden></label>, albo <span class="link" id="paste-open">wklej log ze strony</span>.
   <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
 </section>
 
@@ -192,6 +208,20 @@ svg .bar:hover, svg .dot:hover { opacity: .72; cursor: pointer; }
   </div>
 </div>
 </main>
+
+<div id="paste-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Wklej log ze strony</h3>
+    <p class="muted">Na stronie gry (<b>Premium → Log punktów</b>) zaznacz tabelę logu, skopiuj (<b>Ctrl+C</b>) i wklej tutaj. Możesz wklejać kolejne strony jedna pod drugą — nagłówki i śmieci są pomijane.</p>
+    <textarea id="paste-area" spellcheck="false" placeholder="Wklej tu skopiowane wiersze logu…"></textarea>
+    <div class="modal-foot">
+      <span id="paste-count">Rozpoznano: <b>0</b> wpisów</span>
+      <span class="spacer"></span>
+      <button id="paste-cancel">Anuluj</button>
+      <button id="paste-done" class="primary">Zakończ i wczytaj</button>
+    </div>
+  </div>
+</div>
 <script type="module">// src/shared-date.js
 // Format: "DD.MM. HH:MM" (rok bieżący) lub "DD.MM.YY HH:MM" (rok 20YY).
 const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parsePremiumDate(dateRaw, now = new Date()) {
@@ -203,10 +233,8 @@ const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parseP
   return new Date(year, Number(mm) - 1, Number(dd), Number(hh), Number(min), 0, 0);
 }
 
-// src/parse.js
-
-const NBSP = / /g;
-function parseNumber(raw) {
+// src/parse.js
+const NBSP = / /g;function parseNumber(raw) {
   const s = String(raw).replace(NBSP, '').replace(/\s/g, '').replace('+', '');
   const n = Number(s);
   if (Number.isNaN(n)) throw new Error(`Nieparsowalna liczba: ${JSON.stringify(raw)}`);
@@ -217,8 +245,7 @@ const RESOURCE_MAP = [
   [/drewno/i, 'drewno'],
   [/glina/i, 'glina'],
   [/(żelazo|zelazo)/i, 'zelazo'],
-];
-function extractResource(info) {
+];function extractResource(info) {
   const s = String(info);
   const amountMatch = /\((\d+)\)/.exec(s);
   for (const [re, key] of RESOURCE_MAP) {
@@ -257,8 +284,7 @@ const SERVICE_MAP = [
 function eventLabel(info) {
   const s = String(info).replace(/\(.*?\)/g, '').replace(/\s*-\s.*$/, '').trim();
   return s || String(info).trim();
-}
-function classify(raw) {
+}function classify(raw) {
   const info = String(raw.info || '');
   const txType = String(raw.txType || '').replace(NBSP, '').trim();
   const { resource, amount } = extractResource(info);
@@ -293,8 +319,7 @@ function wallClockISO(d) {
   const p = (n, w = 2) => String(n).padStart(w, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T` +
     `${p(d.getHours())}:${p(d.getMinutes())}:00.000Z`;
-}
-function enrich(raw, now = new Date()) {
+}function enrich(raw, now = new Date()) {
   const ts = wallClockISO(parsePremiumDate(raw.dateRaw, now));
   const change = parseNumber(raw.changeRaw);
   const balance = parseNumber(raw.balanceRaw);
@@ -303,8 +328,7 @@ function enrich(raw, now = new Date()) {
   const cls = classify(raw);
   return { ts, world, txType: String(raw.txType).replace(NBSP, '').trim(),
     change, balance, info, ...cls };
-}
-function entryKey(e) {
+}function entryKey(e) {
   // saldo w kluczu: prawdziwe powtórzenia w tej samej minucie (ten sam opis/zmiana)
   // mają różne "Nowe saldo PP", więc nie zostaną błędnie zwinięte.
   return `${e.world}|${e.ts}|${e.change}|${e.balance}|${e.info}`;
@@ -325,8 +349,7 @@ function isoWeek(d) {
   const firstThursday = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
   const week = 1 + Math.round(((date - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
   return { year: date.getUTCFullYear(), week };
-}
-function bucketKey(ts, granularity) {
+}function bucketKey(ts, granularity) {
   const d = new Date(ts);
   const y = d.getUTCFullYear(), m = String(d.getUTCMonth() + 1).padStart(2, '0');
   if (granularity === 'month') return `${y}-${m}`;
@@ -345,8 +368,7 @@ function newBucket(key) {
   const b = { key, net: 0, earned: 0, spent: 0, bought: 0, sold: 0, resDiff: 0 };
   for (const c of CATEGORIES) b[c] = 0;
   return b;
-}
-function aggregate(entries, { granularity }) {
+}function aggregate(entries, { granularity }) {
   const map = new Map();
   const totals = {
     net: 0, earned: 0, spent: 0,
@@ -387,8 +409,7 @@ function aggregate(entries, { granularity }) {
   return { buckets, totals };
 }
 
-// Efektywny kurs jako ILOŚĆ SUROWCA na 1 PP (kupno i sprzedaż osobno).
-function effectiveRates(entries) {
+// Efektywny kurs jako ILOŚĆ SUROWCA na 1 PP (kupno i sprzedaż osobno).function effectiveRates(entries) {
   const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));
   for (const e of entries) {
     if (e.category !== 'handel' || !e.resource || !e.amount) continue;
@@ -458,8 +479,7 @@ function frame(width, height, title, domainMin, domainMax) {
   }
   const t = title ? `<text x="${M.left}" y="13" font-size="12.5" fill="${INK2}" font-weight="600">${esc(title)}</text>` : '';
   return { plotW, plotH, yOf, grid, titleEl: t };
-}
-function barChartSVG(series, opts = {}) {
+}function barChartSVG(series, opts = {}) {
   const { width = 1000, height = 260, title = '' } = opts;
   if (!series.length) return empty(width, height);
   const vals = series.map(s => s.value);
@@ -486,8 +506,7 @@ function barChartSVG(series, opts = {}) {
   });
   const zeroLine = `<line x1="${M.left}" y1="${zeroY.toFixed(1)}" x2="${width - M.right}" y2="${zeroY.toFixed(1)}" stroke="${BASE}"/>`;
   return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">${titleEl}${grid}${zeroLine}${bars}${xlabels}</svg>`;
-}
-function lineChartSVG(points, opts = {}) {
+}function lineChartSVG(points, opts = {}) {
   const { width = 1000, height = 260, title = '', endLabel = false } = opts;
   if (!points.length) return empty(width, height);
   const { overlay, legend } = opts;   // overlay: {points,color} rysowana słabiej; legend: [{color,label}]
@@ -541,10 +560,11 @@ function lineChartSVG(points, opts = {}) {
     `<polyline fill="none" stroke="${LINE}" stroke-width="2.2" stroke-linejoin="round" points="${coords}"/>${dots}${endMark}${legendEl}${xlabels}</svg>`;
 }
 
-// src/ui.js
-function parseCSV(text) {
-  const firstLine = text.split('\n')[0];
-  const sep = (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
+// src/ui.js
+const LOG_DATE_RE = /^\s*\d{2}\.\d{2}\./;   // komórka daty: "DD.MM." (odsiewa nagłówki/śmieci)function parseCSV(text) {
+  const firstLine = text.split('\n')[0] || '';
+  const sep = firstLine.includes('\t') ? '\t'
+    : (firstLine.match(/;/g) || []).length >= (firstLine.match(/,/g) || []).length ? ';' : ',';
   const rows = [];
   for (const line of text.replace(/\r/g, '').split('\n')) {
     if (line === '') continue;
@@ -562,8 +582,7 @@ function parseCSV(text) {
   return rows;
 }
 
-const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
-function normalizeImport(fileText, fileName, now = new Date()) {
+const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];function normalizeImport(fileText, fileName, now = new Date()) {
   const trimmed = fileText.trim();
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     const data = JSON.parse(trimmed);
@@ -571,12 +590,19 @@ function normalizeImport(fileText, fileName, now = new Date()) {
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  const rows = parseCSV(fileText);
-  const start = /data/i.test(rows[0]?.[0] || '') ? 1 : 0;
-  return rows.slice(start).filter(r => r.length >= 6).map(cells => {
-    const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
-    return enrich(raw, now);
-  });
+  // CSV/TSV (także wklejony log ze strony): bierzemy tylko wiersze zaczynające się od daty,
+  // więc nagłówki i śmieci między stronami są automatycznie pomijane.
+  return parseCSV(fileText)
+    .filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || ''))
+    .map(cells => {
+      const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
+      return enrich(raw, now);
+    });
+}
+
+// Ile wierszy logu rozpoznano we wklejonym tekście (do licznika na żywo).function countLogRows(text) {
+  try { return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).length; }
+  catch { return 0; }
 }
 
 // ——— Część DOM (przeglądarka) ———
@@ -922,6 +948,27 @@ if (typeof document !== 'undefined') {
       a.download = 'plemiona-scalone.json'; a.click();
     });
     $('#reset').addEventListener('click', () => { if (confirm('Wyczyścić magazyn?')) { localStorage.removeItem(KEY); STORE = []; render(); } });
+
+    // Wklejanie logu ze strony (bez skryptu na stronie gry)
+    const modal = $('#paste-modal'), area = $('#paste-area');
+    const closePaste = () => { modal.hidden = true; area.value = ''; };
+    $('#paste-open').addEventListener('click', () => { modal.hidden = false; area.value = ''; $('#paste-count').innerHTML = 'Rozpoznano: <b>0</b> wpisów'; area.focus(); });
+    $('#paste-cancel').addEventListener('click', closePaste);
+    modal.addEventListener('click', e => { if (e.target === modal) closePaste(); });
+    area.addEventListener('input', () => { $('#paste-count').innerHTML = `Rozpoznano: <b>${countLogRows(area.value)}</b> wpisów`; });
+    $('#paste-done').addEventListener('click', async () => {
+      const text = area.value.trim();
+      if (!text) { closePaste(); return; }
+      try {
+        const entries = normalizeImport(text, 'wklejka', new Date());
+        if (!entries.length) { alert('Nie rozpoznano żadnych wierszy logu. Skopiuj tabelę logu ze strony gry.'); return; }
+        STORE = dedupeMerge(STORE, entries);
+        await persist(STORE);
+        render();
+        closePaste();
+      } catch (e) { alert('Błąd wczytywania wklejki: ' + e.message); }
+    });
+
     let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawSaldo, 150); });
     setupTooltip();
     STORE = await loadStore();
