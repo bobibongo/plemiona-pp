@@ -20,51 +20,83 @@ test('extractResource wykrywa surowiec i ilość', () => {
     { resource: null, amount: null });
 });
 
-test('classify: kupno surowca = arbitraz/kupno', () => {
+test('Handel: kupno surowca', () => {
   const c = classify({ txType: 'Giełda Premium', changeRaw: '-47',
     info: 'Giełda Premium-kupno: Żelazo (20316)' });
-  assert.equal(c.category, 'arbitraz');
+  assert.equal(c.category, 'handel');
   assert.equal(c.subtype, 'kupno');
+  assert.equal(c.label, 'Kupno');
   assert.equal(c.resource, 'zelazo');
   assert.equal(c.amount, 20316);
 });
 
-test('classify: sprzedaż mimo typu Przeniesienie = arbitraz/sprzedaz', () => {
+test('Handel: sprzedaż mimo typu Przeniesienie', () => {
   const c = classify({ txType: 'Przeniesienie', changeRaw: '9',
     info: 'Giełda Premium-sprzedaż: Glina (905)' });
-  assert.equal(c.category, 'arbitraz');
+  assert.equal(c.category, 'handel');
   assert.equal(c.subtype, 'sprzedaz');
+  assert.equal(c.label, 'Sprzedaż');
 });
 
-test('classify: Użycie = usluga z podtypem', () => {
-  assert.equal(classify({ txType: 'Użycie', changeRaw: '-10',
-    info: 'Redukcja czasu budowy - pl231 - Mur (Poziom 19)' }).subtype, 'redukcja_czasu');
-  assert.equal(classify({ txType: 'Użycie', changeRaw: '-10',
-    info: 'Natychmiastowe zakończenie - Spichlerz (Poziom 30)' }).subtype, 'natychmiastowe_zakonczenie');
-  assert.equal(classify({ txType: 'Użycie', changeRaw: '-10',
-    info: 'Handluj surowcami z miejscowym kupcem' }).subtype, 'handel_kupiec');
-  assert.equal(classify({ txType: 'Użycie', changeRaw: '-10',
-    info: 'Wskrzeszenie rycerza, skrócenie czasu - Paul' }).subtype, 'rycerz');
-  const u = classify({ txType: 'Użycie', changeRaw: '-10',
-    info: 'Redukcja czasu budowy - pl231 - Mur (Poziom 19)' });
-  assert.equal(u.category, 'usluga');
-});
-
-test('classify: Kupno za pieniądze = zewnetrzne_pp/zakup_pp', () => {
+test('Zakup PP: typ Kupno (realne pieniądze)', () => {
   const c = classify({ txType: 'Kupno', changeRaw: '1500',
     info: 'Metoda płatności: przelewy24-worldpay.' });
-  assert.equal(c.category, 'zewnetrzne_pp');
-  assert.equal(c.subtype, 'zakup_pp');
+  assert.equal(c.category, 'zakup_pp');
+  assert.equal(c.label, 'Zakup PP');
 });
 
-test('classify: Premium subskrypcja = zewnetrzne_pp/subskrypcja', () => {
-  const c = classify({ txType: 'Użycie', changeRaw: '-30', info: 'Premium 3' });
-  assert.equal(c.category, 'zewnetrzne_pp');
-  assert.equal(c.subtype, 'subskrypcja');
+test('Zakup PP: Przeniesienie od gracza (nie handel)', () => {
+  const c = classify({ txType: 'Przeniesienie', changeRaw: '500',
+    info: 'Przeniesienie punktów premium od gracza XYZ' });
+  assert.equal(c.category, 'zakup_pp');
+  assert.equal(c.label, 'Zakup PP');
 });
 
-test('classify: nierozpoznane = inne', () => {
-  assert.equal(classify({ txType: 'Coś', changeRaw: '0', info: 'dziwne' }).category, 'inne');
+test('Subskrypcje: różne typy', () => {
+  const cases = [
+    ['Konto premium - 30 dni', 'Konto premium'],
+    ['Premium 3', 'Konto premium'],
+    ['Menadżer konta', 'Menadżer konta'],
+    ['Asystent farmera', 'Asystent farmera'],
+    ['+20% wydobywanego żelaza', '+20% żelaza'],
+    ['+20% produkowanej gliny', '+20% gliny'],
+    ['+20% produkowanego drewna', '+20% drewna'],
+  ];
+  for (const [info, label] of cases) {
+    const c = classify({ txType: 'Użycie', changeRaw: '-30', info });
+    assert.equal(c.category, 'subskrypcje', `kategoria dla: ${info}`);
+    assert.equal(c.label, label, `label dla: ${info}`);
+  }
+});
+
+test('Usługi: różne typy', () => {
+  const cases = [
+    ['Redukcja czasu budowy - pl231 - Mur (Poziom 19)', 'Redukcja czasu budowy'],
+    ['Natychmiastowe zakończenie - Spichlerz (Poziom 30)', 'Natychmiastowe zakończenie'],
+    ['Handluj surowcami z miejscowym kupcem', 'Handel z miejscowym kupcem'],
+    ['Wymiana manuskryptu', 'Wymiana manuskryptu'],
+    ['Wskrzeszenie rycerza, skrócenie czasu - Paul', 'Wskrzeszenie rycerza'],
+    ['Rekrutacja rycerza, skrócenie czasu - Paul', 'Rekrutacja rycerza'],
+    ['Przekwalifikowanie rycerza', 'Przekwalifikowanie rycerza'],
+    ['Zmniejsz koszt budowy - - Pałac (Poziom 1)', 'Zmniejsz koszt budowy'],
+  ];
+  for (const [info, label] of cases) {
+    const c = classify({ txType: 'Użycie', changeRaw: '-10', info });
+    assert.equal(c.category, 'uslugi', `kategoria dla: ${info}`);
+    assert.equal(c.label, label, `label dla: ${info}`);
+  }
+});
+
+test('Eventy: nieznane, grupowane po nazwie', () => {
+  assert.equal(classify({ txType: 'Użycie', changeRaw: '5', info: 'Otwarcie prezentu' }).category, 'eventy');
+  assert.equal(classify({ txType: 'Użycie', changeRaw: '5', info: 'Otwarcie prezentu' }).label, 'Otwarcie prezentu');
+  assert.equal(classify({ txType: 'Coś', changeRaw: '0', info: 'Zakręcenie kołem - nagroda (10)' }).label, 'Zakręcenie kołem');
+});
+
+test('Eventy: pusty opis -> etykieta z typu transakcji', () => {
+  assert.equal(classify({ txType: 'Darmowe PP', changeRaw: '100', info: '' }).label, 'Darmowe PP');
+  assert.equal(classify({ txType: 'Nagroda końcowa', changeRaw: '500', info: 'World winner' }).label, 'World winner');
+  assert.equal(classify({ txType: 'Ręcznie', changeRaw: '30', info: '' }).label, 'Ręcznie');
 });
 
 test('enrich buduje pełny Entry i entryKey jest stabilny', () => {
@@ -74,7 +106,8 @@ test('enrich buduje pełny Entry i entryKey jest stabilny', () => {
   assert.equal(e.world, 'Świat 231');
   assert.equal(e.change, -47);
   assert.equal(e.balance, 974);
-  assert.equal(e.category, 'arbitraz');
+  assert.equal(e.category, 'handel');
+  assert.equal(e.label, 'Kupno');
   assert.equal(typeof e.ts, 'string');
-  assert.equal(entryKey(e), `Świat 231|${e.ts}|-47|Giełda Premium-kupno: Żelazo (20316)`);
+  assert.equal(entryKey(e), `Świat 231|${e.ts}|-47|974|Giełda Premium-kupno: Żelazo (20316)`);
 });
