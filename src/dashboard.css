@@ -136,8 +136,10 @@ th:first-child, td:first-child { text-align: left; font-family: system-ui, sans-
 table tr:hover td { background: rgba(168,132,44,.08); }
 
 #detail .grp-row td { background: var(--accent); color: #f6ecd4; font-weight: 700; letter-spacing: .08em; font-size: 10.5px; text-transform: uppercase; font-family: system-ui, sans-serif; }
-#detail .cat td:first-child { font-weight: 700; color: var(--ink); }
+#detail .cat td { font-weight: 700; border-top: 1px solid var(--line-strong); }
+#detail .cat td:first-child { color: var(--ink); }
 #detail .sub td:first-child { padding-left: 26px; color: var(--ink-3); font-size: 12.5px; }
+#detail .sub td { font-size: 12.5px; }
 #detail .total-row td { background: var(--wood-1); color: #f6ecd4; font-weight: 700; border: none; }
 #detail .total-row td:first-child { color: #f6ecd4; }
 #detail .total-row td.pos { color: #8fd08a; } #detail .total-row td.neg { color: #f0a599; }
