@@ -36,11 +36,7 @@ export function buildExport(world, readings, now = new Date()) {
   return { exportedAt: now.toISOString(), world, readings: sortReadings(readings) };
 }
 
-// plemiona-kursy-pl231-20260721-1432.json — kolejne eksporty odkładają się
-// obok siebie, więc da się z nich później odtworzyć historię kursu.
-export function exportFilename(world, now = new Date()) {
-  const p = n => String(n).padStart(2, '0');
-  const stamp = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`
-    + `-${p(now.getHours())}${p(now.getMinutes())}`;
-  return `plemiona-kursy-${world}-${stamp}.json`;
+// Tekst trafiający do schowka — wklejasz go wprost na stronie analizy.
+export function exportText(world, readings, now = new Date()) {
+  return JSON.stringify(buildExport(world, readings, now), null, 2);
 }

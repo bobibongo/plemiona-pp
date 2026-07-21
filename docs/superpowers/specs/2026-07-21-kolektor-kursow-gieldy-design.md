@@ -34,7 +34,7 @@ W zakresie:
 - ustalenie kontynentu bieżącej wioski,
 - pamięć migawkowa: jeden wiersz na kontynent, nadpisywany,
 - panel w rogu strony pokazujący zebrane kontynenty,
-- eksport zebranych danych do pliku JSON.
+- eksport zebranych danych do schowka jako JSON.
 
 Poza zakresem (osobny etap):
 
@@ -56,7 +56,7 @@ ruchu sieciowego oba warianty są identyczne (zero zapytań) — decyduje wygoda
 3. Gracz przeskakuje do wioski na innym kontynencie i znów wchodzi na giełdę.
 4. Panel odtwarza się z pamięci i dokłada nowy wiersz.
 5. Po obejściu wiosek gracz klika **Eksportuj**.
-6. Pobrany plik JSON wczytuje na stronie analizy.
+6. JSON ze schowka wkleja na stronie analizy.
 
 Na ekranach innych niż giełda premium panel się nie pokazuje.
 
@@ -141,15 +141,18 @@ strona analizy zbuduje z kolejnych eksportów historię kursu w czasie.
 
 ## Eksport
 
-Przycisk **pobiera plik JSON** — ten sam sposób co kolektor logu PP, więc strona
-analizy przyjmie go tak samo jak pozostałe pliki, przeciągnięciem.
+Przycisk **kopiuje JSON do schowka**. Przechodzisz na stronę analizy i wklejasz —
+bez pośrednictwa pliku i bez zaśmiecania folderu Pobrane.
 
-Nazwa pliku niesie świat i moment eksportu, np.
-`plemiona-kursy-pl231-20260721-1432.json`. Dzięki temu kolejne eksporty odkładają
-się obok siebie zamiast nadpisywać, i da się z nich później odtworzyć historię
-kursu.
+Kopiowanie wymaga gestu użytkownika, dlatego dzieje się prosto z obsługi
+kliknięcia. Po udanym skopiowaniu przycisk potwierdza to napisem „Skopiowano ✓"
+przez dwie sekundy.
 
-Plik powstaje z obiektu `Blob` w pamięci przeglądarki — bez ruchu sieciowego.
+Gdy przeglądarka nie wpuści nas do schowka, panel pokazuje pole tekstowe
+z zaznaczoną treścią i podpowiedzią „Ctrl+C". Gracz nigdy nie zostaje
+z niczym.
+
+Wszystko dzieje się w pamięci przeglądarki — bez ruchu sieciowego.
 
 ## Pamięć
 
@@ -188,8 +191,8 @@ Zachowanie:
 - `✕` chowa panel do końca oglądania tej strony. Przy następnym wejściu na
   giełdę panel wraca — ukrycie nie wyłącza zbierania danych.
 - Kontynenty posortowane rosnąco po numerze.
-- **Eksportuj** pobiera plik JSON. Przycisk jest nieaktywny, dopóki pamięć jest
-  pusta — nie ma jak wyeksportować niczego.
+- **Eksportuj** kopiuje JSON do schowka i potwierdza to na przycisku. Przycisk
+  jest nieaktywny, dopóki pamięć jest pusta — nie ma jak wyeksportować niczego.
 - **Wyczyść** kasuje pamięć po potwierdzeniu.
 
 Wygląd nawiązuje do motywu dashboardu (pergamin, oksbloodowy akcent), ale panel

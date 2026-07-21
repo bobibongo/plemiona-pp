@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  worldFromHost, storageKey, sortReadings, mergeReading, buildExport, exportFilename,
+  worldFromHost, storageKey, sortReadings, mergeReading, buildExport, exportText,
 } from '../src/rates-store.js';
 
 const r = (continent, wood, at = '2026-07-21T14:30:12.000Z') =>
@@ -53,7 +53,10 @@ test('buildExport składa ładunek zgodny ze specyfikacją', () => {
   assert.equal(out.readings[0].continent, 'K64');
 });
 
-test('exportFilename niesie świat i moment eksportu', () => {
-  const name = exportFilename('pl231', new Date(2026, 6, 21, 14, 32));
-  assert.equal(name, 'plemiona-kursy-pl231-20260721-1432.json');
+test('exportText daje JSON gotowy do wklejenia', () => {
+  const tekst = exportText('pl231', [r('K64', 378)], new Date('2026-07-21T14:32:00.000Z'));
+  assert.match(tekst, /\n/);                       // czytelny, nie jedna linia
+  const back = JSON.parse(tekst);
+  assert.equal(back.world, 'pl231');
+  assert.equal(back.readings[0].wood, 378);
 });

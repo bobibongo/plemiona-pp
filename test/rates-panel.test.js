@@ -59,6 +59,17 @@ test('panelHTML nie wpuszcza surowego HTML z odczytu', () => {
   assert.match(html, /&lt;img/);
 });
 
+test('panelHTML pokazuje pole do ręcznego skopiowania, gdy schowek zawiódł', () => {
+  const html = panelHTML({ readings: [r('K64', 1, 2, 3)], manual: '{"world":"pl231"}' });
+  assert.match(html, /<textarea/);
+  assert.match(html, /pl231/);
+  assert.match(html, /Ctrl\+C/);
+});
+
+test('panelHTML bez awarii schowka nie pokazuje pola tekstowego', () => {
+  assert.doesNotMatch(panelHTML({ readings: [r('K64', 1, 2, 3)] }), /<textarea/);
+});
+
 test('panel ma własne style i stały identyfikator', () => {
   assert.equal(typeof PANEL_ID, 'string');
   assert.match(PANEL_CSS, new RegExp('#' + PANEL_ID));

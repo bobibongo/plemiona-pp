@@ -2,7 +2,7 @@
 // Panel w rogu ekranu gry. Układ generuje czysta funkcja panelHTML, więc da się
 // go testować bez przeglądarki; mountPanel to cienka warstwa DOM nad nią.
 
-import { buildExport, exportFilename } from './rates-store.js';
+import { exportText } from './rates-store.js';
 
 export const PANEL_ID = 'kursy-panel';
 const COLLAPSE_KEY = 'plemiona-kursy:zwiniety';
@@ -37,6 +37,12 @@ export const PANEL_CSS = `
 #${PANEL_ID} .kp-btn { padding: 4px 10px; border: 1px solid #c4ac7c; border-radius: 4px;
   background: #ecdfbf; color: #38291a; font: inherit; font-weight: 600; cursor: pointer; }
 #${PANEL_ID} .kp-btn[disabled] { opacity: .45; cursor: default; }
+#${PANEL_ID} .kp-manual { padding: 6px 8px; border-top: 1px solid #dccca4; }
+#${PANEL_ID} .kp-manual p { margin: 0 0 4px; font-size: 11px; color: #a5372a;
+  text-transform: none; letter-spacing: normal; }
+#${PANEL_ID} .kp-manual textarea { width: 100%; height: 90px; resize: vertical;
+  font: 11px ui-monospace, Consolas, monospace; color: #38291a; background: #ecdfbf;
+  border: 1px solid #c4ac7c; border-radius: 4px; padding: 5px; }
 `;
 
 function esc(value) {
@@ -59,7 +65,7 @@ function odmiana(n) {
   return 'kontynentów';
 }
 
-export function panelHTML({ readings, justUpdated = null, warning = null, collapsed = false }) {
+export function panelHTML({ readings, justUpdated = null, warning = null, collapsed = false, manual = null }) {
   const bar = `<div class="kp-bar"><span class="kp-title">Kursy giełdy</span>`
     + `<button class="kp-btn-icon" data-act="collapse" title="${collapsed ? 'Rozwiń' : 'Zwiń'}">`
     + `${collapsed ? '▣' : '─'}</button>`
@@ -81,7 +87,14 @@ export function panelHTML({ readings, justUpdated = null, warning = null, collap
   const count = `${readings.length} ${odmiana(readings.length)}${stamp}`;
   const disabled = readings.length ? '' : ' disabled';
 
-  return bar + `<table><thead>${head}</thead><tbody>${body}</tbody></table>` + warn
+  // Awaryjnie, gdy przeglądarka nie wpuści nas do schowka: pokazujemy tekst
+  // do zaznaczenia i skopiowania ręcznie, zamiast zostawiać gracza z niczym.
+  const reczne = manual
+    ? `<div class="kp-manual"><p>Schowek zablokowany — zaznacz i skopiuj (Ctrl+C):</p>`
+      + `<textarea readonly spellcheck="false">${esc(manual)}</textarea></div>`
+    : '';
+
+  return bar + `<table><thead>${head}</thead><tbody>${body}</tbody></table>` + warn + reczne
     + `<div class="kp-foot"><span class="kp-count">${count}</span>`
     + `<button class="kp-btn" data-act="export"${disabled}>Eksportuj</button>`
     + `<button class="kp-btn" data-act="clear">Wyczyść</button></div>`;
@@ -89,17 +102,26 @@ export function panelHTML({ readings, justUpdated = null, warning = null, collap
 
 // ——— Warstwa przeglądarkowa ———
 
-function pobierzPlik(world, readings) {
-  const now = new Date();
-  const tekst = JSON.stringify(buildExport(world, readings, now), null, 2);
-  const url = URL.createObjectURL(new Blob([tekst], { type: 'application/json' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = exportFilename(world, now);
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+// Kopiowanie wymaga gestu użytkownika — stąd wywołanie prosto z obsługi kliknięcia.
+function kopiuj(state, przycisk, render) {
+  const tekst = exportText(state.world, state.readings);
+
+  const potwierdz = () => {
+    przycisk.textContent = 'Skopiowano ✓';
+    setTimeout(() => { przycisk.textContent = 'Eksportuj'; }, 2000);
+  };
+  const awaryjnie = () => {
+    state.manual = tekst;
+    render();
+    const pole = document.querySelector('#' + PANEL_ID + ' .kp-manual textarea');
+    if (pole) { pole.focus(); pole.select(); }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tekst).then(potwierdz, awaryjnie);
+  } else {
+    awaryjnie();
+  }
 }
 
 export function mountPanel(state) {
@@ -137,13 +159,14 @@ export function mountPanel(state) {
     // Ukrycie dotyczy tylko oglądanej strony i nie wyłącza zbierania —
     // przy następnym wejściu na giełdę panel wraca z kompletem danych.
     if (act === 'hide') { el.remove(); return; }
-    if (act === 'export') { pobierzPlik(state.world, state.readings); return; }
+    if (act === 'export') { kopiuj(state, event.target, render); return; }
     if (act === 'clear') {
       if (!confirm('Wyczyścić zebrane kursy dla świata ' + state.world + '?')) return;
       try { localStorage.removeItem(state.key); } catch { /* nic nie szkodzi */ }
       state.readings = [];
       state.justUpdated = null;
       state.warning = null;
+      state.manual = null;
       render();
     }
   });
