@@ -81,8 +81,9 @@ export function classify(raw) {
     return { category: 'zakup_pp', subtype: 'zakup_pp', label: 'Zakup PP', resource: null, amount: null };
   }
 
-  // 5. Eventy — reszta
-  return { category: 'eventy', subtype: 'event', label: eventLabel(info), resource: null, amount: null };
+  // 5. Eventy / pozostałe — etykieta z opisu, a gdy pusty, z typu transakcji
+  //    (np. "Darmowe PP", "Nagroda końcowa", "Wycofane", "Ręcznie")
+  return { category: 'eventy', subtype: 'event', label: eventLabel(info) || txType || 'Inne', resource: null, amount: null };
 }
 
 // Zegar ścienny z logu (czas polski) zapisujemy jako UTC-ISO, żeby dzień/tydzień

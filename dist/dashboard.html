@@ -125,6 +125,7 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 
 .pos { color: var(--pos); } .neg { color: var(--neg); }
 .hint { color: var(--ink-3); font-size: 13px; margin: 26px 0; text-align: center; font-style: italic; }
+.muted { color: var(--ink-3); font-style: italic; }
 
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); }
@@ -281,8 +282,9 @@ function classify(raw) {
     return { category: 'zakup_pp', subtype: 'zakup_pp', label: 'Zakup PP', resource: null, amount: null };
   }
 
-  // 5. Eventy — reszta
-  return { category: 'eventy', subtype: 'event', label: eventLabel(info), resource: null, amount: null };
+  // 5. Eventy / pozostałe — etykieta z opisu, a gdy pusty, z typu transakcji
+  //    (np. "Darmowe PP", "Nagroda końcowa", "Wycofane", "Ręcznie")
+  return { category: 'eventy', subtype: 'event', label: eventLabel(info) || txType || 'Inne', resource: null, amount: null };
 }
 
 // Zegar ścienny z logu (czas polski) zapisujemy jako UTC-ISO, żeby dzień/tydzień
@@ -825,19 +827,26 @@ if (typeof document !== 'undefined') {
       ['drewno', 'glina', 'zelazo'].map(r =>
         `<tr><td>${r}</td><td>${fmtRate(crates[r].buy)}</td><td>${fmtRate(crates[r].sell)}</td></tr>`).join('');
 
-    const cIn = ct.breakdown.handel['Sprzedaż'] || 0;
-    const cOut = ct.breakdown.handel['Kupno'] || 0;
-    const subRows = obj => Object.entries(obj).sort((a, b) => a[1] - b[1])
-      .map(([k, v]) => `<tr class="sub"><td>${k}</td><td class="${sc(v)}">${fmt(v)}</td></tr>`).join('');
-    let d = `<tr class="grp-row"><td>PRZYCHODY</td><td></td></tr>`;
-    d += `<tr><td>Sprzedaż na giełdzie</td><td class="pos">${fmt(cIn)}</td></tr>`;
-    if (ct.zakup_pp) d += `<tr><td>Zakup PP</td><td class="${sc(ct.zakup_pp)}">${fmt(ct.zakup_pp)}</td></tr>`;
-    d += `<tr class="grp-row"><td>WYDATKI</td><td></td></tr>`;
-    d += `<tr><td>Zakup na giełdzie</td><td class="neg">${fmt(cOut)}</td></tr>`;
-    d += `<tr class="cat"><td>Subskrypcje</td><td class="${sc(ct.subskrypcje)}">${fmt(ct.subskrypcje)}</td></tr>${subRows(ct.breakdown.subskrypcje)}`;
-    d += `<tr class="cat"><td>Usługi</td><td class="${sc(ct.uslugi)}">${fmt(ct.uslugi)}</td></tr>${subRows(ct.breakdown.uslugi)}`;
-    d += `<tr class="cat"><td>Eventy</td><td class="${sc(ct.eventy)}">${fmt(ct.eventy)}</td></tr>${subRows(ct.breakdown.eventy)}`;
-    d += `<tr class="total-row"><td>BILANS PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
+    // wszystkie pozycje jako lista {label, v}, rozdzielone po znaku (przychody / wydatki)
+    const CATLABEL = { subskrypcje: 'Subskrypcje', uslugi: 'Usługi', eventy: 'Eventy' };
+    const items = [
+      { label: 'Sprzedaż na giełdzie', v: ct.breakdown.handel['Sprzedaż'] || 0 },
+      { label: 'Zakup na giełdzie', v: ct.breakdown.handel['Kupno'] || 0 },
+      { label: 'Zakup / otrzymanie PP', v: ct.zakup_pp },
+    ];
+    for (const cat of ['subskrypcje', 'uslugi', 'eventy'])
+      for (const [lbl, v] of Object.entries(ct.breakdown[cat]))
+        items.push({ label: `${CATLABEL[cat]} · ${lbl}`, v });
+    const przychody = items.filter(i => i.v > 0).sort((a, b) => b.v - a.v);
+    const wydatki = items.filter(i => i.v < 0).sort((a, b) => a.v - b.v);
+    const sumIn = przychody.reduce((s, i) => s + i.v, 0);
+    const sumOut = wydatki.reduce((s, i) => s + i.v, 0);
+    const rowsHtml = arr => arr.map(i => `<tr><td>${i.label}</td><td class="${sc(i.v)}">${fmt(i.v)}</td></tr>`).join('')
+      || `<tr><td colspan="2" class="muted">brak</td></tr>`;
+    const d =
+      `<tr class="grp-row"><td>Przychody</td><td class="pos">${fmt(sumIn)}</td></tr>${rowsHtml(przychody)}` +
+      `<tr class="grp-row"><td>Wydatki</td><td class="neg">${fmt(sumOut)}</td></tr>${rowsHtml(wydatki)}` +
+      `<tr class="total-row"><td>Bilans PP</td><td class="${sc(ct.net)}">${fmt(ct.net)}</td></tr>`;
     $('#detail').innerHTML = `<tr><th>Pozycja</th><th>PP</th></tr>${d}`;
 
     // aktualne saldo konta = "Nowe saldo PP" najnowszego wpisu (całe konto, niezależnie od filtrów)

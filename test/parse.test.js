@@ -93,6 +93,12 @@ test('Eventy: nieznane, grupowane po nazwie', () => {
   assert.equal(classify({ txType: 'Coś', changeRaw: '0', info: 'Zakręcenie kołem - nagroda (10)' }).label, 'Zakręcenie kołem');
 });
 
+test('Eventy: pusty opis -> etykieta z typu transakcji', () => {
+  assert.equal(classify({ txType: 'Darmowe PP', changeRaw: '100', info: '' }).label, 'Darmowe PP');
+  assert.equal(classify({ txType: 'Nagroda końcowa', changeRaw: '500', info: 'World winner' }).label, 'World winner');
+  assert.equal(classify({ txType: 'Ręcznie', changeRaw: '30', info: '' }).label, 'Ręcznie');
+});
+
 test('enrich buduje pełny Entry i entryKey jest stabilny', () => {
   const raw = { dateRaw: '19.07. 11:13', world: 'Świat 231', txType: 'Giełda Premium',
     changeRaw: '-47', balanceRaw: '974', info: 'Giełda Premium-kupno: Żelazo (20316)' };
