@@ -102,8 +102,9 @@ Odczyt: dopasowanie wzorca `(\d+)\|(\d+)\)\s*K(\d+)` w treści strony. Daje
 jednocześnie współrzędne i kontynent.
 
 Zapas: jeśli oznaczenie `K` nie występuje, kontynent liczymy ze współrzędnych
-jako `K` + pierwsza cyfra Y + pierwsza cyfra X. Dla `(499|613)` daje to `K64` —
-zgodnie z tym, co strona podaje wprost.
+jako `K` + `floor(y/100)` + `floor(x/100)`. Dla `(499|613)` daje to `K64` —
+zgodnie z tym, co strona podaje wprost. Dzielenie zamiast brania pierwszej
+cyfry obsługuje też współrzędne dwucyfrowe: `(99|61)` → `K00`, nie `K69`.
 
 ## Model danych
 
