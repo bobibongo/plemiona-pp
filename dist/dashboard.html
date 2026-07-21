@@ -76,6 +76,13 @@ h2.sect { margin: 26px 0 8px; font-family: var(--serif); font-size: 17px; color:
 button { margin: 0 4px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line-strong); background: var(--surface-2); border-radius: 5px; color: var(--ink); font-size: 13px; font-weight: 600; }
 button:hover { border-color: var(--accent); color: var(--accent); }
 
+.loginfo { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 9px 14px; font-size: 12.5px;
+  background: #fbf7ee; border: 1px solid var(--line); border-radius: 8px; color: var(--ink-2); }
+.loginfo[hidden] { display: none; }
+.loginfo b { font-family: var(--mono); color: var(--ink); font-weight: 600; }
+.loginfo .ok { color: var(--pos); } .loginfo .warn { color: var(--neg); }
+.loginfo .li-when { margin-left: auto; color: var(--ink-3); }
+
 .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 13px; color: #e8dcc0; }
 .filters select, .filters input { padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--surface); color: var(--ink); font: inherit; }
 
@@ -179,6 +186,8 @@ button.primary:hover { background: var(--accent-deep); color: #fff; }
   Przeciągnij tu pliki JSON (z bookmarkletu) lub CSV — <label class="link">wybierz plik<input id="file" type="file" multiple hidden></label>, albo <span class="link" id="paste-open">wklej log ze strony</span>.
   <div class="actions"><button id="export">Eksportuj scalone</button><button id="reset">Wyczyść magazyn</button></div>
 </section>
+
+<section class="loginfo" id="loginfo" hidden></section>
 
 <section class="filters">
   <label>Świat: <select id="f-world"></select></label>
@@ -409,6 +418,42 @@ function newBucket(key) {
   return { buckets, totals };
 }
 
+// Stan/zdrowie logu: zakres, liczba wpisów/światów i wykrywanie LUK.
+// Luki wykrywamy rekonstruując łańcuch salda: dla każdego wpisu (saldo − zmiana)
+// powinno równać się saldu po poprzednim wpisie. W obrębie tej samej minuty
+// odtwarzamy właściwą kolejność po saldzie (ts ma rozdzielczość do minuty),
+// więc metoda jest odporna na dwuznaczność kolejności w minucie.function logHealth(entries) {
+  const count = entries.length;
+  if (!count) return { count: 0, worlds: 0, minTs: null, maxTs: null, gaps: [], gapCount: 0, missingPP: 0, complete: true };
+  const sorted = [...entries].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
+  const worlds = new Set(entries.map(e => e.world)).size;
+  const gaps = [];
+  let expected = null;
+  for (let i = 0; i < sorted.length;) {
+    let j = i; while (j < sorted.length && sorted[j].ts === sorted[i].ts) j++;
+    const pool = sorted.slice(i, j);
+    let exp = expected;
+    while (pool.length) {
+      let idx = exp === null ? -1 : pool.findIndex(e => e.balance - e.change === exp);
+      if (idx === -1) {
+        // głowa łańcucha w grupie: wpis, którego poprzednie saldo nie jest wśród pozostałych
+        const produced = new Set(pool.map(e => e.balance));
+        idx = pool.findIndex(e => !produced.has(e.balance - e.change));
+        if (idx === -1) idx = 0;
+        if (exp !== null) gaps.push({ ts: sorted[i].ts, missing: (pool[idx].balance - pool[idx].change) - exp });
+      }
+      exp = pool[idx].balance;
+      pool.splice(idx, 1);
+    }
+    expected = exp;
+    i = j;
+  }
+  const missingPP = gaps.reduce((s, g) => s + g.missing, 0);
+  // Werdykt po missingPP (netto): mówi, czy sumy PP są wiarygodne. Sama liczba
+  // „gaps” bywa zawyżona przez dwuznaczność kolejności w minucie (netto 0).
+  return { count, worlds, minTs: sorted[0].ts, maxTs: sorted[sorted.length - 1].ts, gaps, gapCount: gaps.length, missingPP, complete: missingPP === 0 };
+}
+
 // Efektywny kurs jako ILOŚĆ SUROWCA na 1 PP (kupno i sprzedaż osobno).function effectiveRates(entries) {
   const acc = Object.fromEntries(RES.map(r => [r, { buyPP: 0, buyAmt: 0, sellPP: 0, sellAmt: 0 }]));
   for (const e of entries) {
@@ -590,19 +635,35 @@ const COLS = ['dateRaw', 'world', 'txType', 'changeRaw', 'balanceRaw', 'info'];
     if (Array.isArray(data.rows)) return data.rows.map(r => enrich(r, now));
     throw new Error('Nieznany format JSON');
   }
-  // CSV/TSV (także wklejony log ze strony): bierzemy tylko wiersze zaczynające się od daty,
-  // więc nagłówki i śmieci między stronami są automatycznie pomijane.
-  return parseCSV(fileText)
-    .filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || ''))
-    .map(cells => {
-      const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
-      return enrich(raw, now);
-    });
+  // CSV/TSV (także wklejony log ze strony): bierzemy tylko rekordy zaczynające się od daty.
+  return logRecords(fileText).map(cells => {
+    const raw = {}; COLS.forEach((k, i) => raw[k] = cells[i]);
+    return enrich(raw, now);
+  });
+}
+
+// Zamienia tekst (wklejona tabela TSV albo CSV) na rekordy po 6 pól.
+// Dla TSV: spłaszcza tokeny i grupuje po dacie (data + 5 kolejnych, aż do następnej daty)
+// — odporne na sklejone wiersze/strony i powtórzone nagłówki. Info nie zawiera tabów.
+function logRecords(text) {
+  if (text.includes('\t')) {
+    const toks = [];
+    for (const line of text.split(/\r?\n/)) for (const c of line.split('\t')) toks.push(c);
+    const recs = [];
+    for (let i = 0; i < toks.length;) {
+      if (LOG_DATE_RE.test(toks[i])) {
+        const rec = [toks[i++]];
+        while (rec.length < 6 && i < toks.length && !LOG_DATE_RE.test(toks[i])) rec.push(toks[i++]);
+        if (rec.length === 6) recs.push(rec);
+      } else i++;
+    }
+    return recs;
+  }
+  return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).map(r => r.slice(0, 6));
 }
 
 // Ile wierszy logu rozpoznano we wklejonym tekście (do licznika na żywo).function countLogRows(text) {
-  try { return parseCSV(text).filter(r => r.length >= 6 && LOG_DATE_RE.test(r[0] || '')).length; }
-  catch { return 0; }
+  try { return logRecords(text).length; } catch { return 0; }
 }
 
 // ——— Część DOM (przeglądarka) ———
@@ -615,6 +676,14 @@ if (typeof document !== 'undefined') {
   // kompaktową (bez pól pochodnych) skompresowaną gzipem — pełny wieloletni log
   // (dziesiątki tys. wpisów) nie mieści się w localStorage jako pełny JSON.
   let STORE = [];
+
+  const META_KEY = 'plemiona_pp_meta_v1';
+  let lastImportTs = (() => { try { return JSON.parse(localStorage.getItem(META_KEY) || '{}').importedAt || null; } catch { return null; } })();
+  const markImport = () => { lastImportTs = Date.now(); try { localStorage.setItem(META_KEY, JSON.stringify({ importedAt: lastImportTs })); } catch {} };
+  let storeInfo = null, healthRef = null;
+
+  const fmtDate = ts => { const d = new Date(ts); const p = n => String(n).padStart(2, '0'); return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`; };
+  const fmtWhen = ms => ms ? new Date(ms).toLocaleString('pl-PL') : '—';
 
   const COMPACT_FIELDS = ['ts', 'world', 'txType', 'change', 'balance', 'info'];
   const toCompact = e => { const o = {}; for (const k of COMPACT_FIELDS) o[k] = e[k]; return o; };
@@ -724,6 +793,24 @@ if (typeof document !== 'undefined') {
 
   function render() {
     const store = STORE;
+
+    // Panel „stan logu” (liczony raz na zmianę magazynu)
+    if (STORE !== healthRef) { storeInfo = logHealth(STORE); healthRef = STORE; }
+    const li = $('#loginfo');
+    if (!store.length) { li.hidden = true; }
+    else {
+      const h = storeInfo;
+      const verdykt = h.complete
+        ? `<b class="ok">spójny — brak luk w saldzie</b>`
+        : `<b class="warn">niekompletny — brakuje ≈ ${fmt(h.missingPP)} PP</b>`;
+      li.hidden = false;
+      li.innerHTML =
+        `<span><b>${fmtNum(h.count)}</b> wpisów · <b>${h.worlds}</b> światów</span>` +
+        `<span>zakres: <b>${fmtDate(h.minTs)}</b> – <b>${fmtDate(h.maxTs)}</b></span>` +
+        `<span>${verdykt}</span>` +
+        `<span class="li-when">wczytano: ${fmtWhen(lastImportTs)}</span>`;
+    }
+
     const worlds = [...new Set(store.map(e => e.world))].sort(worldCmp);
     const sel = $('#f-world');
     const prev = sel.value || ALL;
@@ -892,6 +979,7 @@ if (typeof document !== 'undefined') {
       } catch (e) { alert('Błąd importu ' + f.name + ': ' + e.message); }
     }
     await persist(STORE);
+    markImport();
     render();
   }
 
@@ -956,6 +1044,18 @@ if (typeof document !== 'undefined') {
     $('#paste-cancel').addEventListener('click', closePaste);
     modal.addEventListener('click', e => { if (e.target === modal) closePaste(); });
     area.addEventListener('input', () => { $('#paste-count').innerHTML = `Rozpoznano: <b>${countLogRows(area.value)}</b> wpisów`; });
+    // wklejenie kolejnej strony zaczyna się od nowej linii (żeby wiersze się nie sklejały)
+    area.addEventListener('paste', e => {
+      const s = area.selectionStart, en = area.selectionEnd, before = area.value.slice(0, s);
+      if (before && !before.endsWith('\n')) {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        const ins = '\n' + pasted;
+        area.value = before + ins + area.value.slice(en);
+        area.selectionStart = area.selectionEnd = s + ins.length;
+        area.dispatchEvent(new Event('input'));
+      }
+    });
     $('#paste-done').addEventListener('click', async () => {
       const text = area.value.trim();
       if (!text) { closePaste(); return; }
@@ -964,6 +1064,7 @@ if (typeof document !== 'undefined') {
         if (!entries.length) { alert('Nie rozpoznano żadnych wierszy logu. Skopiuj tabelę logu ze strony gry.'); return; }
         STORE = dedupeMerge(STORE, entries);
         await persist(STORE);
+        markImport();
         render();
         closePaste();
       } catch (e) { alert('Błąd wczytywania wklejki: ' + e.message); }
