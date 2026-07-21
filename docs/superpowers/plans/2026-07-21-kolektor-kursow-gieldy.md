@@ -207,10 +207,10 @@ import {
 ```
 
 ```js
-test('continentFromCoords liczy kontynent z dzielenia przez 100', () => {
+test('continentFromCoords bierze pierwszą cyfrę Y, potem pierwszą cyfrę X', () => {
   assert.equal(continentFromCoords(499, 613), 'K64');
   assert.equal(continentFromCoords(500, 500), 'K55');
-  assert.equal(continentFromCoords(99, 61), 'K00');
+  assert.equal(continentFromCoords(123, 987), 'K91');
 });
 
 test('parseLocation woli kontynent podany wprost przez stronę', () => {
@@ -265,10 +265,11 @@ Dopisz na końcu `src/rates-parse.js`:
 // dlatego jest w grupie opcjonalnej.
 const LOC_RE = /\((\d+)\|(\d+)\)(?:\s*K(\d+))?/;
 
-// Dzielimy przez 100 zamiast brać pierwszą cyfrę, żeby współrzędne
-// dwucyfrowe dawały K00, a nie K69.
+// Kontynent to pierwsza cyfra Y, potem pierwsza cyfra X — w tej kolejności:
+// (499|613) → K64. Zakładamy współrzędne trzycyfrowe, tak jak w grze.
+// To i tak tylko zapas: normalnie kontynent bierzemy wprost z "K64" na stronie.
 export function continentFromCoords(x, y) {
-  return 'K' + Math.floor(y / 100) + Math.floor(x / 100);
+  return 'K' + String(y)[0] + String(x)[0];
 }
 
 export function parseLocation(text) {
