@@ -1,0 +1,1205 @@
+# Strona analizy kursów giełdy — plan wdrożenia
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Lokalna strona, która przyjmuje wklejony JSON z kolektora kursów, gromadzi historię odczytów, rysuje przebieg średniego kursu z liniami progów i wskazuje kontynenty będące okazją.
+
+**Architecture:** Cztery moduły w `src/` z prefiksem `rates-`. Trzy pierwsze to czyste funkcje (historia, sygnały, wykres SVG) testowane przez `node --test`; czwarty spina je z DOM. `build.js` skleja całość w jeden samowystarczalny plik `dist/kursy/index.html`, otwierany z dysku.
+
+**Tech Stack:** Vanilla JS, moduły ES, zero zależności runtime, własny SVG, `node --test`.
+
+**Spec:** `docs/superpowers/specs/2026-07-21-analiza-kursow-gieldy-design.md`
+
+## Global Constraints
+
+- **Zero serwera i zero sieci.** Strona działa otwarta z dysku (`file://`). Żadnych `fetch`, CDN, zewnętrznych czcionek ani obrazów.
+- **Zero zależności npm.** Wykres rysujemy sami.
+- **Moduł `rates-chart.js` jest samowystarczalny** — nie importuje `charts.js`. Oba narzędzia są celowo rozdzielone, a sklejanie ich groziłoby kolizją nazw przy sklejaniu plików w budowie (`charts.js` deklaruje własne `esc`, `M`, `INK`).
+- **Paleta kontynentów jest stała i sprawdzona walidatorem**: `#c0392b, #1b6cc4, #1f8a4c, #7d3fb5, #b06a00, #c4187f`. Kolor przypisujemy po pozycji w posortowanej liście **wszystkich** kontynentów świata, nie tylko widocznych — filtr dat nie może przemalować serii.
+- Kurs = **ilość surowca za 1 PP**. Wysoka wartość → surowce tanie → **kupuj**. Niska → **sprzedawaj**.
+- Komentarze i teksty interfejsu po polsku; nazwy plików po angielsku, płasko w `src/`.
+- Testy uruchamiać z katalogu głównego: `npm test`.
+
+---
+
+## Struktura plików
+
+| Plik | Odpowiedzialność |
+|---|---|
+| `src/rates-history.js` | Parsowanie importu, dedup, scalanie historii, średnie, filtr świata, najświeższe odczyty |
+| `src/rates-signals.js` | Progi i wyznaczanie okazji |
+| `src/rates-chart.js` | Wykres wieloseryjny SVG w skali czasu, z liniami progów i legendą |
+| `src/rates-page.js` | Spięcie: magazyn, zdarzenia, render |
+| `src/rates.template.html` | Szkielet strony |
+| `src/rates.css` | Styl |
+| `build.js` | Nowy cel `buildRatesPage()` → `dist/kursy/index.html` |
+| `test/rates-history.test.js` | Testy importu i historii |
+| `test/rates-signals.test.js` | Testy progów |
+| `test/rates-chart.test.js` | Testy generowanego SVG |
+| `test/build.test.js` | Rozszerzone o stronę kursów |
+
+---
+
+### Task 1: Import i historia
+
+**Files:**
+- Create: `src/rates-history.js`
+- Create: `test/rates-history.test.js`
+
+**Interfaces:**
+- Consumes: format JSON z kolektora — `{ exportedAt, world, readings: [{continent, x, y, wood, stone, iron, at}] }`
+- Produces:
+  - `parseImport(text: string) → { ok: false, error: string } | { ok: true, world: string, records: Record[], skipped: number }`
+  - `recordKey(r: Record) → string`
+  - `mergeHistory(history: Record[], records: Record[]) → { history: Record[], added: number, duplicates: number }`
+  - `Record = { world, continent, x, y, wood, stone, iron, at }`
+
+- [ ] **Step 1: Napisz testy, które mają nie przejść**
+
+Utwórz `test/rates-history.test.js`:
+
+```js
+// test/rates-history.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseImport, recordKey, mergeHistory } from '../src/rates-history.js';
+
+const eksport = (readings, world = 'pl231') =>
+  JSON.stringify({ exportedAt: '2026-07-21T14:32:00.000Z', world, readings });
+
+const odczyt = (continent, wood, at) =>
+  ({ continent, x: 499, y: 613, wood, stone: 372, iron: 406, at });
+
+test('parseImport przyjmuje eksport z kolektora', () => {
+  const out = parseImport(eksport([odczyt('K64', 378, '2026-07-21T14:30:00.000Z')]));
+  assert.equal(out.ok, true);
+  assert.equal(out.world, 'pl231');
+  assert.equal(out.skipped, 0);
+  assert.deepEqual(out.records[0], {
+    world: 'pl231', continent: 'K64', x: 499, y: 613,
+    wood: 378, stone: 372, iron: 406, at: '2026-07-21T14:30:00.000Z',
+  });
+});
+
+test('parseImport odrzuca tekst, który nie jest JSON-em', () => {
+  const out = parseImport('to nie jest json');
+  assert.equal(out.ok, false);
+  assert.match(out.error, /kolektora/);
+});
+
+test('parseImport odrzuca JSON bez pola readings — nie zgadujemy kształtu', () => {
+  assert.equal(parseImport('{"world":"pl231"}').ok, false);
+  assert.equal(parseImport('[]').ok, false);
+});
+
+test('parseImport pomija zepsute wiersze i przyjmuje resztę', () => {
+  const out = parseImport(eksport([
+    odczyt('K64', 378, '2026-07-21T14:30:00.000Z'),
+    { continent: null, wood: 1, stone: 2, iron: 3, at: '2026-07-21T14:31:00.000Z' },
+    { continent: 'K55', wood: 'brak', stone: 2, iron: 3, at: '2026-07-21T14:32:00.000Z' },
+  ]));
+  assert.equal(out.ok, true);
+  assert.equal(out.records.length, 1);
+  assert.equal(out.skipped, 2);
+});
+
+test('recordKey rozróżnia świat, kontynent i moment odczytu', () => {
+  const a = { world: 'pl231', continent: 'K64', at: '2026-07-21T14:30:00.000Z' };
+  assert.equal(recordKey(a), recordKey({ ...a }));
+  assert.notEqual(recordKey(a), recordKey({ ...a, continent: 'K55' }));
+  assert.notEqual(recordKey(a), recordKey({ ...a, world: 'pl217' }));
+  assert.notEqual(recordKey(a), recordKey({ ...a, at: '2026-07-21T15:00:00.000Z' }));
+});
+
+test('mergeHistory dokłada nowe odczyty i sortuje po czasie', () => {
+  const stare = parseImport(eksport([odczyt('K64', 378, '2026-07-20T10:00:00.000Z')])).records;
+  const nowe = parseImport(eksport([odczyt('K64', 390, '2026-07-21T10:00:00.000Z')])).records;
+  const out = mergeHistory(stare, nowe);
+  assert.equal(out.added, 1);
+  assert.equal(out.history.length, 2);
+  assert.equal(out.history[0].at, '2026-07-20T10:00:00.000Z');
+});
+
+test('mergeHistory nie duplikuje tego samego eksportu wklejonego drugi raz', () => {
+  const r = parseImport(eksport([odczyt('K64', 378, '2026-07-20T10:00:00.000Z')])).records;
+  const raz = mergeHistory([], r);
+  const dwa = mergeHistory(raz.history, r);
+  assert.equal(dwa.added, 0);
+  assert.equal(dwa.duplicates, 1);
+  assert.equal(dwa.history.length, 1);
+});
+
+test('mergeHistory nie zmienia przekazanej historii', () => {
+  const historia = [];
+  const r = parseImport(eksport([odczyt('K64', 378, '2026-07-20T10:00:00.000Z')])).records;
+  mergeHistory(historia, r);
+  assert.equal(historia.length, 0);
+});
+```
+
+- [ ] **Step 2: Uruchom testy i potwierdź, że nie przechodzą**
+
+Run: `npm test -- test/rates-history.test.js`
+Expected: FAIL — `Cannot find module '../src/rates-history.js'`
+
+- [ ] **Step 3: Napisz implementację**
+
+Utwórz `src/rates-history.js`:
+
+```js
+// src/rates-history.js
+// Historia kursów: scalanie kolejnych eksportów z kolektora w jeden przebieg.
+
+const BLAD_KSZTALTU = 'To nie wygląda na dane z kolektora.';
+
+function poprawny(r) {
+  return !!r
+    && typeof r.continent === 'string' && r.continent.length > 0
+    && Number.isFinite(r.wood) && Number.isFinite(r.stone) && Number.isFinite(r.iron)
+    && typeof r.at === 'string' && r.at.length > 0;
+}
+
+// Nie rzucamy wyjątkiem — strona ma pokazać komunikat, a nie się wywalić.
+export function parseImport(text) {
+  let dane;
+  try { dane = JSON.parse(text); } catch { return { ok: false, error: BLAD_KSZTALTU }; }
+  if (!dane || typeof dane !== 'object' || !Array.isArray(dane.readings)) {
+    return { ok: false, error: BLAD_KSZTALTU };
+  }
+  const world = String(dane.world || 'nieznany');
+  const records = [];
+  let skipped = 0;
+  for (const r of dane.readings) {
+    if (!poprawny(r)) { skipped++; continue; }
+    records.push({
+      world,
+      continent: r.continent,
+      x: Number.isFinite(r.x) ? r.x : null,
+      y: Number.isFinite(r.y) ? r.y : null,
+      wood: r.wood, stone: r.stone, iron: r.iron,
+      at: r.at,
+    });
+  }
+  return { ok: true, world, records, skipped };
+}
+
+// Tożsamość odczytu. Dzięki niej wklejenie tego samego eksportu drugi raz
+// niczego nie zmienia, a gracz nie musi pamiętać, co już wgrał.
+export function recordKey(r) {
+  return `${r.world}|${r.continent}|${r.at}`;
+}
+
+export function mergeHistory(history, records) {
+  const znane = new Set(history.map(recordKey));
+  const nowe = [];
+  for (const r of records) {
+    const k = recordKey(r);
+    if (znane.has(k)) continue;
+    znane.add(k);
+    nowe.push(r);
+  }
+  const merged = [...history, ...nowe]
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  return { history: merged, added: nowe.length, duplicates: records.length - nowe.length };
+}
+```
+
+- [ ] **Step 4: Uruchom testy i potwierdź, że przechodzą**
+
+Run: `npm test -- test/rates-history.test.js`
+Expected: PASS, 8 testów
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/rates-history.js test/rates-history.test.js
+git commit -m "feat: import i historia kursow gieldy z dedupem"
+```
+
+---
+
+### Task 2: Widoki historii — średnie, światy, serie
+
+**Files:**
+- Modify: `src/rates-history.js` (dopisanie na końcu pliku)
+- Modify: `test/rates-history.test.js` (dopisanie testów i rozszerzenie importu)
+
+**Interfaces:**
+- Consumes: `Record` z zadania 1
+- Produces:
+  - `average(r: Record) → number` — zaokrąglona średnia z trzech surowców
+  - `worlds(history: Record[]) → string[]` — posortowane, bez powtórzeń
+  - `forWorld(history: Record[], world: string) → Record[]`
+  - `continentsOf(history: Record[]) → string[]` — posortowane rosnąco po numerze
+  - `latestPerContinent(history: Record[]) → Record[]` — po jednym najświeższym, w kolejności kontynentów
+  - `seriesByContinent(history: Record[]) → { continent: string, points: { t: number, y: number, rec: Record }[] }[]`
+
+- [ ] **Step 1: Napisz testy, które mają nie przejść**
+
+Rozszerz import w `test/rates-history.test.js`:
+
+```js
+import {
+  parseImport, recordKey, mergeHistory,
+  average, worlds, forWorld, continentsOf, latestPerContinent, seriesByContinent,
+} from '../src/rates-history.js';
+```
+
+Dopisz na końcu pliku:
+
+```js
+const rec = (world, continent, at, wood = 300, stone = 300, iron = 300) =>
+  ({ world, continent, x: 1, y: 2, wood, stone, iron, at });
+
+test('average zaokrągla średnią z trzech surowców', () => {
+  assert.equal(average(rec('pl231', 'K64', 'x', 378, 372, 406)), 385);
+  assert.equal(average(rec('pl231', 'K64', 'x', 300, 300, 300)), 300);
+});
+
+test('worlds zwraca posortowane światy bez powtórzeń', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl217', 'K55', 'b'), rec('pl231', 'K55', 'c')];
+  assert.deepEqual(worlds(h), ['pl217', 'pl231']);
+});
+
+test('forWorld filtruje po świecie', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl217', 'K55', 'b')];
+  assert.deepEqual(forWorld(h, 'pl217').map(r => r.continent), ['K55']);
+});
+
+test('continentsOf sortuje po numerze, nie alfabetycznie', () => {
+  const h = [rec('pl231', 'K64', 'a'), rec('pl231', 'K5', 'b'), rec('pl231', 'K45', 'c')];
+  assert.deepEqual(continentsOf(h), ['K5', 'K45', 'K64']);
+});
+
+test('latestPerContinent bierze najświeższy odczyt każdego kontynentu', () => {
+  const h = [
+    rec('pl231', 'K64', '2026-07-20T10:00:00.000Z', 300, 300, 300),
+    rec('pl231', 'K64', '2026-07-21T10:00:00.000Z', 400, 400, 400),
+    rec('pl231', 'K55', '2026-07-19T10:00:00.000Z', 350, 350, 350),
+  ];
+  const out = latestPerContinent(h);
+  assert.deepEqual(out.map(r => r.continent), ['K55', 'K64']);
+  assert.equal(out.find(r => r.continent === 'K64').wood, 400);
+});
+
+test('seriesByContinent daje serię punktów na kontynent, rosnąco w czasie', () => {
+  const h = [
+    rec('pl231', 'K64', '2026-07-21T10:00:00.000Z', 400, 400, 400),
+    rec('pl231', 'K64', '2026-07-20T10:00:00.000Z', 300, 300, 300),
+    rec('pl231', 'K55', '2026-07-20T10:00:00.000Z', 350, 350, 350),
+  ];
+  const out = seriesByContinent(h);
+  assert.deepEqual(out.map(s => s.continent), ['K55', 'K64']);
+  const k64 = out.find(s => s.continent === 'K64');
+  assert.deepEqual(k64.points.map(p => p.y), [300, 400]);
+  assert.ok(k64.points[0].t < k64.points[1].t);
+  assert.equal(k64.points[1].rec.wood, 400);
+});
+```
+
+- [ ] **Step 2: Uruchom testy i potwierdź, że nie przechodzą**
+
+Run: `npm test -- test/rates-history.test.js`
+Expected: FAIL — `average is not a function`
+
+- [ ] **Step 3: Napisz implementację**
+
+Dopisz na końcu `src/rates-history.js`:
+
+```js
+// Średnia z trzech surowców — sposób wyświetlania, nie forma przechowywania.
+// Surowce zostają w rekordzie, więc rozbicie zawsze da się odzyskać.
+export function average(r) {
+  return Math.round((r.wood + r.stone + r.iron) / 3);
+}
+
+export function worlds(history) {
+  return [...new Set(history.map(r => r.world))].sort();
+}
+
+export function forWorld(history, world) {
+  return history.filter(r => r.world === world);
+}
+
+// 'K5' < 'K45' < 'K64' — po numerze, bo alfabetycznie wyszłoby K45, K5, K64.
+function numerKontynentu(continent) {
+  const n = Number(String(continent).replace(/^K/, ''));
+  return Number.isFinite(n) ? n : Infinity;
+}
+
+export function continentsOf(history) {
+  return [...new Set(history.map(r => r.continent))]
+    .sort((a, b) => numerKontynentu(a) - numerKontynentu(b));
+}
+
+// Sygnał liczymy z najświeższego odczytu, nie z całej historii — interesuje nas
+// stan teraz, a nie średnia z tygodnia.
+export function latestPerContinent(history) {
+  const najnowsze = new Map();
+  for (const r of history) {
+    const poprzedni = najnowsze.get(r.continent);
+    if (!poprzedni || r.at > poprzedni.at) najnowsze.set(r.continent, r);
+  }
+  return continentsOf(history).map(c => najnowsze.get(c));
+}
+
+export function seriesByContinent(history) {
+  return continentsOf(history).map(continent => ({
+    continent,
+    points: history
+      .filter(r => r.continent === continent)
+      .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
+      .map(r => ({ t: Date.parse(r.at), y: average(r), rec: r })),
+  }));
+}
+```
+
+- [ ] **Step 4: Uruchom testy i potwierdź, że przechodzą**
+
+Run: `npm test -- test/rates-history.test.js`
+Expected: PASS, 14 testów
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/rates-history.js test/rates-history.test.js
+git commit -m "feat: srednie, filtr swiata i serie czasowe kursow"
+```
+
+---
+
+### Task 3: Progi i sygnały
+
+**Files:**
+- Create: `src/rates-signals.js`
+- Create: `test/rates-signals.test.js`
+
+**Interfaces:**
+- Consumes: `Record` i `average` z zadań 1–2
+- Produces:
+  - `parseThreshold(value: unknown) → number | null`
+  - `evaluateSignals(latest: Record[], thresholds: { high: number|null, low: number|null }) → { ready: boolean, signals: Signal[], message: string }`
+  - `Signal = { continent: string, avg: number, action: 'kupuj' | 'sprzedawaj' }`
+
+- [ ] **Step 1: Napisz testy, które mają nie przejść**
+
+Utwórz `test/rates-signals.test.js`:
+
+```js
+// test/rates-signals.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { parseThreshold, evaluateSignals } from '../src/rates-signals.js';
+
+const rec = (continent, v) =>
+  ({ world: 'pl231', continent, x: 1, y: 2, wood: v, stone: v, iron: v, at: '2026-07-21T14:30:00.000Z' });
+
+test('parseThreshold przyjmuje liczby i teksty, odrzuca resztę', () => {
+  assert.equal(parseThreshold('380'), 380);
+  assert.equal(parseThreshold(380), 380);
+  assert.equal(parseThreshold(''), null);
+  assert.equal(parseThreshold('brak'), null);
+  assert.equal(parseThreshold(null), null);
+  assert.equal(parseThreshold(-5), null);
+});
+
+test('bez ustawionych progów prosi o ich wpisanie', () => {
+  const out = evaluateSignals([rec('K64', 400)], { high: null, low: null });
+  assert.equal(out.ready, false);
+  assert.equal(out.signals.length, 0);
+  assert.match(out.message, /progi/i);
+});
+
+test('próg dolny nie może być większy od górnego', () => {
+  const out = evaluateSignals([rec('K64', 400)], { high: 300, low: 400 });
+  assert.equal(out.ready, false);
+  assert.match(out.message, /dolny/i);
+});
+
+test('średnia powyżej progu górnego to sygnał kupna', () => {
+  const out = evaluateSignals([rec('K64', 412)], { high: 400, low: 320 });
+  assert.equal(out.ready, true);
+  assert.deepEqual(out.signals, [{ continent: 'K64', avg: 412, action: 'kupuj' }]);
+});
+
+test('średnia poniżej progu dolnego to sygnał sprzedaży', () => {
+  const out = evaluateSignals([rec('K55', 310)], { high: 400, low: 320 });
+  assert.deepEqual(out.signals, [{ continent: 'K55', avg: 310, action: 'sprzedawaj' }]);
+});
+
+test('progi działają domknięte — równość też jest sygnałem', () => {
+  const out = evaluateSignals([rec('K64', 400), rec('K55', 320)], { high: 400, low: 320 });
+  assert.deepEqual(out.signals.map(s => s.action), ['sprzedawaj', 'kupuj']);
+});
+
+test('kurs między progami nie daje sygnału', () => {
+  const out = evaluateSignals([rec('K64', 360)], { high: 400, low: 320 });
+  assert.equal(out.ready, true);
+  assert.equal(out.signals.length, 0);
+  assert.match(out.message, /brak okazji/i);
+});
+
+test('brak okazji mówi to wprost zamiast milczeć', () => {
+  const out = evaluateSignals([], { high: 400, low: 320 });
+  assert.equal(out.signals.length, 0);
+  assert.ok(out.message.length > 0);
+});
+```
+
+- [ ] **Step 2: Uruchom testy i potwierdź, że nie przechodzą**
+
+Run: `npm test -- test/rates-signals.test.js`
+Expected: FAIL — `Cannot find module '../src/rates-signals.js'`
+
+- [ ] **Step 3: Napisz implementację**
+
+Utwórz `src/rates-signals.js`:
+
+```js
+// src/rates-signals.js
+// Progi i okazje. Kurs to ilość surowca za 1 PP, więc wysoka wartość znaczy,
+// że surowce są tanie (opłaca się kupować), a niska — że drogie (opłaca się
+// sprzedawać).
+
+import { average, continentsOf } from './rates-history.js';
+
+export function parseThreshold(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function evaluateSignals(latest, { high, low }) {
+  if (high === null || high === undefined || low === null || low === undefined) {
+    return { ready: false, signals: [], message: 'Ustaw progi, żeby zobaczyć okazje.' };
+  }
+  if (low >= high) {
+    return { ready: false, signals: [], message: 'Próg dolny musi być mniejszy niż górny.' };
+  }
+
+  const signals = [];
+  for (const r of latest) {
+    const avg = average(r);
+    if (avg >= high) signals.push({ continent: r.continent, avg, action: 'kupuj' });
+    else if (avg <= low) signals.push({ continent: r.continent, avg, action: 'sprzedawaj' });
+  }
+  // Kolejność kontynentów, żeby pasek nie skakał między odświeżeniami.
+  const kolejnosc = continentsOf(latest);
+  signals.sort((a, b) => kolejnosc.indexOf(a.continent) - kolejnosc.indexOf(b.continent));
+
+  // Pustka jest dwuznaczna: nie wiadomo, czy nie ma okazji, czy coś się zepsuło.
+  const message = signals.length ? '' : 'Brak okazji przy obecnych progach.';
+  return { ready: true, signals, message };
+}
+```
+
+- [ ] **Step 4: Uruchom testy i potwierdź, że przechodzą**
+
+Run: `npm test -- test/rates-signals.test.js`
+Expected: PASS, 8 testów
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/rates-signals.js test/rates-signals.test.js
+git commit -m "feat: progi i sygnaly okazji kursowych"
+```
+
+---
+
+### Task 4: Wykres wieloseryjny
+
+**Files:**
+- Create: `src/rates-chart.js`
+- Create: `test/rates-chart.test.js`
+
+**Interfaces:**
+- Consumes: serie z `seriesByContinent` (zadanie 2)
+- Produces:
+  - `SERIES_COLORS: string[]` — sześć kolorów w stałej kolejności
+  - `OTHER_COLOR: string`
+  - `colorMap(continents: string[]) → Map<string, string>`
+  - `escXml(value: unknown) → string`
+  - `ratesChartSVG(series, opts) → string`, gdzie `series = { continent, color, points: {t, y}[] }[]`, `opts = { width, height, thresholds: {high, low} }`
+
+- [ ] **Step 1: Napisz testy, które mają nie przejść**
+
+Utwórz `test/rates-chart.test.js`:
+
+```js
+// test/rates-chart.test.js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { ratesChartSVG, colorMap, SERIES_COLORS, OTHER_COLOR, escXml } from '../src/rates-chart.js';
+
+const T = (dzien) => Date.parse(`2026-07-${String(dzien).padStart(2, '0')}T10:00:00.000Z`);
+const seria = (continent, color, wartosci) =>
+  ({ continent, color, points: wartosci.map((y, i) => ({ t: T(20 + i), y })) });
+
+test('colorMap przypisuje kolory w stałej kolejności', () => {
+  const m = colorMap(['K45', 'K55', 'K64']);
+  assert.equal(m.get('K45'), SERIES_COLORS[0]);
+  assert.equal(m.get('K55'), SERIES_COLORS[1]);
+  assert.equal(m.get('K64'), SERIES_COLORS[2]);
+});
+
+test('colorMap nie generuje nowych barw powyżej palety', () => {
+  const duzo = ['K1', 'K2', 'K3', 'K4', 'K5', 'K6', 'K7', 'K8'];
+  const m = colorMap(duzo);
+  assert.equal(m.get('K7'), OTHER_COLOR);
+  assert.equal(m.get('K8'), OTHER_COLOR);
+});
+
+test('escXml zabezpiecza znaki składni', () => {
+  assert.equal(escXml('<a & "b">'), '&lt;a &amp; &quot;b&quot;&gt;');
+});
+
+test('rysuje jedną linię na serię', () => {
+  const svg = ratesChartSVG([
+    seria('K45', '#c0392b', [320, 330, 340]),
+    seria('K55', '#1b6cc4', [400, 390, 380]),
+  ], { thresholds: { high: 410, low: 300 } });
+  assert.equal((svg.match(/<polyline/g) || []).length, 2);
+  assert.match(svg, /#c0392b/);
+  assert.match(svg, /#1b6cc4/);
+});
+
+test('legenda jest zawsze obecna przy wielu seriach — tożsamość nie zależy od koloru', () => {
+  const svg = ratesChartSVG([
+    seria('K45', '#c0392b', [320, 330]),
+    seria('K55', '#1b6cc4', [400, 390]),
+  ], { thresholds: { high: 410, low: 300 } });
+  assert.match(svg, /K45/);
+  assert.match(svg, /K55/);
+});
+
+test('linie progów są rysowane przerywaną kreską', () => {
+  const svg = ratesChartSVG([seria('K45', '#c0392b', [350, 360])],
+    { thresholds: { high: 400, low: 320 } });
+  assert.match(svg, /stroke-dasharray/);
+  assert.match(svg, /400/);
+  assert.match(svg, /320/);
+});
+
+test('skala pionowa obejmuje progi, nawet gdy leżą poza danymi', () => {
+  const svg = ratesChartSVG([seria('K45', '#c0392b', [350, 355])],
+    { thresholds: { high: 900, low: 100 } });
+  assert.match(svg, /900/);
+  assert.match(svg, /100/);
+});
+
+test('brak progów nie wywraca wykresu', () => {
+  const svg = ratesChartSVG([seria('K45', '#c0392b', [350, 360])],
+    { thresholds: { high: null, low: null } });
+  assert.match(svg, /<polyline/);
+  assert.doesNotMatch(svg, /stroke-dasharray/);
+});
+
+test('pusta historia daje czytelny komunikat zamiast pustych osi', () => {
+  assert.match(ratesChartSVG([], { thresholds: {} }), /brak danych/);
+  assert.match(ratesChartSVG([{ continent: 'K45', color: '#c0392b', points: [] }], { thresholds: {} }), /brak danych/);
+});
+
+test('podpowiedź przywraca rozbicie na surowce, które chowa średnia', () => {
+  const rec = { wood: 378, stone: 372, iron: 406 };
+  const svg = ratesChartSVG([{ continent: 'K64', color: '#c0392b', points: [{ t: T(20), y: 385, rec }] }],
+    { thresholds: {} });
+  assert.match(svg, /<title>[^<]*378[^<]*372[^<]*406[^<]*<\/title>/);
+  assert.match(svg, /<title>[^<]*K64/);
+});
+
+test('podpowiedź działa też bez rozbicia w punkcie', () => {
+  const svg = ratesChartSVG([{ continent: 'K64', color: '#c0392b', points: [{ t: T(20), y: 385 }] }],
+    { thresholds: {} });
+  assert.match(svg, /<title>[^<]*385[^<]*<\/title>/);
+});
+
+test('pojedynczy punkt w czasie nie dzieli przez zero', () => {
+  const svg = ratesChartSVG([{ continent: 'K45', color: '#c0392b', points: [{ t: T(20), y: 350 }] }],
+    { thresholds: {} });
+  assert.doesNotMatch(svg, /NaN/);
+});
+```
+
+- [ ] **Step 2: Uruchom testy i potwierdź, że nie przechodzą**
+
+Run: `npm test -- test/rates-chart.test.js`
+Expected: FAIL — `Cannot find module '../src/rates-chart.js'`
+
+- [ ] **Step 3: Napisz implementację**
+
+Utwórz `src/rates-chart.js`:
+
+```js
+// src/rates-chart.js
+// Wykres przebiegu średniego kursu: oś czasu w poziomie, linia na kontynent,
+// poziome linie progów. Moduł jest samowystarczalny — celowo nie korzysta
+// z charts.js, żeby oba narzędzia dało się rozdzielić bez rozplątywania.
+
+// Paleta sprawdzona walidatorem na pergaminie #f4ead2: pasmo jasności, chroma,
+// rozróżnialność przy daltonizmie i kontrast. Kolejność jest stała — kolor
+// przypisujemy po pozycji kontynentu, nigdy po jego miejscu w widoku.
+export const SERIES_COLORS = ['#c0392b', '#1b6cc4', '#1f8a4c', '#7d3fb5', '#b06a00', '#c4187f'];
+// Powyżej sześciu kontynentów nie generujemy nowych barw — wspólna szarość
+// jest uczciwsza niż dwa odcienie nie do odróżnienia.
+export const OTHER_COLOR = '#8a7a5e';
+
+const MARGIN = { left: 54, right: 18, top: 30, bottom: 38 };
+const AXIS_INK = '#93805f';
+const GRID_LINE = '#ddcca2';
+const BASE_LINE = '#c4ac7c';
+const TITLE_INK = '#6b543a';
+const THRESHOLD_INK = '#7c2b2b';
+
+export function escXml(value) {
+  return String(value).replace(/[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+export function colorMap(continents) {
+  const map = new Map();
+  continents.forEach((c, i) => {
+    map.set(c, i < SERIES_COLORS.length ? SERIES_COLORS[i] : OTHER_COLOR);
+  });
+  return map;
+}
+
+function niceTicks(min, max, count = 4) {
+  if (min === max) { min -= 1; max += 1; }
+  const rawStep = (max - min) / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  const step = (norm >= 5 ? 10 : norm >= 2 ? 5 : norm >= 1 ? 2 : 1) * mag;
+  const ticks = [];
+  const start = Math.floor(min / step) * step;
+  for (let v = start; v <= max + step / 2; v += step) ticks.push(Math.round(v * 1e6) / 1e6);
+  return ticks;
+}
+
+function dzienMiesiac(ms) {
+  const d = new Date(ms);
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// Średnia chowa to, który surowiec jest okazją — podpowiedź ma to oddać.
+function podpowiedz(continent, p) {
+  const glowa = `${continent} · ${dzienMiesiac(p.t)} · średnia ${p.y}`;
+  const r = p.rec;
+  if (!r || !Number.isFinite(r.wood)) return glowa;
+  return `${glowa}\ndrewno ${r.wood} · glina ${r.stone} · żelazo ${r.iron}`;
+}
+
+function pusty(width, height) {
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">`
+    + `<text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="${AXIS_INK}" font-size="12">brak danych</text></svg>`;
+}
+
+export function ratesChartSVG(series, opts = {}) {
+  const { width = 1000, height = 340, thresholds = {} } = opts;
+  const punkty = series.flatMap(s => s.points);
+  if (!punkty.length) return pusty(width, height);
+
+  const progi = [thresholds.high, thresholds.low].filter(v => Number.isFinite(v));
+  const wartosci = punkty.map(p => p.y).concat(progi);
+  let minY = Math.min(...wartosci);
+  let maxY = Math.max(...wartosci);
+  if (minY === maxY) { minY -= 1; maxY += 1; }
+  const zapas = (maxY - minY) * 0.08;
+  minY -= zapas; maxY += zapas;
+
+  const czasy = punkty.map(p => p.t);
+  const minT = Math.min(...czasy);
+  const maxT = Math.max(...czasy);
+
+  const plotW = width - MARGIN.left - MARGIN.right;
+  const plotH = height - MARGIN.top - MARGIN.bottom;
+  const yOf = v => MARGIN.top + (maxY - v) / (maxY - minY) * plotH;
+  // Jeden punkt w czasie: rysujemy go pośrodku zamiast dzielić przez zero.
+  const xOf = t => (maxT === minT ? MARGIN.left + plotW / 2
+    : MARGIN.left + (t - minT) / (maxT - minT) * plotW);
+
+  let siatka = '';
+  for (const t of niceTicks(minY, maxY)) {
+    if (t < minY || t > maxY) continue;
+    const y = yOf(t);
+    siatka += `<line x1="${MARGIN.left}" y1="${y.toFixed(1)}" x2="${width - MARGIN.right}" y2="${y.toFixed(1)}" stroke="${GRID_LINE}"/>`
+      + `<text x="${MARGIN.left - 7}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="${AXIS_INK}" style="font-variant-numeric:tabular-nums">${Math.round(t)}</text>`;
+  }
+
+  // Progi: przerywane i w neutralnym akcencie, żeby nie udawały serii danych.
+  let progiEl = '';
+  for (const [klucz, etykieta] of [['high', 'kupuj powyżej'], ['low', 'sprzedawaj poniżej']]) {
+    const v = thresholds[klucz];
+    if (!Number.isFinite(v) || v < minY || v > maxY) continue;
+    const y = yOf(v);
+    progiEl += `<line x1="${MARGIN.left}" y1="${y.toFixed(1)}" x2="${width - MARGIN.right}" y2="${y.toFixed(1)}" stroke="${THRESHOLD_INK}" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.75"/>`
+      + `<text x="${width - MARGIN.right - 4}" y="${(y - 5).toFixed(1)}" text-anchor="end" font-size="10" fill="${THRESHOLD_INK}">${escXml(etykieta)} ${Math.round(v)}</text>`;
+  }
+
+  let linie = '';
+  for (const s of series) {
+    if (!s.points.length) continue;
+    const wsp = s.points.map(p => `${xOf(p.t).toFixed(1)},${yOf(p.y).toFixed(1)}`).join(' ');
+    linie += `<polyline fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${wsp}"/>`;
+    for (const p of s.points) {
+      linie += `<circle class="dot" cx="${xOf(p.t).toFixed(1)}" cy="${yOf(p.y).toFixed(1)}" r="3.2" fill="${s.color}" stroke="#f4ead2" stroke-width="1.5" data-continent="${escXml(s.continent)}" data-t="${p.t}" data-y="${p.y}"><title>${escXml(podpowiedz(s.continent, p))}</title></circle>`;
+    }
+  }
+
+  const os = `<line x1="${MARGIN.left}" y1="${(MARGIN.top + plotH).toFixed(1)}" x2="${width - MARGIN.right}" y2="${(MARGIN.top + plotH).toFixed(1)}" stroke="${BASE_LINE}"/>`;
+
+  let etykietyX = '';
+  const krokow = 6;
+  for (let i = 0; i <= krokow; i++) {
+    const t = minT + (maxT - minT) * (i / krokow);
+    etykietyX += `<text x="${xOf(t).toFixed(1)}" y="${(height - MARGIN.bottom + 16).toFixed(1)}" text-anchor="middle" font-size="10" fill="${AXIS_INK}">${dzienMiesiac(t)}</text>`;
+    if (maxT === minT) break;
+  }
+
+  // Legenda zawsze obecna: przy wielu seriach tożsamość nie może zależeć
+  // wyłącznie od koloru.
+  let legenda = '';
+  series.forEach((s, i) => {
+    const x = MARGIN.left + i * 78;
+    legenda += `<rect x="${x}" y="${MARGIN.top - 20}" width="14" height="3" rx="1.5" fill="${s.color}"/>`
+      + `<text x="${x + 19}" y="${MARGIN.top - 14}" font-size="10.5" fill="${TITLE_INK}">${escXml(s.continent)}</text>`;
+  });
+
+  return `<svg viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" class="chart" preserveAspectRatio="xMidYMid meet">`
+    + `${siatka}${os}${progiEl}${linie}${etykietyX}${legenda}</svg>`;
+}
+```
+
+- [ ] **Step 4: Uruchom testy i potwierdź, że przechodzą**
+
+Run: `npm test -- test/rates-chart.test.js`
+Expected: PASS, 12 testów
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/rates-chart.js test/rates-chart.test.js
+git commit -m "feat: wykres przebiegu kursow z liniami progow"
+```
+
+---
+
+### Task 5: Strona i budowa
+
+**Files:**
+- Create: `src/rates.template.html`
+- Create: `src/rates.css`
+- Create: `src/rates-page.js`
+- Modify: `build.js` (nowy cel `buildRatesPage()` + zapis `dist/kursy/index.html`)
+- Modify: `test/build.test.js` (dopisanie testów)
+
+**Interfaces:**
+- Consumes: wszystko z zadań 1–4
+- Produces: `buildRatesPage() → string` eksportowane z `build.js`
+
+- [ ] **Step 1: Napisz testy, które mają nie przejść**
+
+Rozszerz import w `test/build.test.js`:
+
+```js
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage } from '../build.js';
+```
+
+Dopisz na końcu `test/build.test.js`:
+
+```js
+test('strona kursów nie zawiera markerów ani importów', () => {
+  const html = buildRatesPage();
+  assert.doesNotMatch(html, /INJECT:/);
+  assert.doesNotMatch(html, /^\s*import\s/m);
+  assert.doesNotMatch(html, /^\s*export\s/m);
+});
+
+test('strona kursów zawiera logikę historii, sygnałów i wykresu', () => {
+  const html = buildRatesPage();
+  assert.match(html, /mergeHistory/);
+  assert.match(html, /evaluateSignals/);
+  assert.match(html, /ratesChartSVG/);
+});
+
+// Strona ma działać otwarta z dysku, więc nie wolno jej sięgać po nic z sieci.
+test('strona kursów jest samowystarczalna — zero odwołań na zewnątrz', () => {
+  const html = buildRatesPage();
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+  assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
+  assert.doesNotMatch(html, /<script[^>]+src=/);
+  assert.doesNotMatch(html, /<link[^>]+stylesheet/);
+});
+```
+
+- [ ] **Step 2: Uruchom testy i potwierdź, że nie przechodzą**
+
+Run: `npm test -- test/build.test.js`
+Expected: FAIL — `buildRatesPage is not a function`
+
+- [ ] **Step 3: Napisz szkielet strony**
+
+Utwórz `src/rates.template.html`:
+
+```html
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kursy giełdy — Plemiona</title>
+<style>/*INJECT:css*/</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">
+    <div class="eyebrow">Plemiona · kursy giełdy</div>
+    <h1>Przebieg kursów</h1>
+  </div>
+  <p id="count">0 odczytów</p>
+</div></header>
+
+<main class="wrap">
+<section id="dropzone">
+  Wklej dane skopiowane w grze przyciskiem <b>Eksportuj</b> — <span class="link" id="paste-open">wklej odczyty</span>.
+  <div class="actions"><button id="reset">Wyczyść historię</button></div>
+  <p class="privacy">Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</p>
+</section>
+
+<section class="filters">
+  <label>Świat: <select id="f-world"></select></label>
+  <label>Kupuj powyżej: <input id="th-high" type="number" min="1" step="1" inputmode="numeric"></label>
+  <label>Sprzedawaj poniżej: <input id="th-low" type="number" min="1" step="1" inputmode="numeric"></label>
+</section>
+
+<section class="card" id="signals-card"><h3>Okazje</h3><div id="signals"></div></section>
+
+<section class="card" id="chart-card"><div id="chart"></div></section>
+
+<section class="card"><h3>Aktualny stan</h3><table id="latest"></table></section>
+</main>
+
+<div id="paste-modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3>Wklej odczyty</h3>
+    <p class="muted">W grze na ekranie giełdy kliknij <b>Eksportuj</b>, potem wklej tutaj (<b>Ctrl+V</b>).</p>
+    <textarea id="paste-area" spellcheck="false" placeholder="Wklej tu skopiowane dane…"></textarea>
+    <div class="modal-foot">
+      <span id="paste-info"></span>
+      <span class="spacer"></span>
+      <button id="paste-cancel">Anuluj</button>
+      <button id="paste-done" class="primary">Wczytaj</button>
+    </div>
+  </div>
+</div>
+<script type="module">/*INJECT:js*/</script>
+</body>
+</html>
+```
+
+- [ ] **Step 4: Napisz styl**
+
+Utwórz `src/rates.css`:
+
+```css
+:root {
+  color-scheme: light;
+  --wood-1: #2c2015; --wood-2: #170f08;
+  --surface: #f4ead2; --surface-2: #ecdfbf;
+  --ink: #38291a; --ink-2: #6b543a; --ink-3: #93805f;
+  --line: #dccca4; --line-strong: #c4ac7c;
+  --accent: #7c2b2b; --accent-deep: #5f2020; --gold: #a8842c;
+  --pos: #3f7a3a; --neg: #a5372a;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; color: var(--ink); font-size: 14px;
+  background: radial-gradient(ellipse at 50% -10%, #3a2c1c 0%, var(--wood-1) 45%, var(--wood-2) 100%) fixed; }
+.wrap { width: 90%; max-width: 1200px; margin: 0 auto; }
+
+header { background: linear-gradient(180deg, var(--accent) 0%, var(--accent-deep) 100%);
+  border-bottom: 3px solid var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.4); padding: 15px 0; }
+header .wrap { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; flex-direction: column; gap: 4px; }
+.eyebrow { font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+header h1 { margin: 0; font-family: var(--serif); font-size: 25px; color: #f6ecd4; text-shadow: 0 1px 2px rgba(0,0,0,.4); }
+#count { margin: 0; font-size: 12px; color: #e8cfa8; font-variant-numeric: tabular-nums; }
+
+main { padding: 20px 0 52px; }
+section { margin: 16px 0; }
+.card { background: radial-gradient(120% 80% at 25% 0%, rgba(255,251,240,.55), transparent 55%), var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 16px 18px; overflow-x: auto;
+  box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 8px 22px rgba(0,0,0,.38); }
+.card > h3 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); font-weight: 700; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+
+#dropzone { border: 1.5px dashed var(--line-strong); background: rgba(244,234,210,.9); border-radius: 6px;
+  padding: 15px; text-align: center; color: var(--ink-2); font-size: 13px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+#dropzone .privacy { margin: 12px 0 0; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+.link { color: var(--accent); cursor: pointer; font-weight: 700; text-decoration: underline; }
+.actions { margin-top: 10px; }
+button { margin: 0 4px; padding: 6px 14px; cursor: pointer; border: 1px solid var(--line-strong);
+  background: var(--surface-2); border-radius: 5px; color: var(--ink); font-size: 13px; font-weight: 600; }
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); color: #f6ecd4; border-color: var(--accent); }
+
+.filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 13px; color: #e8dcc0; }
+.filters select, .filters input { padding: 4px 8px; border: 1px solid var(--line-strong); border-radius: 5px;
+  background: var(--surface); color: var(--ink); font: inherit; }
+.filters input { width: 92px; font-family: var(--mono); }
+
+#signals { display: flex; flex-wrap: wrap; gap: 8px; }
+.sig { display: flex; align-items: baseline; gap: 8px; padding: 6px 12px; border-radius: 5px;
+  border: 1px solid var(--line-strong); background: var(--surface-2); }
+.sig b { font-family: var(--mono); font-size: 16px; }
+.sig .k { font-weight: 700; }
+.sig .act { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; }
+.sig.kupuj { border-color: var(--pos); } .sig.kupuj .act { color: var(--pos); }
+.sig.sprzedawaj { border-color: var(--neg); } .sig.sprzedawaj .act { color: var(--neg); }
+.sig-none { color: var(--ink-2); font-style: italic; }
+
+#chart-card { height: clamp(300px, 42vh, 420px); display: flex; flex-direction: column; }
+#chart { flex: 1; min-height: 260px; }
+svg.chart { width: 100%; height: 100%; display: block; }
+svg .dot { transition: opacity .1s; } svg .dot:hover { opacity: .7; cursor: pointer; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+th { color: var(--accent); font-weight: 700; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+  border-bottom: 1.5px solid var(--line-strong); font-family: system-ui, sans-serif; }
+th:first-child, td:first-child { text-align: left; font-family: system-ui, sans-serif; color: var(--ink-2); }
+table tr:hover td { background: rgba(168,132,44,.08); }
+td .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 7px; vertical-align: baseline; }
+
+.muted { color: var(--ink-3); font-style: italic; }
+.modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center;
+  background: rgba(20,12,6,.6); padding: 16px; }
+.modal[hidden] { display: none; }
+.modal-box { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 18px 20px; width: 100%; max-width: 720px; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+.modal-box h3 { margin: 0 0 6px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+.modal-box .muted { margin: 0 0 12px; }
+#paste-area { width: 100%; height: 240px; resize: vertical; font-family: var(--mono); font-size: 12px;
+  color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 6px; padding: 10px; }
+.modal-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.modal-foot .spacer { flex: 1; }
+#paste-info { font-size: 13px; color: var(--ink-2); }
+#paste-info.err { color: var(--neg); font-weight: 600; }
+```
+
+- [ ] **Step 5: Napisz spięcie**
+
+Utwórz `src/rates-page.js`:
+
+```js
+// src/rates-page.js
+// Spięcie strony: magazyn w localStorage, zdarzenia, render.
+
+import { parseImport, mergeHistory, average, worlds, forWorld, continentsOf, latestPerContinent, seriesByContinent } from './rates-history.js';
+import { parseThreshold, evaluateSignals } from './rates-signals.js';
+import { ratesChartSVG, colorMap, escXml } from './rates-chart.js';
+
+const KLUCZ_HISTORII = 'plemiona-kursy:historia';
+// Progi mają własny klucz, żeby czyszczenie historii ich nie kasowało.
+const KLUCZ_PROGOW = 'plemiona-kursy:progi';
+
+let HISTORIA = [];
+let PROGI = { high: null, low: null };
+let SWIAT = null;
+
+const $ = id => document.getElementById(id);
+
+function wczytajMagazyn() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KLUCZ_HISTORII) || '[]');
+    if (Array.isArray(raw)) HISTORIA = raw;
+  } catch { HISTORIA = []; }
+  try {
+    const p = JSON.parse(localStorage.getItem(KLUCZ_PROGOW) || '{}');
+    PROGI = { high: parseThreshold(p.high), low: parseThreshold(p.low) };
+  } catch { PROGI = { high: null, low: null }; }
+}
+
+function zapiszHistorie() {
+  try {
+    localStorage.setItem(KLUCZ_HISTORII, JSON.stringify(HISTORIA));
+    return true;
+  } catch { return false; }
+}
+
+function zapiszProgi() {
+  try { localStorage.setItem(KLUCZ_PROGOW, JSON.stringify(PROGI)); } catch { /* pełny magazyn */ }
+}
+
+function fmtKiedy(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}.${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function renderSwiaty() {
+  const lista = worlds(HISTORIA);
+  const sel = $('f-world');
+  if (!lista.includes(SWIAT)) SWIAT = lista[0] || null;
+  sel.innerHTML = lista.map(w => `<option value="${escXml(w)}"${w === SWIAT ? ' selected' : ''}>${escXml(w)}</option>`).join('');
+  sel.parentElement.style.display = lista.length > 1 ? '' : 'none';
+}
+
+function renderSygnaly(najnowsze) {
+  const { signals, message } = evaluateSignals(najnowsze, PROGI);
+  $('signals').innerHTML = signals.length
+    ? signals.map(s => `<span class="sig ${s.action}"><span class="k">${escXml(s.continent)}</span>`
+        + `<b>${s.avg}</b><span class="act">${escXml(s.action)}</span></span>`).join('')
+    : `<span class="sig-none">${escXml(message)}</span>`;
+}
+
+function renderTabela(najnowsze, kolory) {
+  const wiersze = [...najnowsze].sort((a, b) => average(b) - average(a));
+  $('latest').innerHTML =
+    '<thead><tr><th>Kontynent</th><th>Średnia</th><th>Drewno</th><th>Glina</th><th>Żelazo</th><th>Odczytano</th></tr></thead>'
+    + '<tbody>' + wiersze.map(r =>
+      `<tr><td><span class="swatch" style="background:${kolory.get(r.continent)}"></span>${escXml(r.continent)}</td>`
+      + `<td>${average(r)}</td><td>${r.wood}</td><td>${r.stone}</td><td>${r.iron}</td>`
+      + `<td>${escXml(fmtKiedy(r.at))}</td></tr>`).join('') + '</tbody>';
+}
+
+function render() {
+  renderSwiaty();
+  const dane = SWIAT ? forWorld(HISTORIA, SWIAT) : [];
+  $('count').textContent = `${HISTORIA.length} odczytów`;
+  $('th-high').value = PROGI.high ?? '';
+  $('th-low').value = PROGI.low ?? '';
+
+  // Kolor po pozycji kontynentu w PEŁNEJ liście świata — filtr nigdy nie
+  // przemalowuje serii.
+  const kolory = colorMap(continentsOf(dane));
+  const najnowsze = latestPerContinent(dane);
+
+  renderSygnaly(najnowsze);
+  renderTabela(najnowsze, kolory);
+
+  const serie = seriesByContinent(dane).map(s => ({ ...s, color: kolory.get(s.continent) }));
+  $('chart').innerHTML = ratesChartSVG(serie, { thresholds: PROGI, width: 1000, height: 340 });
+}
+
+function wczytajWklejone() {
+  const wynik = parseImport($('paste-area').value);
+  const info = $('paste-info');
+  if (!wynik.ok) {
+    info.textContent = wynik.error;
+    info.classList.add('err');
+    return;
+  }
+  const scalone = mergeHistory(HISTORIA, wynik.records);
+  HISTORIA = scalone.history;
+  const zapisano = zapiszHistorie();
+  render();
+
+  const czesci = [`Dodano ${scalone.added}`];
+  if (scalone.duplicates) czesci.push(`pominięto ${scalone.duplicates} powtórzonych`);
+  if (wynik.skipped) czesci.push(`odrzucono ${wynik.skipped} niepełnych`);
+  if (!zapisano) czesci.push('UWAGA: nie udało się zapisać — magazyn pełny');
+  info.textContent = czesci.join(', ') + '.';
+  info.classList.toggle('err', !zapisano);
+  $('paste-area').value = '';
+}
+
+wczytajMagazyn();
+render();
+
+$('paste-open').addEventListener('click', () => {
+  $('paste-info').textContent = '';
+  $('paste-info').classList.remove('err');
+  $('paste-modal').hidden = false;
+  $('paste-area').focus();
+});
+$('paste-cancel').addEventListener('click', () => { $('paste-modal').hidden = true; });
+$('paste-done').addEventListener('click', wczytajWklejone);
+
+$('f-world').addEventListener('change', e => { SWIAT = e.target.value; render(); });
+
+for (const id of ['th-high', 'th-low']) {
+  $(id).addEventListener('change', () => {
+    PROGI = { high: parseThreshold($('th-high').value), low: parseThreshold($('th-low').value) };
+    zapiszProgi();
+    render();
+  });
+}
+
+$('reset').addEventListener('click', () => {
+  if (!confirm('Usunąć całą zgromadzoną historię kursów? Progi zostaną zachowane.')) return;
+  HISTORIA = [];
+  try { localStorage.removeItem(KLUCZ_HISTORII); } catch { /* nic nie szkodzi */ }
+  render();
+});
+```
+
+- [ ] **Step 6: Dodaj cel budowy**
+
+W `build.js` dopisz po `buildDashboard()`:
+
+```js
+const RATES_LOGIC = ['src/rates-history.js', 'src/rates-signals.js', 'src/rates-chart.js', 'src/rates-page.js'];
+
+// Strona analizy kursów (dist/kursy/index.html) — samowystarczalny plik,
+// otwierany z dysku. Nie sięga po nic z sieci.
+export function buildRatesPage() {
+  const css = read('./src/rates.css');
+  const js = RATES_LOGIC.map(p => stripModule(read('./' + p))).join('\n');
+  return read('./src/rates.template.html')
+    .replace('/*INJECT:css*/', () => css)
+    .replace('/*INJECT:js*/', () => js);
+}
+```
+
+W bloku uruchamianym z linii poleceń dopisz katalog, zapis i komunikat:
+
+```js
+  mkdirSync(new URL('./dist/kursy/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/kursy/index.html', import.meta.url), buildRatesPage());
+  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów)');
+```
+
+- [ ] **Step 7: Uruchom pełne testy**
+
+Run: `npm test`
+Expected: PASS — cały zestaw, w tym 4 nowe testy w `build.test.js`
+
+- [ ] **Step 8: Zbuduj i obejrzyj stronę**
+
+Run: `npm run build`
+Expected: komunikat wymieniający `kursy/index.html (analiza kursów)`
+
+Otwórz `dist/kursy/index.html` w przeglądarce. Powinna pokazać nagłówek, pole
+wklejania i komunikat o braku danych na wykresie — bez błędów w konsoli.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add src/rates.template.html src/rates.css src/rates-page.js build.js test/build.test.js
+git commit -m "feat: strona analizy kursow gieldy"
+```
+
+---
+
+## Weryfikacja końcowa
+
+Kroki automatyczne:
+
+- [ ] `npm test` — wszystkie testy przechodzą
+- [ ] `npm run build` — powstaje `dist/kursy/index.html`
+- [ ] Test samowystarczalności strony przechodzi (zero odwołań na zewnątrz)
+
+Kroki ręczne, na zbudowanej stronie otwartej z dysku:
+
+- [ ] Wklejenie eksportu z kolektora dokłada odczyty; licznik rośnie
+- [ ] Wklejenie tego samego eksportu drugi raz daje „Dodano 0, pominięto N powtórzonych"
+- [ ] Ustawienie progów pokazuje okazje; kurs między progami nie daje sygnału
+- [ ] Progi przeżywają zamknięcie i ponowne otwarcie strony
+- [ ] Wykres rysuje linię na kontynent, dwie przerywane linie progów i legendę
+- [ ] Kolor kontynentu nie zmienia się po przełączeniu świata i z powrotem
+- [ ] „Wyczyść historię" kasuje odczyty, ale zostawia progi
