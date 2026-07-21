@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analiza PP — Plemiona</title>
+<style>
+  :root{--w:#2c2015;--w2:#170f08;--pg:#f4ead2;--ink:#38291a;--ink2:#6b543a;--acc:#7c2b2b;--gold:#a8842c;--line:#c4ac7c}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+    background:radial-gradient(ellipse at 50% -10%,#3a2c1c,var(--w) 45%,var(--w2)) fixed;min-height:100vh}
+  .wrap{width:90%;max-width:760px;margin:0 auto;padding:36px 0 60px}
+  header{text-align:center;color:#f6ecd4;margin-bottom:26px}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  h1{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:30px;margin:6px 0 8px}
+  header p{opacity:.85;margin:0}
+  .card{background:radial-gradient(120% 80% at 25% 0%,rgba(255,251,240,.55),transparent 55%),var(--pg);
+    border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin:16px 0;
+    box-shadow:0 8px 22px rgba(0,0,0,.38)}
+  .card h2{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+  .step{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.1em}
+  ol{margin:8px 0 0 18px}li{margin:4px 0}
+  .btn{display:inline-block;padding:11px 18px;border-radius:6px;text-decoration:none;font-weight:700}
+  .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
+  .go{background:var(--acc);color:#f6ecd4}
+  .muted{color:var(--ink2);font-size:13px}
+  code{background:#0002;padding:1px 5px;border-radius:4px}
+  footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
+</style></head>
+<body><div class="wrap">
+<header>
+  <div class="eyebrow">Plemiona · analiza PP</div>
+  <h1>Bilans punktów premium</h1>
+  <p>Twój prywatny dashboard do logu PP — dane liczone lokalnie w przeglądarce, nic nie trafia na serwer.</p>
+</header>
+
+<div class="card">
+  <span class="step">Krok 1</span>
+  <h2>Zainstaluj kolektor</h2>
+  <p class="muted">Przeciągnij ten przycisk na <b>pasek zakładek</b> przeglądarki:</p>
+  <p><a class="btn bm" href="javascript:(()=>{const RE = /^(\d{2})\.(\d{2})\.(?:(\d{2}))?\s+(\d{2}):(\d{2})$/;function parsePremiumDate(dateRaw, now = new Date()) { const s = String(dateRaw).replace(/ /g, ' ').trim(); const m = RE.exec(s); if (!m) throw new Error(`Nieparsowalna data: ${JSON.stringify(dateRaw)}`); const [, dd, mm, yy, hh, min] = m; const year = yy !== undefined ? 2000 + Number(yy) : now.getFullYear(); return new Date(year, Number(mm) - 1, Number(dd), Number(hh), Number(min), 0, 0); } function buildLogUrl(baseHref, page) { if (/([?&])page=\d+/.test(baseHref)) return baseHref.replace(/([?&]page=)\d+/, `$1${page}`); return baseHref + (baseHref.includes('?') ? '&' : '?') + `page=${page}`; } function extractRawRows(doc) { const trs = doc.querySelectorAll('#premium_history_table tr, table tr'); const out = []; for (const tr of trs) { const cells = tr.querySelectorAll('td'); if (!cells || cells.length < 6) continue; const t = i => (cells[i].textContent || '').replace(/ /g, ' ').trim(); const dateRaw = t(0); if (!/^\s*\d{2}\.\d{2}\./.test(dateRaw)) continue; out.push({ dateRaw, world: t(1), txType: t(2), changeRaw: t(3), balanceRaw: t(4), info: t(5) }); } return out; }function oldestDate(rows, now) { let oldest = null; for (const r of rows) { const d = parsePremiumDate(r.dateRaw, now); if (!oldest || d < oldest) oldest = d; } return oldest; }function shouldStop(rows, sinceDate, now) { const oldest = oldestDate(rows, now); return oldest !== null && oldest < sinceDate; } if (typeof document !== 'undefined' && typeof window !== 'undefined') { (async function () { const now = new Date(); const trybNowe = confirm('OK = pobierz NOWE od daty; Anuluj = pobierz WSZYSTKO'); let sinceDate = null; if (trybNowe) { const v = prompt('Pobierz wpisy od daty (RRRR-MM-DD):', new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)); if (!v) return; sinceDate = new Date(v + 'T00:00:00'); } const delayMs = Number(prompt('Opóźnienie między stronami (ms), 0 = bez:', '0')) || 0; const sleep = ms => new Promise(r => setTimeout(r, ms)); const all = []; let page = 0; for (;;) { const url = buildLogUrl(location.href, page); let doc; try { const res = await fetch(url, { credentials: 'include' }); const html = await res.text(); doc = new DOMParser().parseFromString(html, 'text/html'); } catch (e) { alert('Błąd pobierania strony ' + page + ': ' + e.message); break; } const rows = extractRawRows(doc); if (!rows.length) break;                  all.push(...rows); console.log('strona', page, '→', rows.length, 'wierszy (łącznie', all.length + ')'); if (sinceDate && shouldStop(rows, sinceDate, now)) break; page++; if (delayMs) await sleep(delayMs); } let outRows = all; if (sinceDate) { outRows = all.filter(r => { try { return parsePremiumDate(r.dateRaw, now) >= sinceDate; } catch { return true; } }); } const payload = { exportedAt: now.toISOString(), count: outRows.length, rows: outRows }; const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'plemiona-log-' + now.toISOString().slice(0, 16).replace(/[-:T]/g, '') + '.json'; document.body.appendChild(a); a.click(); a.remove(); alert('Zapisano ' + outRows.length + ' wpisów do pliku JSON.'); })(); }})()">📥 Pobierz log PP</a></p>
+</div>
+
+<div class="card">
+  <span class="step">Krok 2</span>
+  <h2>Pobierz swój log</h2>
+  <ol>
+    <li>Zaloguj się w grze i wejdź na <b>Premium → Log punktów</b>.</li>
+    <li>Kliknij zakładkę „Pobierz log PP”. Wybierz tryb (wszystko / od daty) i opcjonalne opóźnienie.</li>
+    <li>Zapisze się plik <code>plemiona-log-*.json</code>.</li>
+  </ol>
+</div>
+
+<div class="card">
+  <span class="step">Krok 3</span>
+  <h2>Analizuj</h2>
+  <p class="muted">Otwórz dashboard i przeciągnij na niego swój plik JSON (lub CSV). Dane zostają u Ciebie.</p>
+  <p><a class="btn go" href="./dashboard.html">Otwórz dashboard →</a></p>
+</div>
+
+<footer>Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</footer>
+</div></body></html>
