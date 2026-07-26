@@ -95,7 +95,7 @@ poprawnie bez żadnej dodatkowej tabeli.
 
 ```
 czas = build_time_budynku
-     × (1,18083 × 1,1891^poziom − 1,78191)
+     × (1,60497 × 1,1758^poziom − 2,16855 × 1,0418^poziom)
      × 1,05^(−poziom_ratusza)
      ÷ prędkość_świata
 ```
@@ -104,33 +104,41 @@ Człon ratusza `1,05^(−poziom)` jest potwierdzony na wszystkich 30 poziomach
 względem tabeli współczynników z gry.
 
 Stałe krzywej poziomu wyznaczono z obserwacji przy Ratuszu 14, gdzie
-`1,05^(−14) = 0,50507`. W tej postaci dopasowanie brzmi
-`build_time × (0,59640 × 1,1891^poziom − 0,90000)`; stałe w formule powyżej to te
-same wartości podzielone przez `0,50507`, żeby człon ratusza dało się wyciągnąć
-osobno. Ma to znaczenie przy implementacji — pomnożenie dopasowanych stałych
-przez człon ratusza po raz drugi liczyłoby go podwójnie.
+`1,05^(−14) = 0,50507`. Surowe dopasowanie brzmi
+`build_time × (0,81062 × 1,1758^poziom − 1,09527 × 1,0418^poziom)`; stałe w
+formule powyżej to te same wartości podzielone przez `0,50507`, żeby człon
+ratusza dało się wyciągnąć osobno. Ma to znaczenie przy implementacji —
+pomnożenie dopasowanych stałych przez człon ratusza po raz drugi liczyłoby go
+podwójnie.
 
 Dzielenie przez prędkość świata jest założeniem — świat 231 ma prędkość 1, więc
 nie dało się tego potwierdzić obserwacyjnie.
 
-Krzywa poziomu została odtworzona z ekranu Ratusza wioski A004 (świat 231,
-Ratusz 14) zapisanego w `_share/`. Przy odczycie trzeba było uwzględnić, że
-ekran pokazuje koszty i czasy dla poziomów **po** kolejce budowy — Spichlerz był
-w kolejce na 20, więc wiersz dotyczył poziomu 21, a Zagroda kolejkowana na 11–13
-pokazywała poziom 14. Bez tej poprawki dane wyglądają na sprzeczne.
+Krzywa została odtworzona z ekranu Ratusza wioski A004 (świat 231, Ratusz 14)
+zapisanego w `_share/`. Przy odczycie trzeba było uwzględnić, że ekran pokazuje
+koszty i czasy dla poziomów **po** kolejce budowy — Spichlerz był w kolejce na
+20, więc wiersz dotyczył poziomu 21, a Zagroda kolejkowana na 11–13 pokazywała
+poziom 14. Bez tej poprawki dane wyglądają na sprzeczne.
 
-Dokładność: jedenaście pozycji na siedmiu budynkach mieści się w 0,1%.
+Dokładność w zakresie poziomów 3–21, na czternastu obserwacjach i jedenastu
+budynkach: najgorszy błąd 2,8%, dla poziomów 9 i wyżej poniżej 1%.
 
-**Znane ograniczenie.** Poniżej poziomu 7 model się rozjeżdża i rozjazd rośnie
-im niżej: poziom 7 błąd 1,3%, poziom 4 około 16%, poziom 3 około 26%, dla
-poziomu 1 wzór daje wartość ujemną. Jest to zakres, w którym symulacja „od zera"
-spędza pierwsze kilkadziesiąt godzin, więc wymaga kalibracji.
+**Znane ograniczenie: poziomy 1 i 2.** Krzywa daje tam wartości ujemne, więc
+w tym zakresie nie ma modelu. Obserwacje z gry są dodatkowo wewnętrznie
+sprzeczne: Mur na poziom 1 to 4:00 przy bazie 3600, a Wieża strażnicza na
+poziom 1 to 0:50 przy bazie 13200. Przy wspólnej krzywej Wieża powinna trwać
+około 15 minut. Co najmniej jeden z tych budynków rządzi się osobną regułą, a
+jedna obserwacja na poziom nie pozwala rozstrzygnąć który.
 
-Kalibracja wymaga zrzutu ekranu Ratusza z młodej wioski (Ratusz 3–6, budynki
-0–5, najlepiej bez kolejki budowy). Da to kilkanaście punktów w brakującym
-zakresie i pozwoli niezależnie potwierdzić człon ratusza przy innym jego
-poziomie. Do czasu kalibracji krzywa poniżej poziomu 7 jest przybliżona, a
-interfejs musi to oznaczać.
+**Czego potrzeba do kalibracji.** Nie młodej wioski — wystarczy **najsłabiej
+rozwinięta wioska, jaką gracz ma**, zapisana jako HTML (nie zrzut ekranu; HTML
+zawiera dokładne sekundy i zawartość kolejki). Liczy się to, żeby budynki stały
+na innych, niskich poziomach niż w A004, bo każdy taki wiersz to nowy punkt
+pomiarowy. Inny poziom Ratusza jest wartością dodaną — pozwoli niezależnie
+potwierdzić człon ratusza.
+
+Do czasu kalibracji poziomy 1 i 2 liczone są zachowawczo, a interfejs oznacza je
+jako niepewne.
 
 Krzywa czasu jest w kodzie **wymienną funkcją** z osobnym zestawem testów
 kalibracyjnych, żeby poprawka była zmianą stałych, a nie przebudową silnika.
@@ -159,9 +167,12 @@ kalibracyjnych, żeby poprawka była zmianą stałych, a nie przebudową silnika
 | Warsztat | Ratusz 10, Kuźnia 10 |
 | Pałac | Ratusz 20, Kuźnia 20, Rynek 10 |
 | Kościół | Ratusz 5, Zagroda 5 |
-| Wieża strażnicza | brak — **niezweryfikowane** |
+| Wieża strażnicza | Ratusz 5, Zagroda 5 |
 
 Pozostałe budynki nie mają wymagań.
+
+Wymagania Warsztatu i Pałacu są potwierdzone niezależnie — sekcja „Jeszcze
+niedostępne" na zapisanym ekranie Ratusza podaje dokładnie te same wartości.
 
 ## Model planu
 
@@ -173,7 +184,7 @@ graczem a Claude:
   "swiat": "pl231",
   "start": {
     "poziomy": { "ratusz": 1, "zagroda": 1, "spichlerz": 1, "plac": 1 },
-    "surowce": { "drewno": 500, "glina": 500, "zelazo": 500 }
+    "surowce": { "drewno": 1000, "glina": 1000, "zelazo": 1000 }
   },
   "kroki": [ { "budynek": "spichlerz", "do_poziomu": 2 } ],
   "dochody": [ { "czas_s": 0, "drewno_h": 0, "glina_h": 0, "zelazo_h": 0 } ],
@@ -184,8 +195,7 @@ graczem a Claude:
 **Poziomy startowe** domyślnie z `min_level` świata: Ratusz 1, Zagroda 1,
 Spichlerz 1, Plac 1, reszta 0. Edytowalne.
 
-**Surowce startowe** domyślnie 500/500/500. Edytowalne. Wartość przyjęta bez
-pewnego źródła — do potwierdzenia.
+**Surowce startowe** domyślnie 1000/1000/1000, podane przez gracza. Edytowalne.
 
 **Dochody** to lista przedziałów. Wpis obowiązuje od swojego `czas_s` aż do
 następnego wpisu. Reprezentuje farmienie i zbieractwo łącznie — gracz wpisuje
@@ -268,7 +278,7 @@ bo są elementem przebiegu.
 produkcję, dochód i zastrzyki, oraz lista ostrzeżeń.
 
 **Oznaczenie niepewności** — dopóki krzywa czasu nie jest skalibrowana poniżej
-poziomu 7, kroki w tym zakresie są wizualnie oznaczone jako przybliżone.
+poziomów 1 i 2, kroki w tym zakresie są wizualnie oznaczone jako niepewne.
 
 ## Eksport
 
@@ -317,7 +327,10 @@ którego nie da się zapisać z góry.
 
 ## Otwarte
 
-1. **Kalibracja czasu poniżej poziomu 7** — potrzebny zrzut ekranu Ratusza z
-   młodej wioski. Do tego czasu wyniki wczesnych poziomów są przybliżone.
-2. **Wymagania Wieży strażniczej** — do sprawdzenia w grze.
-3. **Surowce startowe świeżej wioski** — przyjęto 500/500/500.
+1. **Czas budowy poziomów 1 i 2** — krzywa nie ma tam modelu, a dwie dostępne
+   obserwacje są wzajemnie sprzeczne. Zamyka to zapisany jako HTML ekran Ratusza
+   najsłabiej rozwiniętej wioski gracza.
+2. **Wieża strażnicza jako budynek nietypowy** — 50 sekund na poziom 1 przy
+   koszcie 36 tysięcy surowców. Do rozstrzygnięcia razem z punktem 1.
+3. **Wpływ prędkości świata na czas budowy** — założono dzielenie, brak
+   możliwości potwierdzenia na świecie o prędkości 1.
