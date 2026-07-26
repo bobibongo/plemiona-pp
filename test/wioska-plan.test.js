@@ -73,3 +73,15 @@ test('poprawna sciezka rozbudowy nie zglasza bledow', () => {
   });
   assert.deepEqual(bledyPlanu(p), []);
 });
+
+test('PLAN_PUSTY jest zamrozony i nie da sie go po cichu zepsuc', () => {
+  assert.throws(() => { PLAN_PUSTY.kroki.push({ budynek: 'tartak', doPoziomu: 1 }); }, TypeError);
+  assert.throws(() => { PLAN_PUSTY.start.surowce.drewno = 42; }, TypeError);
+});
+
+test('normalizacja PLAN_PUSTY daje kopie, ktora wolno modyfikowac', () => {
+  const kopia = normalizujPlan(PLAN_PUSTY);
+  kopia.kroki.push({ budynek: 'tartak', doPoziomu: 1 });
+  assert.equal(kopia.kroki.length, 1);
+  assert.equal(PLAN_PUSTY.kroki.length, 0);
+});

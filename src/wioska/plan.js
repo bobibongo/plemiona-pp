@@ -5,9 +5,20 @@
 import { SWIATY, swiat } from './swiaty.js';
 import { poziomyStartowe, maksPoziom, budynkiSwiata } from './swiat.js';
 
-export const SUROWCE_STARTOWE = { drewno: 1000, glina: 1000, zelazo: 1000 };
+// Obie stale sa wspoldzielone przez caly proces. Zamrazamy je, zeby
+// przypadkowa mutacja wywalila sie od razu, zamiast po cichu zmienic
+// wartosci domyslne kolejnych planow. Kopie do modyfikacji daje
+// normalizujPlan, ktory zawsze buduje nowe obiekty.
+function zamroz(obiekt) {
+  for (const v of Object.values(obiekt)) {
+    if (v && typeof v === 'object') zamroz(v);
+  }
+  return Object.freeze(obiekt);
+}
 
-export const PLAN_PUSTY = normalizujPlan({ swiat: 'pl231' });
+export const SUROWCE_STARTOWE = zamroz({ drewno: 1000, glina: 1000, zelazo: 1000 });
+
+export const PLAN_PUSTY = zamroz(normalizujPlan({ swiat: 'pl231' }));
 
 export function normalizujPlan(surowy) {
   const kod = surowy?.swiat ?? 'pl231';
