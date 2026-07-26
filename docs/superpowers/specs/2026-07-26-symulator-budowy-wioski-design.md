@@ -94,62 +94,88 @@ poprawnie bez żadnej dodatkowej tabeli.
 ### Czas budowy
 
 ```
-czas = build_time_budynku
-     × (1,60497 × 1,1758^poziom − 2,16855 × 1,0418^poziom)
-     × 1,05^(−poziom_ratusza)
-     ÷ prędkość_świata
+czas = maks( 10 sekund,
+             build_time_budynku × G(poziom) × 1,05^(−poziom_ratusza) ÷ prędkość_świata )
 ```
 
-Człon ratusza `1,05^(−poziom)` jest potwierdzony na wszystkich 30 poziomach
-względem tabeli współczynników z gry.
+Struktura jest rozdzielna: czas zależy od bazy budynku, od **czystej funkcji
+poziomu** `G` wspólnej dla wszystkich budynków, i od poziomu Ratusza. Nie ma
+w niej członu zależnego od budynku poza samą bazą.
 
-Stałe krzywej poziomu wyznaczono z obserwacji przy Ratuszu 14, gdzie
-`1,05^(−14) = 0,50507`. Surowe dopasowanie brzmi
-`build_time × (0,81062 × 1,1758^poziom − 1,09527 × 1,0418^poziom)`; stałe w
-formule powyżej to te same wartości podzielone przez `0,50507`, żeby człon
-ratusza dało się wyciągnąć osobno. Ma to znaczenie przy implementacji —
-pomnożenie dopasowanych stałych przez człon ratusza po raz drugi liczyłoby go
-podwójnie.
+**Człon ratusza `1,05^(−poziom)` jest potwierdzony dwukrotnie i niezależnie.**
+Raz względem tabeli współczynników z gry, na wszystkich 30 poziomach. Drugi raz
+obserwacyjnie: te same poziomy docelowe zmierzone w wiosce z Ratuszem 3 i w
+wiosce z Ratuszem 14 dają po podzieleniu przez ten człon identyczne `G` —
+rozbieżność 0,08% dla poziomu 3 i 0,03% dla poziomu 4.
+
+**Minimum 10 sekund** jest obserwowane wprost: w świeżej wiosce sześć różnych
+budynków o bazach od 900 do 1200 pokazuje równo `0:00:10`, podczas gdy wzór daje
+im od 6,5 do 8,8 sekundy. Budynki, którym wzór daje powyżej 10 sekund, pokazują
+wartość niezaokrągloną — Schowek 13 s przy wyliczonych 13,2, Piedestał 11 s przy
+wyliczonych 11,0.
+
+### Tabela G
+
+Wartości zmierzone, każda jako średnia z niezależnych obserwacji:
+
+| Poziom | G | Obserwacje | Rozrzut |
+|---|---|---|---|
+| 1 | 0,00772 | 3 budynki, 3 poziomy Ratusza | — |
+| 2 | ~0,0076 | 1 budynek | niska pewność |
+| 3 | 0,16146 | 4 budynki, 2 wioski | 0,17% |
+| 4 | 0,50042 | 9 budynków, 2 wioski | 0,11% |
+| 7 | 2,15879 | 1 | — |
+| 9 | 3,82677 | 1 | — |
+| 10 | 4,89263 | 1 | — |
+| 11 | 6,15777 | 2 | 0,01% |
+| 12 | 7,65959 | 2 | 0,01% |
+| 13 | 9,44427 | 1 | — |
+| 14 | 11,56610 | 1 | — |
+| 15 | 14,08831 | 1 | — |
+| 21 | 43,05963 | 1 | — |
+
+Zgodność rzędu 0,1% przy dziewięciu różnych budynkach na jednym poziomie
+dowodzi, że `G` naprawdę nie zależy od budynku.
+
+`G` **nie ma zwartej postaci** — najlepsze dopasowanie dwoma wykładnikami myli
+się o 2,8%, czyli o rząd wielkości gorzej niż sam pomiar. Dlatego `G` jest
+przechowywane jako **tabela pomiarowa**, a nie jako wzór.
+
+**Poziomy bez pomiaru** (5, 6, 8, 16–20, 22–30) uzupełnia interpolacja `ln G`
+splajnem po zmierzonych węzłach. Walidacja leave-one-out: tam, gdzie sąsiednie
+poziomy są zmierzone, interpolacja trafia w 0,1%; tam, gdzie trzeba przeskoczyć
+lukę szerokości czterech poziomów, myli się nawet o 20%. Poziomy interpolowane
+są w danych oznaczone i interfejs sygnalizuje je jako mniej pewne.
+
+### Kalibracja
+
+`tools/kalibracja.js` przyjmuje dowolną liczbę zapisanych stron Ratusza (HTML),
+wyciąga z każdego wiersza budynek, poziom docelowy, czas i poziom Ratusza,
+i wypisuje zaktualizowaną tabelę `G` wraz z rozrzutem.
+
+Przy odczycie narzędzie musi uwzględnić **kolejkę budowy**: ekran pokazuje koszt
+i czas dla poziomu *po* kolejce. W wiosce A004 Spichlerz stał w kolejce na 20,
+więc wiersz dotyczył poziomu 21, a Zagroda kolejkowana na 11–13 pokazywała
+poziom 14. Bez tej poprawki dane wyglądają na wewnętrznie sprzeczne — to była
+główna przeszkoda przy odtwarzaniu wzoru.
+
+Każda kolejna zapisana strona Ratusza domyka kolejne poziomy. Najcenniejsze są
+wioski o poziomach budynków innych niż już zmierzone, zwłaszcza w zakresie 16–30.
 
 Dzielenie przez prędkość świata jest założeniem — świat 231 ma prędkość 1, więc
 nie dało się tego potwierdzić obserwacyjnie.
 
-Krzywa została odtworzona z ekranu Ratusza wioski A004 (świat 231, Ratusz 14)
-zapisanego w `_share/`. Przy odczycie trzeba było uwzględnić, że ekran pokazuje
-koszty i czasy dla poziomów **po** kolejce budowy — Spichlerz był w kolejce na
-20, więc wiersz dotyczył poziomu 21, a Zagroda kolejkowana na 11–13 pokazywała
-poziom 14. Bez tej poprawki dane wyglądają na sprzeczne.
-
-Dokładność w zakresie poziomów 3–21, na czternastu obserwacjach i jedenastu
-budynkach: najgorszy błąd 2,8%, dla poziomów 9 i wyżej poniżej 1%.
-
-**Znane ograniczenie: poziomy 1 i 2.** Krzywa daje tam wartości ujemne, więc
-w tym zakresie nie ma modelu. Obserwacje z gry są dodatkowo wewnętrznie
-sprzeczne: Mur na poziom 1 to 4:00 przy bazie 3600, a Wieża strażnicza na
-poziom 1 to 0:50 przy bazie 13200. Przy wspólnej krzywej Wieża powinna trwać
-około 15 minut. Co najmniej jeden z tych budynków rządzi się osobną regułą, a
-jedna obserwacja na poziom nie pozwala rozstrzygnąć który.
-
-**Czego potrzeba do kalibracji.** Nie młodej wioski — wystarczy **najsłabiej
-rozwinięta wioska, jaką gracz ma**, zapisana jako HTML (nie zrzut ekranu; HTML
-zawiera dokładne sekundy i zawartość kolejki). Liczy się to, żeby budynki stały
-na innych, niskich poziomach niż w A004, bo każdy taki wiersz to nowy punkt
-pomiarowy. Inny poziom Ratusza jest wartością dodaną — pozwoli niezależnie
-potwierdzić człon ratusza.
-
-Do czasu kalibracji poziomy 1 i 2 liczone są zachowawczo, a interfejs oznacza je
-jako niepewne.
-
-Krzywa czasu jest w kodzie **wymienną funkcją** z osobnym zestawem testów
-kalibracyjnych, żeby poprawka była zmianą stałych, a nie przebudową silnika.
-
 ### Budynki nietypowe
 
-- **Wieża strażnicza** — poziom 1 buduje się w 50 sekund przy koszcie 36 tysięcy
-  surowców, czego nie da się pogodzić z żadną krzywą. Traktowana osobno, czas
-  z tabeli, nie ze wzoru.
-- **Plac, Piedestał, Pałac** — po jednym poziomie na świecie 231, więc krzywa
-  ich nie dotyczy.
+- **Mur obronny** — jedyny budynek łamiący wspólną krzywą, i tylko na poziomach
+  1 i 2: pokazuje `4:00` tam, gdzie wzór daje 14–24 sekundy. Na poziomie 3
+  wraca do wspólnego `G` co do 0,1%. Traktowany jako wyjątek z własnym
+  minimum, do potwierdzenia przy kolejnej kalibracji.
+- **Wieża strażnicza** — **nie jest wyjątkiem.** Wcześniej wyglądała na
+  anomalię (poziom 1 w 50 sekund przy koszcie 36 tysięcy surowców), ale przy
+  zmierzonym `G(1) = 0,00772` wzór daje 51,4 sekundy. Rozbieżność brała się
+  z błędnej krzywej, nie z budynku.
+- **Plac, Piedestał, Pałac** — po jednym poziomie na świecie 231.
 - **Kościół** — nieobecny w configu świata 231, czyli wyłączony. Budynki spoza
   configu nie pojawiają się w interfejsie.
 
@@ -209,7 +235,8 @@ Czyste moduły ESM w `src/wioska/`, bez DOM-u i bez `window`:
 
 - `swiat.js` — wczytanie danych świata, wyprowadzenie kosztów, czasów,
   produkcji, pojemności i ludności dla dowolnego budynku i poziomu,
-- `czas.js` — krzywa czasu budowy, wymienna, z testami kalibracyjnymi,
+- `czas.js` — tabela `G`, interpolacja brakujących poziomów, minimum 10 sekund,
+  wyjątek Muru,
 - `wymagania.js` — sprawdzenie, czy krok jest dozwolony przy danym stanie,
 - `symulacja.js` — przebieg osi czasu,
 - `plan.js` — walidacja i normalizacja obiektu planu,
@@ -277,8 +304,9 @@ bo są elementem przebiegu.
 **Podsumowanie na dole** — łączny czas, suma surowców z rozbiciem na własną
 produkcję, dochód i zastrzyki, oraz lista ostrzeżeń.
 
-**Oznaczenie niepewności** — dopóki krzywa czasu nie jest skalibrowana poniżej
-poziomów 1 i 2, kroki w tym zakresie są wizualnie oznaczone jako niepewne.
+**Oznaczenie niepewności** — kroki, których poziom nie ma pomiaru w tabeli `G`
+i został uzupełniony interpolacją, są wizualnie oznaczone. Podsumowanie podaje,
+jaka część łącznego czasu pochodzi z poziomów interpolowanych.
 
 ## Eksport
 
@@ -309,9 +337,13 @@ którego nie da się zapisać z góry.
 
 - **Zgodność z arkuszem** — silnik odtwarza tabele kosztów i ludności z
   `_share/budynki.xlsx`, z listą dziewięciu znanych literówek jako wyjątków.
-- **Kalibracja czasu** — silnik odtwarza czasy z zapisanego ekranu Ratusza
-  wioski A004, z uwzględnieniem poprawki na kolejkę budowy. Test dokumentuje
-  obecną dokładność i zaczerwieni się, gdy zmiana krzywej ją pogorszy.
+- **Kalibracja czasu** — silnik odtwarza co do sekundy wszystkie czasy z obu
+  zapisanych ekranów Ratusza (A004 przy Ratuszu 14, Wioska yozeek przy
+  Ratuszu 3), z uwzględnieniem poprawki na kolejkę budowy. Dwie wioski o różnym
+  poziomie Ratusza w jednym teście pilnują, żeby człon ratusza nie wsiąkł
+  w tabelę `G`.
+- **Odczyt kalibracyjny** — `tools/kalibracja.js` na zapisanych stronach zwraca
+  tabelę `G` zgodną z tą w danych.
 - **Symulacja** — przypadki jednostkowe: oczekiwanie na jeden surowiec,
   przepełnienie magazynu, krok ponad pojemność spichlerza, przekroczona
   zagroda, niespełnione wymaganie, zastrzyk skracający oczekiwanie, zmiana
@@ -327,10 +359,12 @@ którego nie da się zapisać z góry.
 
 ## Otwarte
 
-1. **Czas budowy poziomów 1 i 2** — krzywa nie ma tam modelu, a dwie dostępne
-   obserwacje są wzajemnie sprzeczne. Zamyka to zapisany jako HTML ekran Ratusza
-   najsłabiej rozwiniętej wioski gracza.
-2. **Wieża strażnicza jako budynek nietypowy** — 50 sekund na poziom 1 przy
-   koszcie 36 tysięcy surowców. Do rozstrzygnięcia razem z punktem 1.
-3. **Wpływ prędkości świata na czas budowy** — założono dzielenie, brak
+1. **Poziomy `G` bez pomiaru** — 5, 6, 8, 16–20 i 22–30. Na razie interpolowane.
+   Domyka je kolejna zapisana strona Ratusza przepuszczona przez
+   `tools/kalibracja.js`; najcenniejsze są wioski z budynkami w zakresie 16–30.
+2. **`G(2)`** — oparte na jednej obserwacji o rozdzielczości jednej sekundy.
+   Wartość jest wiarygodna co do rzędu, ale nie co do trzeciej cyfry.
+3. **Minimum Muru na poziomach 1 i 2** — obserwowane `4:00` w dwóch wioskach,
+   bez wyjaśnienia mechaniki. Do potwierdzenia przy kolejnej kalibracji.
+4. **Wpływ prędkości świata na czas budowy** — założono dzielenie, brak
    możliwości potwierdzenia na świecie o prędkości 1.
