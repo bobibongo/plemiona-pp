@@ -746,17 +746,15 @@ wewnętrznie sprzeczne i wzoru nie da się odtworzyć.
 // test/wioska-odczyt-ratusza.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { poziomRatuszaZeStrony, kolejkaZeStrony, pomiaryZeStrony } from '../src/wioska/odczyt-ratusza.js';
 
-const wczytaj = (fragment) => {
-  const plik = readdirSync('_share').find(f => f.includes(fragment) && f.endsWith('.html'));
-  if (!plik) throw new Error(`Brak pliku ze wzorcem ${fragment} w _share/`);
-  return readFileSync(`_share/${plik}`, 'utf8');
-};
+// Wycinki prawdziwych ekranow Ratusza — tylko naglowek, kolejka budowy
+// i tabela budynkow. Reszta strony nie ma tu znaczenia.
+const wczytaj = (nazwa) => readFileSync(new URL(`./fixtures/${nazwa}.html`, import.meta.url), 'utf8');
 
-const a004 = wczytaj('A004');
-const yozeek = wczytaj('yozeek');
+const a004 = wczytaj('ratusz-a004');
+const yozeek = wczytaj('ratusz-yozeek');
 
 test('odczytuje poziom Ratusza z naglowka strony', () => {
   assert.equal(poziomRatuszaZeStrony(a004), 14);
@@ -943,7 +941,7 @@ console.log('\nWartości z n≥2 i rozrzutem poniżej 1% wpisz do TABELA_G jako 
 
 - [ ] **Step 6: Run the tool and confirm it reproduces the table**
 
-Run: `node tools/kalibracja.js "_share/A004 (500_610) - Plemiona - Świat 231.html" "_share/Wioska yozeek (695_476) - Plemiona - Świat 231.html"`
+Run: `node tools/kalibracja.js test/fixtures/ratusz-a004.html test/fixtures/ratusz-yozeek.html`
 Expected: poziom 4 z `n = 9` i rozrzutem poniżej `0,20%`, wartość `0,500` — zgodna z `TABELA_G[4].g`.
 
 - [ ] **Step 7: Commit**

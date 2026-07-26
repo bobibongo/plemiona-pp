@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<title>Ratusz A004 (poziom 14)</title></head><body>
+<!-- Wycinek ekranu Ratusza z gry. Zachowane wylacznie fragmenty,
+     ktore czyta src/wioska/odczyt-ratusza.js. -->
+<h2>	Ratusz (Poziom 14)</h2>
+<table id="build_queue" class="vis" style="width: 100%">
+	<tbody id="buildqueue" class="ui-sortable">
+	<tr>
+		<th style="width: 23%">Budowa</th>
+		<th>Trwanie</th>
+				<th>Przyspieszenie</th>
+				<th>Gotowe</th>
+		<th style="width: 15%">Przerwij</th>
+		<th style="background:none !important;"></th>	</tr>
+		<tr class="lit nodrag buildorder_storage">
+		<td class="lit-item">
+			Spichlerz<br>
+			Poziom 20		</td>
+		<td class="nowrap lit-item">
+							<span class="" data-endtime="1785110902">4:11:25</span>
+					</td>
+				<td class="lit-item">
+											<a class="order_feature btn btn-btr" onclick="return BuildingMain.change_order(3343721, &#39;BuildTimeReduction&#39;, 10)" data-available-from="0" data-available-to="1785110302" style="">
+					-50%
+				</a>
+								<a class="order_feature btn btn-btr btn-instant" onclick="return BuildingMain.change_order(3343721, &#39;BuildInstant&#39;, 10)" data-available-from="1785110302" data-available-to="1785110722" style="display: none">
+					Ukończ
+				</a>
+								<a class="order_feature btn btn-btr btn-instant-free" onclick="return BuildingMain.change_order(3343721, &#39;BuildInstantFree&#39;, 0)" data-available-from="1785110722" data-available-to="1785110902" style="display: none">
+					Ukończ
+				</a>
+									</td>
+				<td class="lit-item">jutro o 02:08:22</td>
+		<td class="lit-item">
+			<a class="btn btn-cancel" onclick="return BuildingMain.cancel(3343721, false);">Anuluj</a>
+		</td>
+			</tr>
+		<tr class="lit">
+		<td colspan="5" class="order-progress-cell">
+			<div class="order-progress" data-progress="{&quot;progress&quot;:[],&quot;slot_start&quot;:1785092387,&quot;slot_end&quot;:&quot;1785110902&quot;,&quot;slot_time&quot;:18515,&quot;slot_elapsed&quot;:3211,&quot;percentage_complete&quot;:&quot;0&quot;}">
+			<div class="anim" style="width: 18.5309%; background-color: rgb(146, 194, 0);"></div></div>
+		</td>
+	</tr>
+			<tr class="sortable_row buildorder_farm" id="buildorder_1">
+		<td class="lit-item">
+			Zagroda<br>
+			Poziom 11		</td>
+		<td class="nowrap lit-item">
+							<span>1:02:12</span>
+					</td>
+				<td class="lit-item">
+											<a class="order_feature btn btn-btr" onclick="return BuildingMain.change_order(3343732, &#39;BuildTimeReduction&#39;, 10)" data-available-from="0" data-available-to="1785114634" style="">
+					-50%
+				</a>
+									</td>
+				<td class="lit-item">jutro o 03:10:34</td>
+		<td class="lit-item">
+			<a class="btn btn-cancel" onclick="return BuildingMain.cancel(3343732, false);">Anuluj</a>
+		</td>
+				<td class="lit-item" style="background-color:transparent;"><div style="width: 11px; height:11px; background-image: url(https://dspl.innogamescdn.com/asset/e4dc0f79a8/graphic/sorthandle.webp); cursor:pointer" class="bqhandle newicon ui-sortable-handle"> </div></td>
+			</tr>
+			<tr class="sortable_row buildorder_farm" id="buildorder_2">
+		<td class="lit-item">
+			Zagroda<br>
+			Poziom 12		</td>
+		<td class="nowrap lit-item">
+							<span>1:17:22</span>
+					</td>
+				<td class="lit-item">
+											<a class="order_feature btn btn-btr" onclick="return BuildingMain.change_order(3343733, &#39;BuildTimeReduction&#39;, 10)" data-available-from="0" data-available-to="1785119276" style="">
+					-50%
+				</a>
+									</td>
+				<td class="lit-item">jutro o 04:27:56</td>
+		<td class="lit-item">
+			<a class="btn btn-cancel" onclick="return BuildingMain.cancel(3343733, false);">Anuluj</a>
+		</td>
+				<td class="lit-item" style="background-color:transparent;"><div style="width: 11px; height:11px; background-image: url(https://dspl.innogamescdn.com/asset/e4dc0f79a8/graphic/sorthandle.webp); cursor:pointer" class="bqhandle newicon ui-sortable-handle"> </div></td>
+			</tr>
+			<tr class="sortable_row buildorder_farm" id="buildorder_3">
+		<td class="lit-item">
+			Zagroda<br>
+			Poziom 13		</td>
+		<td class="nowrap lit-item">
+							<span>1:35:24</span>
+					</td>
+				<td class="lit-item">
+											<a class="order_feature btn btn-btr" onclick="return BuildingMain.change_order(3343734, &#39;BuildTimeReduction&#39;, 10)" data-available-from="0" data-available-to="1785125000" style="">
+					-50%
+				</a>
+									</td>
+				<td class="lit-item">jutro o 06:03:20</td>
+		<td class="lit-item">
+			<a class="btn btn-cancel" onclick="return BuildingMain.cancel(3343734, false);">Anuluj</a>
+		</td>
+				<td class="lit-item" style="background-color:transparent;"><div style="width: 11px; height:11px; background-image: url(https://dspl.innogamescdn.com/asset/e4dc0f79a8/graphic/sorthandle.webp); cursor:pointer" class="bqhandle newicon ui-sortable-handle"> </div></td>
+			</tr>
+				</tbody>
+</table>
+<table id="buildings" class="vis nowrap" style="width: 100%;">
+        <tbody><tr>
+            <th style="width: 23%">Budynki</th>
+            <th colspan="5">Zapotrzebowanie</th>
+            <th style="width: 30%">Wybuduj</th>
+        </tr>
+                <tr id="main_buildrow_main">
+            <td>
+                <a></a>
+                <a>Ratusz</a><br>
+                <span style="font-size: 0.9em">Poziom 14</span>
+            </td>
+                            <td data-cost="2288" class="cost_wood"><span class="icon header wood"> </span>2288</td>
+                <td data-cost="2400" class="cost_stone"><span class="icon header stone"> </span>2400</td>
+                <td data-cost="1779" class="cost_iron"><span class="icon header iron"> </span>1779</td>
+                <td><span class="icon header time"></span>1:46:44</td>
+                <td><span class="icon header population"> </span>7</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_main_cheap" data-building="main" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_main_15" data-building="main" data-level-next="15">Poziom 15</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_barracks">
+            <td>
+                <a></a>
+                <a>Koszary</a><br>
+                <span style="font-size: 0.9em">Poziom 8</span>
+            </td>
+                            <td data-cost="1271" class="cost_wood"><span class="icon header wood"> </span>1271</td>
+                <td data-cost="1225" class="cost_stone"><span class="icon header stone"> </span>1225</td>
+                <td data-cost="572" class="cost_iron"><span class="icon header iron"> </span>572</td>
+                <td><span class="icon header time"></span>0:57:59</td>
+                <td><span class="icon header population"> </span>4</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_barracks_cheap" data-building="barracks" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_barracks_9" data-building="barracks" data-level-next="9">Poziom 9</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_stable">
+            <td>
+                <a></a>
+                <a>Stajnia</a><br>
+                <span style="font-size: 0.9em">Poziom 2</span>
+            </td>
+                            <td data-cost="429" class="cost_wood"><span class="icon header wood"> </span>429</td>
+                <td data-cost="393" class="cost_stone"><span class="icon header stone"> </span>393</td>
+                <td data-cost="413" class="cost_iron"><span class="icon header iron"> </span>413</td>
+                <td><span class="icon header time"></span>0:08:09</td>
+                <td><span class="icon header population"> </span>2</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_stable_cheap" data-building="stable" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_stable_3" data-building="stable" data-level-next="3">Poziom 3</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_watchtower">
+            <td>
+                <a></a>
+                <a>Wieża strażnicza</a><br>
+                <span style="font-size: 0.9em">nie istnieje</span>
+            </td>
+                            <td data-cost="12000" class="cost_wood warn"><span class="icon header wood"> </span>12000</td>
+                <td data-cost="14000" class="cost_stone warn"><span class="icon header stone"> </span>14000</td>
+                <td data-cost="10000" class="cost_iron"><span class="icon header iron"> </span>10000</td>
+                <td><span class="icon header time"></span>0:00:50</td>
+                <td class="warn"><span class="icon header population"> </span>500</td>
+                <td class="build_options">
+                                <span class="inactive center">Zagroda za mała</span>
+                                <a style="display:none" class="btn btn-build" id="main_buildlink_watchtower_1" data-building="watchtower" data-level-next="1">Wybuduj</a>
+                                </td>
+                    </tr>
+            <tr id="main_buildrow_smith">
+            <td>
+                <a></a>
+                <a>Kuźnia</a><br>
+                <span style="font-size: 0.9em">Poziom 6</span>
+            </td>
+                            <td data-cost="880" class="cost_wood"><span class="icon header wood"> </span>880</td>
+                <td data-cost="773" class="cost_stone"><span class="icon header stone"> </span>773</td>
+                <td data-cost="960" class="cost_iron"><span class="icon header iron"> </span>960</td>
+                <td><span class="icon header time"></span>1:49:02</td>
+                <td><span class="icon header population"> </span>7</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_smith_cheap" data-building="smith" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_smith_7" data-building="smith" data-level-next="7">Poziom 7</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_place">
+            <td>
+                <a></a>
+                <a>Plac</a><br>
+                <span style="font-size: 0.9em">Poziom 1</span>
+            </td>
+                            <td colspan="6" class="inactive center">Budynek całkowicie rozbudowany</td>
+                    </tr>
+            <tr id="main_buildrow_statue">
+            <td>
+                <a></a>
+                <a>Piedestał</a><br>
+                <span style="font-size: 0.9em">Poziom 1</span>
+            </td>
+                            <td colspan="6" class="inactive center">Budynek całkowicie rozbudowany</td>
+                    </tr>
+            <tr id="main_buildrow_market">
+            <td>
+                <a></a>
+                <a>Rynek</a><br>
+                <span style="font-size: 0.9em">Poziom 3</span>
+            </td>
+                            <td data-cost="200" class="cost_wood"><span class="icon header wood"> </span>200</td>
+                <td data-cost="207" class="cost_stone"><span class="icon header stone"> </span>207</td>
+                <td data-cost="200" class="cost_iron"><span class="icon header iron"> </span>200</td>
+                <td><span class="icon header time"></span>0:11:22</td>
+                <td><span class="icon header population"> </span>5</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_market_cheap" data-building="market" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_market_4" data-building="market" data-level-next="4">Poziom 4</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_wood">
+            <td>
+                <a></a>
+                <a>Tartak</a><br>
+                <span style="font-size: 0.9em">Poziom 11</span>
+            </td>
+                            <td data-cost="582" class="cost_wood"><span class="icon header wood"> </span>582</td>
+                <td data-cost="868" class="cost_stone"><span class="icon header stone"> </span>868</td>
+                <td data-cost="446" class="cost_iron"><span class="icon header iron"> </span>446</td>
+                <td><span class="icon header time"></span>0:58:02</td>
+                <td><span class="icon header population"> </span>3</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_wood_cheap" data-building="wood" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_wood_12" data-building="wood" data-level-next="12">Poziom 12</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_stone">
+            <td>
+                <a></a>
+                <a>Cegielnia</a><br>
+                <span style="font-size: 0.9em">Poziom 9</span>
+            </td>
+                            <td data-cost="559" class="cost_wood"><span class="icon header wood"> </span>559</td>
+                <td data-cost="415" class="cost_stone"><span class="icon header stone"> </span>415</td>
+                <td data-cost="277" class="cost_iron"><span class="icon header iron"> </span>277</td>
+                <td><span class="icon header time"></span>0:37:04</td>
+                <td><span class="icon header population"> </span>4</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_stone_cheap" data-building="stone" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_stone_10" data-building="stone" data-level-next="10">Poziom 10</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_iron">
+            <td>
+                <a></a>
+                <a>Huta żelaza</a><br>
+                <span style="font-size: 0.9em">Poziom 10</span>
+            </td>
+                            <td data-cost="710" class="cost_wood"><span class="icon header wood"> </span>710</td>
+                <td data-cost="738" class="cost_stone"><span class="icon header stone"> </span>738</td>
+                <td data-cost="602" class="cost_iron"><span class="icon header iron"> </span>602</td>
+                <td><span class="icon header time"></span>0:55:59</td>
+                <td><span class="icon header population"> </span>7</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_iron_cheap" data-building="iron" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_iron_11" data-building="iron" data-level-next="11">Poziom 11</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_farm">
+            <td>
+                <a></a>
+                <a>Zagroda</a><br>
+                <span style="font-size: 0.9em">Poziom 10</span>
+            </td>
+                            <td data-cost="1363" class="cost_wood"><span class="icon header wood"> </span>1363</td>
+                <td data-cost="1477" class="cost_stone"><span class="icon header stone"> </span>1477</td>
+                <td data-cost="822" class="cost_iron"><span class="icon header iron"> </span>822</td>
+                <td><span class="icon header time"></span>1:56:50</td>
+                <td></td>
+                <td class="build_options">
+                                    <a id="main_buildlink_farm_cheap" data-building="farm" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_farm_14" data-building="farm" data-level-next="14">Poziom 14</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_storage">
+            <td>
+                <a></a>
+                <a>Spichlerz</a><br>
+                <span style="font-size: 0.9em">Poziom 19</span>
+            </td>
+                            <td data-cost="6606" class="cost_wood warn"><span class="icon header wood"> </span>6606</td>
+                <td data-cost="5957" class="cost_stone warn"><span class="icon header stone"> </span>5957</td>
+                <td data-cost="3202" class="cost_iron"><span class="icon header iron"> </span>3202</td>
+                <td><span class="icon header time"></span>6:09:43</td>
+                <td></td>
+                <td class="build_options">
+                                    <a id="main_buildlink_storage_cheap" data-building="storage" data-cost="30" class="btn btn-bcr btn-bcr-disabled float_right">-20%</a>
+                                <a style="display:none" class="btn btn-build" id="main_buildlink_storage_21" data-building="storage" data-level-next="21">Poziom 21</a>
+                                                        <div class="inactive" style="width: 165px">Surowce dostępne jutro o 19:37</div>
+                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_hide">
+            <td>
+                <a></a>
+                <a>Schowek</a><br>
+                <span style="font-size: 0.9em">Poziom 3</span>
+            </td>
+                            <td data-cost="98" class="cost_wood"><span class="icon header wood"> </span>98</td>
+                <td data-cost="117" class="cost_stone"><span class="icon header stone"> </span>117</td>
+                <td data-cost="98" class="cost_iron"><span class="icon header iron"> </span>98</td>
+                <td><span class="icon header time"></span>0:07:35</td>
+                <td></td>
+                <td class="build_options">
+                                    <a id="main_buildlink_hide_cheap" data-building="hide" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_hide_4" data-building="hide" data-level-next="4">Poziom 4</a>
+                                                                    </td>
+                    </tr>
+            <tr id="main_buildrow_wall">
+            <td>
+                <a></a>
+                <a>Mur</a><br>
+                <span style="font-size: 0.9em">nie istnieje</span>
+            </td>
+                            <td data-cost="50" class="cost_wood"><span class="icon header wood"> </span>50</td>
+                <td data-cost="100" class="cost_stone"><span class="icon header stone"> </span>100</td>
+                <td data-cost="20" class="cost_iron"><span class="icon header iron"> </span>20</td>
+                <td><span class="icon header time"></span>0:04:00</td>
+                <td><span class="icon header population"> </span>5</td>
+                <td class="build_options">
+                                    <a id="main_buildlink_wall_cheap" data-building="wall" data-cost="30" class="btn btn-bcr float_right">-20%</a>
+                                <a class="btn btn-build" id="main_buildlink_wall_1" data-building="wall" data-level-next="1">Wybuduj</a>
+                                                                    </td>
+                    </tr>
+        </tbody></table>
+</body></html>
