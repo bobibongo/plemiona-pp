@@ -121,7 +121,7 @@ Wartości zmierzone, każda jako średnia z niezależnych obserwacji:
 | Poziom | G | Obserwacje | Rozrzut |
 |---|---|---|---|
 | 1 | 0,00772 | 3 budynki, 3 poziomy Ratusza | — |
-| 2 | ~0,0076 | 1 budynek | niska pewność |
+| 2 | 0,00772 | 1 budynek, przyjęte równe G(1) | niska pewność |
 | 3 | 0,16146 | 4 budynki, 2 wioski | 0,17% |
 | 4 | 0,50042 | 9 budynków, 2 wioski | 0,11% |
 | 7 | 2,15879 | 1 | — |
@@ -362,8 +362,11 @@ którego nie da się zapisać z góry.
 1. **Poziomy `G` bez pomiaru** — 5, 6, 8, 16–20 i 22–30. Na razie interpolowane.
    Domyka je kolejna zapisana strona Ratusza przepuszczona przez
    `tools/kalibracja.js`; najcenniejsze są wioski z budynkami w zakresie 16–30.
-2. **`G(2)`** — oparte na jednej obserwacji o rozdzielczości jednej sekundy.
-   Wartość jest wiarygodna co do rzędu, ale nie co do trzeciej cyfry.
+2. **`G(2)`** — jedyna obserwacja (Schowek 13 s przy Ratuszu 1) daje przedział
+   0,00729–0,00788, w którym mieści się `G(1)`. Przyjęto `G(2) = G(1)`, bo czas
+   budowy nie może maleć z poziomem, a ta wartość nadal odtwarza obserwowane
+   13 sekund. Rozdzielić te dwa poziomy da się dopiero pomiarem budynku
+   o większej bazie czasowej.
 3. **Minimum Muru na poziomach 1 i 2** — obserwowane `4:00` w dwóch wioskach,
    bez wyjaśnienia mechaniki. Do potwierdzenia przy kolejnej kalibracji.
 4. **Wpływ prędkości świata na czas budowy** — założono dzielenie, brak

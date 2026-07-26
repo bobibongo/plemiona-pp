@@ -637,7 +637,11 @@ Expected: FAIL — `Cannot find module '../src/wioska/czas-dane.js'`
 
 export const TABELA_G = {
   1: { g: 0.00772, zmierzony: true },
-  2: { g: 0.00758, zmierzony: true },
+  // Poziomy 1 i 2 sa nierozroznialne: gra pokazuje czasy w pelnych sekundach,
+  // a jedyna obserwacja poziomu 2 (Schowek 13 s przy Ratuszu 1) daje przedzial
+  // 0,00729-0,00788, w ktorym miesci sie G(1). Bierzemy wartosc rowna G(1),
+  // bo czas budowy nie moze malec z poziomem, a 0,00772 nadal odtwarza te 13 s.
+  2: { g: 0.00772, zmierzony: true },
   3: { g: 0.16146, zmierzony: true },
   4: { g: 0.50042, zmierzony: true },
   5: { g: 1.05552, zmierzony: false },
