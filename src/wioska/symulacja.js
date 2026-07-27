@@ -23,16 +23,16 @@ const zeroSurowce = () => ({ drewno: 0, glina: 0, zelazo: 0 });
 
 function produkcjaNaSekunde(s, poziomy, dochod) {
   return {
-    drewno: (produkcjaGodzinowa(s, poziomy.tartak ?? 0) + dochod.drewnoH) / 3600,
-    glina: (produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) + dochod.glinaH) / 3600,
-    zelazo: (produkcjaGodzinowa(s, poziomy.huta ?? 0) + dochod.zelazoH) / 3600,
+    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) / 3600 + dochod.drewnoD / 86400,
+    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) / 3600 + dochod.glinaD / 86400,
+    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) / 3600 + dochod.zelazoD / 86400,
   };
 }
 
 // Dochod obowiazuje od swojego czasu do nastepnego wpisu. Przed pierwszym
 // wpisem gracz nie ma zadnego dodatkowego zrodla.
 function dochodWChwili(dochody, czas) {
-  let biezacy = { czasS: 0, drewnoH: 0, glinaH: 0, zelazoH: 0 };
+  let biezacy = { czasS: 0, drewnoD: 0, glinaD: 0, zelazoD: 0 };
   for (const d of dochody) {
     if (d.czasS <= czas) biezacy = d; else break;
   }

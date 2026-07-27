@@ -27,7 +27,7 @@ test('podane surowce startowe wygrywaja z domyslnymi', () => {
 test('normalizacja sortuje dochody i zastrzyki po czasie', () => {
   const p = normalizujPlan({
     swiat: 'pl231',
-    dochody: [{ czasS: 7200, drewnoH: 5000 }, { czasS: 0, drewnoH: 0 }],
+    dochody: [{ czasS: 7200, drewnoD: 120000 }, { czasS: 0, drewnoD: 0 }],
     zastrzyki: [{ czasS: 500, drewno: 10 }, { czasS: 100, drewno: 20 }],
   });
   assert.deepEqual(p.dochody.map(d => d.czasS), [0, 7200]);
@@ -35,8 +35,31 @@ test('normalizacja sortuje dochody i zastrzyki po czasie', () => {
 });
 
 test('normalizacja domyka niepodane skladowe dochodu zerem', () => {
-  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoH: 2000 }] });
-  assert.deepEqual(p.dochody[0], { czasS: 0, drewnoH: 2000, glinaH: 0, zelazoH: 0 });
+  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoD: 48000 }] });
+  assert.deepEqual(p.dochody[0], { czasS: 0, drewnoD: 48000, glinaD: 0, zelazoD: 0 });
+});
+
+test('dochod jest normalizowany do wartosci na dobe', () => {
+  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoD: 5000 }] });
+  assert.deepEqual(p.dochody[0], { czasS: 0, drewnoD: 5000, glinaD: 0, zelazoD: 0 });
+});
+
+// Plan zapisany w przegladarce przed ta zmiana ma pola godzinowe.
+test('stary zapis godzinowy przelicza sie na dobowy', () => {
+  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoH: 100, glinaH: 50 }] });
+  assert.equal(p.dochody[0].drewnoD, 2400);
+  assert.equal(p.dochody[0].glinaD, 1200);
+  assert.equal(p.dochody[0].zelazoD, 0);
+});
+
+test('zapis dobowy wygrywa, gdy w planie sa oba', () => {
+  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoH: 100, drewnoD: 7 }] });
+  assert.equal(p.dochody[0].drewnoD, 7);
+});
+
+test('zero na dobe zostaje zerem, nie jest brane za brak wartosci', () => {
+  const p = normalizujPlan({ swiat: 'pl231', dochody: [{ czasS: 0, drewnoH: 100, drewnoD: 0 }] });
+  assert.equal(p.dochody[0].drewnoD, 0);
 });
 
 test('nieznany swiat to blad planu', () => {

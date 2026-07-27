@@ -37,9 +37,11 @@ export function normalizujPlan(surowy) {
     dochody: [...(surowy?.dochody ?? [])]
       .map(d => ({
         czasS: Number(d.czasS ?? 0),
-        drewnoH: Number(d.drewnoH ?? 0),
-        glinaH: Number(d.glinaH ?? 0),
-        zelazoH: Number(d.zelazoH ?? 0),
+        // Plany zapisane przed przejsciem na dobe maja pola godzinowe.
+        // Operator ?? zostawia jawne zero, wiec 0 na dobe nie wraca do wersji godzinowej.
+        drewnoD: Number(d.drewnoD ?? (d.drewnoH ?? 0) * 24),
+        glinaD: Number(d.glinaD ?? (d.glinaH ?? 0) * 24),
+        zelazoD: Number(d.zelazoD ?? (d.zelazoH ?? 0) * 24),
       }))
       .sort((a, b) => a.czasS - b.czasS),
     zastrzyki: [...(surowy?.zastrzyki ?? [])]

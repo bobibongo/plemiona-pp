@@ -39,7 +39,7 @@ test('krok z przestojem pokazuje, na co czekal', () => {
     swiat: 'pl231',
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoH: 60, glinaH: 60, zelazoH: 60 }],
+    dochody: [{ czasS: 0, drewnoD: 1440, glinaD: 1440, zelazoD: 1440 }],
   }));
   assert.match(krokHTML(w.kroki[0], 0), /czeka/);
 });

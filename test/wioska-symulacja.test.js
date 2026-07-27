@@ -51,12 +51,12 @@ test('zastrzyk skraca oczekiwanie', () => {
   const bez = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoH: 10, glinaH: 10, zelazoH: 10 }],
+    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
   }));
   const z = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoH: 10, glinaH: 10, zelazoH: 10 }],
+    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
     zastrzyki: [{ czasS: 60, drewno: 500, glina: 500, zelazo: 500 }],
   }));
   assert.ok(z.kroki[0].startS < bez.kroki[0].startS);
@@ -67,14 +67,14 @@ test('zmiana dochodu w trakcie oczekiwania przyspiesza zbieranie', () => {
   const wolno = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoH: 10, glinaH: 10, zelazoH: 10 }],
+    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
   }));
   const szybciej = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
     dochody: [
-      { czasS: 0, drewnoH: 10, glinaH: 10, zelazoH: 10 },
-      { czasS: 600, drewnoH: 5000, glinaH: 5000, zelazoH: 5000 },
+      { czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 },
+      { czasS: 600, drewnoD: 120000, glinaD: 120000, zelazoD: 120000 },
     ],
   }));
   assert.ok(szybciej.kroki[0].startS < wolno.kroki[0].startS);
@@ -141,7 +141,7 @@ test('dlugi przestoj daje ostrzezenie', () => {
   const w = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoH: 1, glinaH: 1, zelazoH: 1 }],
+    dochody: [{ czasS: 0, drewnoD: 24, glinaD: 24, zelazoD: 24 }],
   }));
   assert.ok(w.ostrzezenia.some(o => o.typ === 'przestoj'));
 });
@@ -158,10 +158,10 @@ test('zmiana dochodu w trakcie trwania budowy zwieksza zebrane zasoby', () => {
     kroki: [{ budynek: 'tartak', doPoziomu: 15 }],
     dochody,
   });
-  const bez = symuluj(zBudowa([{ czasS: 0, drewnoH: 100, glinaH: 100, zelazoH: 100 }]));
+  const bez = symuluj(zBudowa([{ czasS: 0, drewnoD: 2400, glinaD: 2400, zelazoD: 2400 }]));
   const z = symuluj(zBudowa([
-    { czasS: 0, drewnoH: 100, glinaH: 100, zelazoH: 100 },
-    { czasS: 6000, drewnoH: 5000, glinaH: 5000, zelazoH: 5000 },
+    { czasS: 0, drewnoD: 2400, glinaD: 2400, zelazoD: 2400 },
+    { czasS: 6000, drewnoD: 120000, glinaD: 120000, zelazoD: 120000 },
   ]));
   // Krok jest oplacalny od reki w obu wariantach — cala roznica w zasobyPo
   // musi pochodzic z przeliczenia stawki w trakcie budowy, nie z czekania.
