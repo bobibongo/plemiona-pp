@@ -1,7 +1,7 @@
 // test/build.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -118,4 +118,16 @@ test('strona wioski jest samowystarczalna — zero odwołań na zewnątrz', () =
   assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
   assert.doesNotMatch(html, /<script[^>]+src=/);
   assert.doesNotMatch(html, /<link[^>]+stylesheet/);
+});
+
+test('rozdzielnik linkuje do wszystkich trzech narzędzi', () => {
+  const html = buildRozdzielnik();
+  assert.match(html, /href="\.\/pp\/"/);
+  assert.match(html, /href="\.\/kursy\/"/);
+  assert.match(html, /href="\.\/wioska\/"/);
+});
+
+test('strona kolektora wskazuje na dashboard pod nowym adresem', () => {
+  const html = buildLanding('javascript:void 0');
+  assert.match(html, /href="\.\.\/pp\/"/);
 });

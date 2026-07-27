@@ -148,21 +148,28 @@ export function buildLanding(bm) {
   <span class="step">Krok 3</span>
   <h2>Analizuj</h2>
   <p class="muted">Otwórz dashboard i przeciągnij na niego swój plik JSON (lub CSV). Dane zostają u Ciebie.</p>
-  <p><a class="btn go" href="../">Otwórz dashboard →</a></p>
+  <p><a class="btn go" href="../pp/">Otwórz dashboard →</a></p>
 </div>
 
 <footer>Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</footer>
 </div></body></html>`;
 }
 
+// Strona glowna narzedziownika — rozdzielnik do poszczegolnych narzedzi.
+export function buildRozdzielnik() {
+  return read('./src/rozdzielnik.template.html');
+}
+
 if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   mkdirSync(new URL('./dist/kolektor/', import.meta.url), { recursive: true });
-  writeFileSync(new URL('./dist/index.html', import.meta.url), buildDashboard());            // dashboard = strona główna
+  mkdirSync(new URL('./dist/pp/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/index.html', import.meta.url), buildRozdzielnik());          // rozdzielnik = strona główna
+  writeFileSync(new URL('./dist/pp/index.html', import.meta.url), buildDashboard());          // dashboard pod /pp/
   writeFileSync(new URL('./dist/kolektor/index.html', import.meta.url), buildLanding(buildBookmarklet())); // kolektor pod /kolektor/
   writeFileSync(new URL('./dist/kursy.user.js', import.meta.url), buildUserscript());
   mkdirSync(new URL('./dist/kursy/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/kursy/index.html', import.meta.url), buildRatesPage());
   mkdirSync(new URL('./dist/wioska/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/wioska/index.html', import.meta.url), buildWioskaPage());
-  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów), wioska/index.html (symulator budowy)');
+  console.log('Zbudowano dist/: index.html (rozdzielnik), pp/index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów), wioska/index.html (symulator budowy)');
 }

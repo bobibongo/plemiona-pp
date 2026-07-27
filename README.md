@@ -1,9 +1,14 @@
-# Analiza punktów premium — Plemiona
+# Narzędziownik — Plemiona
 
-Prywatny dashboard do analizy logu **punktów premium (PP)** z gry Plemiona.pl.
-Wszystko liczy się **lokalnie w Twojej przeglądarce** — żadne dane nie trafiają na
-serwer. Strona jest tylko statycznym kodem; każdy użytkownik ma własny, lokalny
-magazyn danych (`localStorage`).
+Prywatny zestaw narzędzi do gry Plemiona.pl. Wszystko liczy się **lokalnie
+w Twojej przeglądarce** — żadne dane nie trafiają na serwer.
+
+- **Symulator budowy wioski** (`/wioska/`) — układasz kolejność rozbudowy,
+  narzędzie symuluje oś czasu z produkcją surowców, pojemnością spichlerza
+  i Twoimi dosyłkami, i mówi, gdzie kolejka stoi bezczynnie.
+- **Kursy giełdy** (`/kursy/`) — historia kursów per kontynent i sygnały okazji.
+- **Analiza punktów premium** (`/pp/`) — bilans PP, arbitraż i wydatki z logu.
+- **Kolektory** (`/kolektor/`) — bookmarklet do logu PP i userscript do kursów.
 
 ## Jak używać (wersja hostowana)
 
@@ -26,7 +31,15 @@ Zero zależności runtime. Wymaga tylko Node.js.
 
 ```bash
 node --test     # testy jednostkowe
-node build.js   # generuje dist/: index.html, dashboard.html, collector-install.html
+node build.js   # generuje dist/: index.html, kolektor/, kursy/, kursy.user.js, wioska/, pp/
+```
+
+Symulator ma też tryb bez przeglądarki — ten sam silnik, ta sama arytmetyka:
+
+```bash
+node tools/plan.js plan.json          # symulacja planu z pliku
+node tools/kalibracja.js strona.html  # tabela G z zapisanego ekranu Ratusza
+node tools/fetch-swiat.js pl231       # dane nowego świata
 ```
 
 ## Hosting
