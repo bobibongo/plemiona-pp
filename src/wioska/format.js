@@ -11,7 +11,10 @@ export function czasCzytelny(sekundy) {
   const m = Math.floor((s % 3600) / 60);
   if (d) return `${d} d ${String(h).padStart(2, '0')} h ${String(m).padStart(2, '0')} min`;
   if (h) return `${h} h ${String(m).padStart(2, '0')} min`;
-  return `${m} min`;
+  // Ponizej minuty pokazujemy sekundy: minimalny czas budowy to 10 s, a caly
+  // wczesny etap planu mieści sie w tym zakresie i wyswietlalby sie jako zero.
+  if (m) return `${m} min`;
+  return `${s} s`;
 }
 
 export function planJSON(plan) {

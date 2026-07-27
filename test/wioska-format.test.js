@@ -12,10 +12,15 @@ const p = normalizujPlan({
 const w = symuluj(p);
 
 test('czasCzytelny rozbija sekundy na dni, godziny i minuty', () => {
-  assert.equal(czasCzytelny(0), '0 min');
+  assert.equal(czasCzytelny(0), '0 s');
   assert.equal(czasCzytelny(90), '1 min');
   assert.equal(czasCzytelny(3600), '1 h 00 min');
   assert.equal(czasCzytelny(90000), '1 d 01 h 00 min');
+});
+
+test('czasCzytelny pokazuje sekundy ponizej pelnej minuty', () => {
+  assert.equal(czasCzytelny(10), '10 s');
+  assert.equal(czasCzytelny(59), '59 s');
 });
 
 test('planJSON daje sie wczytac z powrotem bez straty', () => {
