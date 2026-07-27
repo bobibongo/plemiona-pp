@@ -1500,6 +1500,11 @@ import { NAZWY } from './nazwy.js';
 const SUROWCE = ['drewno', 'glina', 'zelazo'];
 // Prog, powyzej ktorego przestoj przestaje byc szumem i warto o nim powiedziec.
 const PROG_PRZESTOJU_S = 3600;
+// Zasoby narastaja przez mnozenie stawki przez czas, wiec po dojsciu do progu
+// "stac na koszt" potrafi zostac tuz ponizej niego (np. 59,999999999999986
+// zamiast 60) o kwote mniejsza niz precyzja dodawania do zegara — dt liczony
+// wprost z tej reszty nie przesuwa juz czasu i petla nigdy sie nie konczy.
+const EPS = 1e-6;
 
 const zeroSurowce = () => ({ drewno: 0, glina: 0, zelazo: 0 });
 
@@ -1626,7 +1631,7 @@ export function symuluj(plan) {
     let czekanieNa = null;
     wpuscZastrzyki(czas, sufit);
     for (;;) {
-      if (SUROWCE.every(r => stan.zasoby[r] >= c[r])) break;
+      if (SUROWCE.every(r => stan.zasoby[r] >= c[r] - EPS)) break;
       const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, czas));
       let potrzebaS = 0;
       for (const r of SUROWCE) {
@@ -1671,7 +1676,7 @@ export function symuluj(plan) {
       });
     }
 
-    for (const r of SUROWCE) { stan.zasoby[r] -= c[r]; koszt[r] += c[r]; }
+    for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
 
     const { sekundy, pewny } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
     wpis.trwanieS = sekundy;
