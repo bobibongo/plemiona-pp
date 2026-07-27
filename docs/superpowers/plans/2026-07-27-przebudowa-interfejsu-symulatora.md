@@ -94,19 +94,46 @@ W `src/wioska/plan.js` zastąp blok `dochody:` w `normalizujPlan`:
 Run: `node --test test/wioska-plan.test.js`
 Expected: PASS
 
-- [ ] **Step 5: Fix the existing tests that still use hourly fields**
+- [ ] **Step 5: Switch the simulation to daily units**
+
+Zmiana jednostki jest niepodzielna: `normalizujPlan` produkuje już pola dobowe,
+więc `symulacja.js` musi je czytać w tym samym commicie, inaczej dochód
+przestaje działać. W `src/wioska/symulacja.js` zamień dwie funkcje:
+
+```js
+function produkcjaNaSekunde(s, poziomy, dochod) {
+  return {
+    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) / 3600 + dochod.drewnoD / 86400,
+    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) / 3600 + dochod.glinaD / 86400,
+    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) / 3600 + dochod.zelazoD / 86400,
+  };
+}
+
+// Dochod obowiazuje od swojego czasu do nastepnego wpisu. Przed pierwszym
+// wpisem gracz nie ma zadnego dodatkowego zrodla.
+function dochodWChwili(dochody, czas) {
+  let biezacy = { czasS: 0, drewnoD: 0, glinaD: 0, zelazoD: 0 };
+  for (const d of dochody) {
+    if (d.czasS <= czas) biezacy = d; else break;
+  }
+  return biezacy;
+}
+```
+
+- [ ] **Step 6: Fix the existing tests that still use hourly fields**
 
 Reszta pakietu ma testy budujące plany z `drewnoH`. Uruchom `node --test` i popraw **wyłącznie nazwy pól** w plikach testowych na dobowe, przeliczając wartości przez 24, żeby zachować sens przypadku. Przykład: `{ czasS: 0, drewnoH: 10, glinaH: 10, zelazoH: 10 }` staje się `{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }`.
 
-- [ ] **Step 6: Run the full suite**
+- [ ] **Step 7: Run the full suite**
 
 Run: `node --test`
-Expected: PASS w komplecie
+Expected: PASS w komplecie. Zadanie kończy się zielonym pakietem — jednostka
+dochodu zmienia się w jednym commicie po obu stronach.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/wioska/plan.js test/
+git add src/wioska/plan.js src/wioska/symulacja.js test/
 git commit -m "feat: dochod planu liczony na dobe, ze zgodnoscia wsteczna"
 ```
 
@@ -119,7 +146,7 @@ git commit -m "feat: dochod planu liczony na dobe, ze zgodnoscia wsteczna"
 - Test: `test/wioska-symulacja.test.js`
 
 **Interfaces:**
-- Consumes: `dochody[i]` z polami `drewnoD`, `glinaD`, `zelazoD` (Task 1)
+- Consumes: `dochody[i]` z polami `drewnoD`, `glinaD`, `zelazoD` — symulacja czyta je już od Taska 1
 - Produces: `kroki[i].poziomyPo` — `{ [budynek]: poziom }`, stan poziomów **po** tym kroku. Krok zakończony błędem niesie poziomy niezmienione.
 
 **Kontekst:** pasek stanu ma pokazywać wioskę na wskazany moment, więc wynik musi nieść poziomy. Ostrzeżenie o przestoju przy każdym kroku znika — przy trzydziestu krokach dawało kilkanaście niemal identycznych wierszy. Pozostałe ostrzeżenia zostają: żadnego z nich nie da się nadrobić dowozem surowców.
@@ -172,31 +199,7 @@ test('plan niewykonalny przy zerowej produkcji nadal daje ostrzezenie', () => {
 Run: `node --test test/wioska-symulacja.test.js`
 Expected: FAIL — `poziomyPo` jest `undefined`
 
-- [ ] **Step 3: Switch the income rate to daily units**
-
-W `src/wioska/symulacja.js` zamień `produkcjaNaSekunde` i `dochodWChwili`:
-
-```js
-function produkcjaNaSekunde(s, poziomy, dochod) {
-  return {
-    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) / 3600 + dochod.drewnoD / 86400,
-    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) / 3600 + dochod.glinaD / 86400,
-    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) / 3600 + dochod.zelazoD / 86400,
-  };
-}
-
-// Dochod obowiazuje od swojego czasu do nastepnego wpisu. Przed pierwszym
-// wpisem gracz nie ma zadnego dodatkowego zrodla.
-function dochodWChwili(dochody, czas) {
-  let biezacy = { czasS: 0, drewnoD: 0, glinaD: 0, zelazoD: 0 };
-  for (const d of dochody) {
-    if (d.czasS <= czas) biezacy = d; else break;
-  }
-  return biezacy;
-}
-```
-
-- [ ] **Step 4: Add levels to the step record**
+- [ ] **Step 3: Add levels to the step record**
 
 W `src/wioska/symulacja.js`, w literale `const wpis = { … }`, dopisz pole tuż po `ludnoscPo`:
 
@@ -210,7 +213,7 @@ Następnie w każdym miejscu, w którym krok kończy się błędem i wykonuje `k
     wpis.poziomyPo = { ...poziomy };
 ```
 
-- [ ] **Step 5: Remove the per-step idle warning**
+- [ ] **Step 4: Remove the per-step idle warning**
 
 Usuń stałą `PROG_PRZESTOJU_S` oraz cały blok, który na jej podstawie dokłada ostrzeżenie:
 
@@ -222,12 +225,12 @@ Usuń stałą `PROG_PRZESTOJU_S` oraz cały blok, który na jej podstawie dokła
 
 Pole `czekanieS` i `czekanieNa` **zostają** — nadal opisują krok, tylko nie generują wpisu na liście ostrzeżeń. Ostrzeżenie o typie `przestoj` przy błędzie `brak-dochodu` zostaje bez zmian.
 
-- [ ] **Step 6: Run tests**
+- [ ] **Step 5: Run tests**
 
 Run: `node --test`
 Expected: PASS w komplecie. Jeśli któryś istniejący test oczekiwał ostrzeżenia o przestoju przy kroku, dostosuj go do nowego zachowania — ale **nie** rozluźniaj testów sprawdzających przepełnienie, pojemność spichlerza, zagrodę ani wymagania.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/wioska/symulacja.js test/wioska-symulacja.test.js
