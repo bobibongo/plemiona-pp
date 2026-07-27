@@ -120,6 +120,26 @@ test('strona wioski jest samowystarczalna — zero odwołań na zewnątrz', () =
   assert.doesNotMatch(html, /<link[^>]+stylesheet/);
 });
 
+test('strona wioski ma pasek narzędzi, pasek stanu i trzy kolumny', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /id="pasek-narzedzi"/);
+  assert.match(html, /id="stan-wioski"/);
+  assert.match(html, /id="lista-dochodow"/);
+  assert.match(html, /id="lista-dosylek"/);
+});
+
+test('strona wioski nie ma już pól surowców startowych', () => {
+  const html = buildWioskaPage();
+  assert.doesNotMatch(html, /id="start-drewno"/);
+});
+
+test('strona wioski zawiera moduł zapotrzebowania i widoki', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /function zapotrzebowanie/);
+  assert.match(html, /function pasekStanuHTML/);
+  assert.match(html, /function wtracenieHTML/);
+});
+
 test('rozdzielnik linkuje do wszystkich trzech narzędzi', () => {
   const html = buildRozdzielnik();
   assert.match(html, /href="\.\/pp\/"/);

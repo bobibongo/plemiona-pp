@@ -45,3 +45,34 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .modal-box textarea{width:100%;height:280px;font-family:ui-monospace,monospace;font-size:.8rem}
 .modal-foot{display:flex;gap:8px;align-items:center;margin-top:10px}
 .spacer{flex:1}
+
+#pasek-narzedzi{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 3%;background:#241a10;color:#f6ecd4;border-bottom:2px solid var(--gold)}
+#pasek-narzedzi .marka{font-weight:600;letter-spacing:.04em}
+#pasek-narzedzi label{font-size:.8rem;color:var(--line)}
+.rozpychacz{flex:1}
+#stan-wioski{width:94%;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
+  border-radius:4px;padding:10px 12px;font-size:.84rem}
+.stan-moment{font-weight:600;color:var(--acc);margin-bottom:6px}
+.stan-ikony{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;
+  padding-bottom:8px;border-bottom:1px solid var(--line)}
+.poziom-budynku{display:flex;align-items:center;gap:3px}
+.poziom-budynku img.ikona{width:20px;height:20px}
+.poziom-budynku b{min-width:1.2em;text-align:right}
+.stan-liczby{display:flex;flex-wrap:wrap;gap:6px 22px}
+.stan-gardlo{margin-top:6px;color:var(--acc);font-weight:600}
+.kolumny{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.75fr);
+  gap:14px;width:94%;max-width:1600px;margin:12px auto;padding-bottom:60px}
+@media (max-width:1200px){.kolumny{grid-template-columns:1fr}}
+img.ikona{width:22px;height:22px;vertical-align:middle;margin-right:5px}
+#zaopatrzenie h3{margin:12px 0 4px;font-size:.9rem}
+#lista-dochodow,#lista-dosylek{list-style:none;margin:0;padding:0;font-size:.82rem}
+#lista-dochodow li,#lista-dosylek li{display:flex;gap:6px;align-items:center;
+  padding:4px 0;border-bottom:1px solid #e0d2b4}
+li.wtracenie{background:#e8f0e2;font-size:.8rem;font-style:italic}
+li.wtracenie .kiedy{font-weight:600;font-style:normal}
+li.krok.zaznaczony{outline:2px solid var(--acc);outline-offset:-2px;background:#f0e4c6}
+li.krok.ciagniony{opacity:.4}
+li.krok.cel-gora{box-shadow:inset 0 3px 0 var(--acc)}
+li.krok.cel-dol{box-shadow:inset 0 -3px 0 var(--acc)}
+#lista-krokow.cel-koniec{box-shadow:inset 0 -4px 0 var(--acc)}

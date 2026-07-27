@@ -51,25 +51,56 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .modal-box textarea{width:100%;height:280px;font-family:ui-monospace,monospace;font-size:.8rem}
 .modal-foot{display:flex;gap:8px;align-items:center;margin-top:10px}
 .spacer{flex:1}
+
+#pasek-narzedzi{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 3%;background:#241a10;color:#f6ecd4;border-bottom:2px solid var(--gold)}
+#pasek-narzedzi .marka{font-weight:600;letter-spacing:.04em}
+#pasek-narzedzi label{font-size:.8rem;color:var(--line)}
+.rozpychacz{flex:1}
+#stan-wioski{width:94%;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
+  border-radius:4px;padding:10px 12px;font-size:.84rem}
+.stan-moment{font-weight:600;color:var(--acc);margin-bottom:6px}
+.stan-ikony{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;
+  padding-bottom:8px;border-bottom:1px solid var(--line)}
+.poziom-budynku{display:flex;align-items:center;gap:3px}
+.poziom-budynku img.ikona{width:20px;height:20px}
+.poziom-budynku b{min-width:1.2em;text-align:right}
+.stan-liczby{display:flex;flex-wrap:wrap;gap:6px 22px}
+.stan-gardlo{margin-top:6px;color:var(--acc);font-weight:600}
+.kolumny{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.75fr);
+  gap:14px;width:94%;max-width:1600px;margin:12px auto;padding-bottom:60px}
+@media (max-width:1200px){.kolumny{grid-template-columns:1fr}}
+img.ikona{width:22px;height:22px;vertical-align:middle;margin-right:5px}
+#zaopatrzenie h3{margin:12px 0 4px;font-size:.9rem}
+#lista-dochodow,#lista-dosylek{list-style:none;margin:0;padding:0;font-size:.82rem}
+#lista-dochodow li,#lista-dosylek li{display:flex;gap:6px;align-items:center;
+  padding:4px 0;border-bottom:1px solid #e0d2b4}
+li.wtracenie{background:#e8f0e2;font-size:.8rem;font-style:italic}
+li.wtracenie .kiedy{font-weight:600;font-style:normal}
+li.krok.zaznaczony{outline:2px solid var(--acc);outline-offset:-2px;background:#f0e4c6}
+li.krok.ciagniony{opacity:.4}
+li.krok.cel-gora{box-shadow:inset 0 3px 0 var(--acc)}
+li.krok.cel-dol{box-shadow:inset 0 -3px 0 var(--acc)}
+#lista-krokow.cel-koniec{box-shadow:inset 0 -4px 0 var(--acc)}
 </style>
 </head>
 <body>
-<header><div class="wrap">
-  <div class="brand">
-    <div class="eyebrow">Plemiona · symulator</div>
-    <h1>Budowa wioski</h1>
-  </div>
-  <div class="start">
-    <label>Świat <select id="swiat"></select></label>
-    <label>Drewno <input id="start-drewno" type="number" min="0" value="1000"></label>
-    <label>Glina <input id="start-glina" type="number" min="0" value="1000"></label>
-    <label>Żelazo <input id="start-zelazo" type="number" min="0" value="1000"></label>
-  </div>
-</div></header>
 
-<main class="wrap">
-<div class="kolumny">
+<header id="pasek-narzedzi">
+  <div class="marka">Plemiona · symulator</div>
+  <label>Świat <select id="swiat"></select></label>
+  <span class="rozpychacz"></span>
+  <button id="zapisz">Zapisz</button>
+  <button id="wczytaj">Wczytaj</button>
+  <button id="kopiuj-tekst">Tekst</button>
+  <button id="kopiuj-json" class="primary">JSON</button>
+  <button id="wklej-json">Wklej</button>
+  <button id="wyczysc">Wyczyść</button>
+</header>
 
+<section id="stan-wioski"></section>
+
+<main class="kolumny">
   <section id="budynki">
     <h2>Budynki</h2>
     <table id="tabela-budynkow">
@@ -82,23 +113,18 @@ button:disabled{opacity:.45;cursor:not-allowed}
   </section>
 
   <section id="kolejka">
-    <div class="kolejka-gora">
-      <h2>Kolejka</h2>
-      <div class="akcje">
-        <button id="dodaj-dochod">+ dochód</button>
-        <button id="dodaj-zastrzyk">+ dosyłka</button>
-        <button id="kopiuj-tekst">Kopiuj tekst</button>
-        <button id="kopiuj-json" class="primary">Kopiuj JSON</button>
-        <button id="wklej-json">Wklej JSON</button>
-        <button id="wyczysc">Wyczyść</button>
-      </div>
-    </div>
+    <h2>Kolejka</h2>
     <ol id="lista-krokow"></ol>
-    <div id="podsumowanie"></div>
     <ul id="ostrzezenia"></ul>
   </section>
 
-</div>
+  <section id="zaopatrzenie">
+    <h2>Zaopatrzenie</h2>
+    <h3>Dochód stały <button id="dodaj-dochod">+</button></h3>
+    <ul id="lista-dochodow"></ul>
+    <h3>Dosyłki <button id="dodaj-zastrzyk">+</button></h3>
+    <ul id="lista-dosylek"></ul>
+  </section>
 </main>
 
 <div id="modal" class="modal" hidden>
@@ -232,6 +258,28 @@ const NAZWY = {
 
 // Formy uzywane wylacznie po przyimku "na", stad biernik.
 const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glinę', zelazo: 'żelazo' };
+
+// Lokalne kopie ikon z CDN gry. Podczas budowania strony sciezki sa zamieniane
+// na data URI, dzieki czemu dist/wioska/index.html pozostaje samowystarczalny.
+const IKONY_BUDYNKOW = Object.freeze({
+  ratusz: 'data:image/webp;base64,UklGRqwBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK8AAAABgGPb2rHn/rbV2YjVmVOwzRGYVaaQyulSqbRKVklp23nC9/uHEBETgAh75jdKjXwmVRfRw1y5WfCfueuWiOhltsj0B987Rf++Taf8Klgn1q0UAE/EvugHiOtMPA640GbW0PknB9rLqRu7+GAjqyizZYLtEBK7yDt8z3DUBr4QotSa8b/2R3otACAxImt8jeh6vcGYaP7Fg8Trcg8utKenCqTSX4BQDCij8rUaASIKAFZQOCDWAAAAEAUAnQEqEgASAD6RQpxKJaOioagIALASCWIAnTKDx55hQZdo3AwnVJmxLKrOyQDvkAD5udeSouTLcPJDAhV3aBtbIGXcGnK9HB1jfzMc6fdWJihN/pUaKtRVqQgmpCESRDygorGvhlKc2JYrbJ/SyjPvD82H7ogdHJXwfQ5QPi6K98AWRHftodpynXaudmtN/ncWsn1pZ8MjDK2qCSB0OIHvhH/97qXwCbQbC8HPirWnadKWLVbdPVlETw2IEQtaJ/9LG//xz/9G7//Qjnn519TaShrwAA==',
+  koszary: 'data:image/webp;base64,UklGRsoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSDwAAAABH6AgbQOm/iXv2oiI4BcYQpIkqfbpNWifQdinwQ/qICL6H4JtSMC7lUq74UAMW/+Yclppt62tgA1Z8AFWUDggaAAAAFACAJ0BKhAAEAACADQlAF2GCNERDzgBfp6y8AD8okK2ji93ic0O0a/mcF8w6OAE7SQHiMUM0GcnosjIuargbjkenmPD9UAGdD0I0JCFr7TqsLMpwmj8kGg1P3XUGsWT44RHyq0FEgAA',
+  stajnia: 'data:image/webp;base64,UklGRlQBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSKQAAAABgFtt2/LkTpDICNTuNokv4G4VabEBKJOeyjrSoa3t4O6uN/IdZoiICQBo2lLdaiIYm/g0+DkRA2Iz/nMmBv2q89XV86r9lO2pQwBD6l5Zn5olmFX7MmpjqFHNzOpGIlQwr5tjOhcNJcd1ZVktDBWq2936XB6aeNf2hkufU6H2Gy8bSOvD+p/d40/T0Hapryk4u9bLNmBJvYM7dQlgQL2He3UAAFZQOCCKAAAAcAIAnQEqEAAQAAIANCWUAnQGLBdonPTPfpG8QAD7BevlbIPVryFTxR/zoSjDeRPS2Bk9p7P3C28Y4D2bG05ybxNil+JKVgLmHSH7rsk2F4OtqO3L9EcnkmS9iMvZ/8/+ZSgxRvuTzpybTV+FfYuMQrVC1Fi9UeisLJyXRSsfeKJRhRO8nVF9IAAA',
+  warsztat: 'data:image/webp;base64,UklGRn4BAABXRUJQVlA4WAoAAAAQAAAAEQAAEgAAQUxQSLAAAAABgKtt//nlzbZt25vdWgfQ3OTOwG7zZJtnYJuT25pcb/h+fscQERMAwHowV/c4A5rJjU7uaSjuo1pD7r5AFwFpJFsvSFKILiAbYU8yWeiYJe88s0iaCfmU1+IC/P4BwkZo5EspQlU31XzNLum95kRETREAx8VcQ267HlC5AbmdysNkwYYkF52f+D5ipNL9V4hnklTBcIXqkywBj0ISZIptGgKcbKcY7b0arQFAFXUBAFZQOCCoAAAAsAQAnQEqEgATAD6RPpdIpaMiISgNULASCWcOYAAEbBuwA3V0B2tlwqTb5B7YAAD9a0bLZQCEcbi6WQDqTDzl2zzL/+1UxdTByZb5JIPeIjWp56QgIETnL17UqDwP67eFpkNL3160vlgGGbh9yPpn5//8oZ8lPN3c6Ar/YUCNqLwEpv9IXTXhH89sB/gDP6kwDOC3TlTJVU9RVRyw9pQXv7I/gfZqqAAA',
+  wieza: 'data:image/webp;base64,UklGRiIBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSGcAAAABcFNr29p8aiIiAiIgcqKBU9RQEdlKK+PUjZnpKX5TBETEBIgABXC4FQD5Bg6whYNKmzJyY1JPvKQ84Sa/lyxWtljTJUtFWDw3LqVYZwzvMzNUrOhex27vMWL1Z8P/zZ8loXyHLNMFAFZQOCCUAAAAUAQAnQEqEgASAD6ROplIJaMioSgNULASCWIAriokABMyeTr34Nr7U0bOaADOFe1tuNU5pDP9aFBb/T/+m2ahnB8SB2o7VAC2Nwd6VwldR9Q394M9+xrIIQ1ZVYMa08+jlcmsfGa9nWlWlrFZbpik/nyiiC3vadCn8j37071GFcdfWxOkxXK8eeB6SCD67vC7dzEAAA==',
+  palac: 'data:image/webp;base64,UklGRigBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGcAAAABcFpt27K8v+HukEgcmq7AHNZtA/dMIrGFW2UFtyUcfvd/gIiYAOCMbUk3CO6TZEZQ+U2S/7CAFMneuVkRI1gmHORGB5jlVIHog4scwPhHkukRyXtvkhqcn4somNsiArqhCJupLiIEAFZQOCCaAAAA8AIAnQEqEAAQAAIANCWQAnQwTMlT/jiRQD6zzJiskUAA/st16PeFze7Mr20kNyzlA6ScYd+n8/ify24iCaK0Qr5koUqc3vQjtXbsJvrofBisdPB3qfhXrLjoX/j4H1TwxqtPGAbtVvFb9nqP7orzPVmf7Ta2+em8WBnttun5GH0ifmaN25ta92TwzObe9BrVPfuOb8gyM7bQAA==',
+  kuznia: 'data:image/webp;base64,UklGRngBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSLQAAAABgGNrm/LkjQvu7u7au8MKYAWsgC4VVA5tSnQDXlO6U7q72+R/kZnJFiJiAvA/cmP54NAE7SWSvm69lIs3itdELfQJUsxomAuO345JGtkSpylrnuTrAPlZIunc+H482OgLTt8Zi4HUuDtb7IgGYIeyypsIf2NMvfSzx1L5rWe0AvC86mzE4799ReX1QB40bcga0xVo98m+whSZ+1R2mSRFz1R+nadJRr+/ny8vL9+EeHmvBQBWUDggngAAANAEAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgllAMZBi0pwur7v8R7WXIcZJvYcSqQAAP7r93myokOWj+funVlUrOqDUn+xdugX91z+cvqegT1TUsggMibuwT3Mme7+vqsg8fpH74jOz6Zb/A5RilgNeZIQ/yzAdUz34hLf/xBdSuAf1Iri+r9NRWs8sJxpyMUMVaIH4Zl7dpaXBYgAAAAA',
+  plac: 'data:image/webp;base64,UklGRgYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFTb1rKcH3fXoTVgMWZGAHKQgyYEIAdBfOZ+sfd9iwYRMQFQleMQYOIyA/296dMHtzEe04TPrusjfObWeVDZSVpYI+hJ2lg5SEnapowYRCU9kkYOEpIUM/LQ+koAVlA4IIIAAACQAgCdASoQABAAAgA0JYwAEiAc3J5aMl4bq+wxkAD+ZZn1Phtsb6ZmzO3qA2fRPNonpvH9svnY3+zW5URhBvtjVX9M7mZjaoV0KZFXlUPYuX6x+5290/K8Oe0cAqh/EKoV4ez0zbjip/PA9nb9hzSN+aI6/X/3Wsf6gL3rE4BsSwAA',
+  piedestal: 'data:image/webp;base64,UklGRrABAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK4AAAABgGLb1vLmhaOYObGZQDwVdXWrWLaWmRUzOmaQDIpUZ8AMim7hvX8MESEgKGINscp33hd6SKnEwN17W3WhZFJ1X73XuykSjnFmw9bHjI2Iol0TRkZb+X1D/93hIpvxlz1gvXE4I/4FuIkXnPkA794utuRd3t+zz7Uk6uvLPmHnk1IVzG1CSReA1bXXAgXufQBH0zhtkQYgOpCupWPpXYL0Kg1KN1JQ2gZy1wHkEAFWUDgg3AAAALAFAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgliAJ0orzle267VaYAOS6PGOPnu5zsFNHHWX1DWAAD+ACpoRmtPRAoss07yn9yh3dH81aBZ+3jQeze5PseUmzgLyr7lxPtKy0Jce2jfP3bMIxXPVNrwLs0yIl2VG3VcAWU228LzztKZ9Kwq1W1m1KEQn3tZ5p5qnz//+iQX/n///vZfssgkxKS4h+Hv3R7/yKNjoOuXX/Ocl6r4tgrjF3o9XbIJ3/zjtD2+xiciQXNznNrzuNBAxqiPN/vEQ6HCgpbRAAA=',
+  rynek: 'data:image/webp;base64,UklGRhYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGoAAAABL0CQbTN/qrHc4DnANSIi+BrhOLLdtoEC7ngiUYBTAUr31ABg9d+NQwsR/d8DCYdUEafupAS9NRvqXNaspC+jZTkhShlHZZcVLqn885m32B6ljDetvoyew5HOZc2LDHprNlScupMi4ZAqVlA4IIYAAADQAgCdASoQABAAAgA0JbACdLoAEIfugCq5HPnZtFIAAP4xRuZNW9HP7cazUwZ7Ooaadci6IV5ydOyarvNtoqceOGGL7fZZYt0AILKFFW9tkxCbweBc68Yh7TrdEuowp0m6GRJwqmoELasn8p4w53lQi4n/owD2683ttFNi4I/I0UP/Rk5AAA==',
+  tartak: 'data:image/webp;base64,UklGRjgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSIEAAAABgFpt2/LmDTMOwKg5iiZg1gwyNinJ2i5AK/AG7SCkmCGP+GiFiJgAkvUe3AIia6j/CPASbuvi5AXAyyBOrtUz7v8A4LuhITq82oB93ysTC+7nLEB83leShIUtBtcpAfk4+GkZeMQDbvK85j/vt8UrPPCSGgaSp8sNSlJsRWmotE8AVlA4IJAAAAAwAgCdASoQABAAAgA0JaACdH8AgnTGWUJUAAD8h86+qS3sW3s9dru/it2K129zWhzwd1HnN85Phlv8F0GTTZFoqzE+MXU0dIXhdEYIAmSZwNEuyD6apVZqSk5eH+E0Ig78KH+1N+5SK2yzbPkZtUvyi76upj3wwetzt0lMK2RckFzB02i+Rhpp6ECxPUAAAAA=',
+  cegielnia: 'data:image/webp;base64,UklGRvoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSE4AAAABcFPbthM9USQnqaLLqaRCABU+0JCsRAPTs27zwlqjICImgPQBoHNekP4E6YFZBwykTD4ApPRWGA6w0ghLyk1CuHAk/j4mksBnVU+EvwdWUDgghgAAAJACAJ0BKhAAEAACADQlsALElQHV/i1ZNufwmXAAAP7TLelIF8doDuqqFIJJBCR2OnqVl1CqJg/nWIgHIbOV4x2iy9V9PImuIPR+XSN1pNCuHFD3ABNcUWNz9/dGs4P/tM0xUP678b/tunMZACPG/E9A+jRkV45ijwzYd8jjVZtK/jbeAAAA',
+  huta: 'data:image/webp;base64,UklGRjABAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHsAAAABgGJt27Lo2QPS2AELILm7ZBqbgDXQyWRNTiNCJLlEd5eZZ+TlPzM7iIgJgKZuh1y88tOjbXMlGTP3lwMpkoK/RQLAmUwAyJxJ/M6SBEgSoupOGW+TEt6bBCj9o4ASINpkQ6cIgS7nMcEgAPEBS3oAhyl/b9Md8j4j+O8AVlA4II4AAABwAgCdASoQABAAAgA0JQBOgNPlzP/lZMfTWqFAAP7vqtS9xPo+zwHPlJP3OrEW2iW5a22u/f866wSKgB8yJuK7tumL/g3fH+lGNnnP9oXvZpOFFZXVgeKRgkvDnn+YmlUkA0vNU030G8hvi/9/ROjv1PO0hGstCc00zUwX2iyELz27DLEAyXyi7qh0AAAA',
+  zagroda: 'data:image/webp;base64,UklGRi4BAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFpt25I9eNRKJrIDO5CJRFZgAzZgA9cFSL/NYUmb4TpBREwANqlc6r5ODNn18N1kAFBuPfGsgbbq6bJxmpH47xkLlrNYb9pOAhFPudEAKHfkk3IYVJ17XdcVj00CVlA4IKoAAAAQAwCdASoQABAAAgA0JbACdLoBJgLf/smIiEyQmYht/RAA4dTa1Lg/iRciYdSt6qRVyWeyHNulyluvOfHlCE48wY4c3ihK9Fv9NAtOTlR8rxFm4X+V8QQ+aTwj6TF0wfvzR4j4wDZK1AYBrnRyfo+T0qspjtmYYvs2IURajp18bCzu3S/F/I6A0DP/GLFRe5tj3rdkFJJ2K49b49Iyez9R6GbeHLxrApXAAA==',
+  spichlerz: 'data:image/webp;base64,UklGRtQBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSIAAAAABgGpb27LoxRrJKomoySokz3Qy2SV68u7uiVtwSDSSQ4LOvCOfzCVExAQA1b8JA7t1h4g2Fkkf/76tDHmkeihKpH8spCYD4j0AAEnkzIEReZ8w55rpkfdL2uPZm0Fl0KjTDAkgbxhOXtKYAdFOkB1Y6gSACoOPAq4XIh6riwj8K1ZQOCAuAQAAkAcAnQEqEgASAD6RQptKJaOiIagIALASCWwAnTKEgsiBagOfF0wDlACCU/YDfgegAHFZtIZJ07YM6NNtkqqokvBYwRwAAP0gXRTxfPyQQbd0hr1HC/Zu+QPyAA5SJuT6szujIWV+90ziJIjqT8HoUHdhfxLqhNvXW493dspMaK1RsyM3pkfxBsneqnqGHz/BedN+fKsvlbBQXiG8p34wK/RizVfAermLIev+mkchQmfT39ns9pvYZvTRHDVIXfC6uyD7lcm7KMwVOjCIsLfVYmHOUMpGmMle7Jb7E79LPBjvRSeQl5+k9BdpK9bYhzenqwTBzLGcD0p5148Yn43lxBB/Ywf+OyEM0Z6utqjfKQ4Qo/qjRBI2jkuKLJ3CM0gqWPupANQ+MApMtP+NIAA=',
+  schowek: 'data:image/webp;base64,UklGRkgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSJAAAAABgFpt2/LmOScOXQaIZE4kMypyzHGMBR/XDbgdgrldoqcTRDK9pe+bISImANztigycWgfR6tDwn8F/9EB/539E0trXhv4HIAzMiBOQpohz14C8M2dd1Y+hLMyIORHGnvE5I+bchrc4iPMCVgLPGnjh2wCrNNcQijswVvHx2oHNC2uMUUgAcrGmU/q4XtBkSgRWUDggkgAAAHADAJ0BKhAAEAACADQlnAARADxWPSf1m9gD9ZiktXudvumoAAD+y25d5rKOQXc3iQTqlLAnPQ6/ZbEVwC7DEhOdIxfLU02SS+qO7DJJYuFU//abs+VqirPLUhMF3OaUmaAE9mXm7p9IB1c7E9fPb/OecK2s08nIka11mEdcToRxhK9czoK9Dvqi2bZl+1dljgQA',
+  mur: 'data:image/webp;base64,UklGRkoBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGQAAAABcFpt27I8Fanu7pqsaf+34TCA+waMQGQLOs0tusODk+gRMQF4FTVDAHDFx/SyDRFipywAAiBp8BorXADqnPSNrNU/8mzD5NCDi2S8S5IdkBd5mF+WSRqEb64khcw3r+vdL38WVlA4IMAAAAAQAwCdASoQABAAAgA0JbACdLoA4wHP/2RwRDBIumDQHAAA/uf/+ns3/+z+f9u31Lqjq8j322tOdOKbaNVOfzHM0bG3rw87Es3PTk5IRKi7wFj5/JzZd2W8syuYkU+YfQ99j527VPvPJ5ccpZaI1BWibqjrcUItnvvhFok0anrC+1fK7oNR/d+2VPfonrETUDHwwWnWjbGOzmXrs+vzH/4E810XG7OfFFhlzJUQf68/aAFSII+UkkOcM5WjuoSAAAA=',
+});
 
 // src/wioska/swiat.js
 // Wyprowadzenie kosztow i ludnosci z danych swiata. Gra liczy je ze wzoru,
@@ -685,6 +733,67 @@ function symuluj(plan) {
   };
 }
 
+// src/wioska/zapotrzebowanie.js
+// Dwie liczby odporne na wahania farmienia: ile plan trwa, gdy nic go nie
+// zatrzymuje, i ile surowcow trzeba dowozic, zeby tej granicy dotrzymac.
+// Przebieg pomocniczy ignoruje magazyn — interesuje nas dolna granica, a nie
+// przebieg przy konkretnym dochodzie, ktory liczy symulacja.
+
+const SUROWCE_Z = ['drewno', 'glina', 'zelazo'];
+const KOPALNIA_SUROWCA = { drewno: 'tartak', glina: 'cegielnia', zelazo: 'huta' };
+const DOBA_S = 86400;
+function zapotrzebowanie(plan) {
+  const s = swiat(plan.swiat);
+  const poziomy = { ...plan.start.poziomy };
+  const skumulowany = { drewno: 0, glina: 0, zelazo: 0 };
+  const wyprodukowane = { drewno: 0, glina: 0, zelazo: 0 };
+  const wymagany = { drewno: 0, glina: 0, zelazo: 0 };
+  let czas = 0;
+  let waskieGardlo = null;
+  let szczyt = 0;
+  let brakNaStart = false;
+
+  plan.kroki.forEach((krok, indeks) => {
+    const koszt = kosztPoziomu(s, krok.budynek, krok.doPoziomu);
+    for (const r of SUROWCE_Z) skumulowany[r] += koszt[r];
+
+    for (const r of SUROWCE_Z) {
+      const deficyt = skumulowany[r] - plan.start.surowce[r] - wyprodukowane[r];
+      if (deficyt <= 0) continue;
+      if (czas <= 0) {
+        // Krok o zerowym czasie startu nie ma jak "zdazyc" — dzielenie
+        // dalo by nieskonczonosc i zepsulo cala liczbe.
+        brakNaStart = true;
+        continue;
+      }
+      const naDobe = deficyt / (czas / DOBA_S);
+      if (naDobe > wymagany[r]) wymagany[r] = naDobe;
+      if (naDobe > szczyt) {
+        szczyt = naDobe;
+        waskieGardlo = { indeks, budynek: krok.budynek, doPoziomu: krok.doPoziomu, surowiec: r, czasS: Math.round(czas) };
+      }
+    }
+
+    const { sekundy } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
+    for (const r of SUROWCE_Z) {
+      wyprodukowane[r] += produkcjaGodzinowa(s, poziomy[KOPALNIA_SUROWCA[r]] ?? 0) * sekundy / 3600;
+    }
+    czas += sekundy;
+    poziomy[krok.budynek] = krok.doPoziomu;
+  });
+
+  return {
+    czasNettoS: Math.round(czas),
+    wymaganyDobowo: {
+      drewno: Math.ceil(wymagany.drewno),
+      glina: Math.ceil(wymagany.glina),
+      zelazo: Math.ceil(wymagany.zelazo),
+    },
+    waskieGardlo,
+    brakNaStart,
+  };
+}
+
 // src/wioska/format.js
 // Dwie postacie eksportu: tekst do przepisania do Menedzera Konta
 // i JSON, ktory jest kanalem wymiany planu z Claude.
@@ -707,15 +816,29 @@ function planJSON(plan) {
 function liczba(n) {
   return Math.round(n).toLocaleString('pl-PL');
 }
-function planTekst(plan, wynik) {
+function planTekst(plan, wynik, zap = null) {
   const linie = [`Plan budowy — ${plan.swiat}`, ''];
   plan.kroki.forEach((k, i) => {
     linie.push(`${String(i + 1).padStart(3)}. ${NAZWY[k.budynek] ?? k.budynek} → ${k.doPoziomu}`);
   });
   const { koszt, czasS, zmarnowane, zZastrzykow } = wynik.podsumowanie;
   linie.push('', 'Podsumowanie');
+  if (zap) {
+    linie.push(`  Czas netto (bez przestojów): ${czasCzytelny(zap.czasNettoS)}`);
+  }
   linie.push(`  Łączny czas: ${czasCzytelny(czasS)}`);
   linie.push(`  Surowce: ${liczba(koszt.drewno)} drewna, ${liczba(koszt.glina)} gliny, ${liczba(koszt.zelazo)} żelaza`);
+  if (zap) {
+    const w = zap.wymaganyDobowo;
+    linie.push(`  Wymagany dochód: ${liczba(w.drewno)} / ${liczba(w.glina)} / ${liczba(w.zelazo)} na dobę`);
+    if (zap.waskieGardlo) {
+      const g = zap.waskieGardlo;
+      linie.push(`  Wąskie gardło: krok ${g.indeks + 1} — ${NAZWY[g.budynek] ?? g.budynek} → ${g.doPoziomu}`);
+    }
+    if (zap.brakNaStart) {
+      linie.push('  Uwaga: na pierwszy krok nie starcza surowców startowych.');
+    }
+  }
   if (zZastrzykow.drewno || zZastrzykow.glina || zZastrzykow.zelazo) {
     linie.push(`  Z dosyłek: ${liczba(zZastrzykow.drewno)} / ${liczba(zZastrzykow.glina)} / ${liczba(zZastrzykow.zelazo)}`);
   }
@@ -731,7 +854,6 @@ function osCzasuTekst(wynik) {
     const uwagi = [];
     if (k.blad) uwagi.push(`BŁĄD: ${k.blad}`);
     if (k.czekanieS > 0) uwagi.push(`czeka ${czasCzytelny(k.czekanieS)} na ${NAZWY_SUROWCOW[k.czekanieNa] ?? k.czekanieNa}`);
-    if (!k.pewny) uwagi.push('≈ czas z poziomu bez pomiaru');
     linie.push(
       `${String(i + 1).padStart(3)} | ${czasCzytelny(k.startS).padEnd(12)} | ${nazwa.padEnd(25)} | ${czasCzytelny(k.trwanieS).padEnd(12)} | ${uwagi.join('; ')}`,
     );
@@ -743,50 +865,21 @@ function osCzasuTekst(wynik) {
   return linie.join('\n');
 }
 
-// Lokalne kopie ikon z CDN gry. Podczas budowania strony sciezki sa zamieniane
-// na data URI, dzieki czemu dist/wioska/index.html pozostaje samowystarczalny.
-const IKONY_BUDYNKOW = Object.freeze({
-  ratusz: 'data:image/webp;base64,UklGRqwBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK8AAAABgGPb2rHn/rbV2YjVmVOwzRGYVaaQyulSqbRKVklp23nC9/uHEBETgAh75jdKjXwmVRfRw1y5WfCfueuWiOhltsj0B987Rf++Taf8Klgn1q0UAE/EvugHiOtMPA640GbW0PknB9rLqRu7+GAjqyizZYLtEBK7yDt8z3DUBr4QotSa8b/2R3otACAxImt8jeh6vcGYaP7Fg8Trcg8utKenCqTSX4BQDCij8rUaASIKAFZQOCDWAAAAEAUAnQEqEgASAD6RQpxKJaOioagIALASCWIAnTKDx55hQZdo3AwnVJmxLKrOyQDvkAD5udeSouTLcPJDAhV3aBtbIGXcGnK9HB1jfzMc6fdWJihN/pUaKtRVqQgmpCESRDygorGvhlKc2JYrbJ/SyjPvD82H7ogdHJXwfQ5QPi6K98AWRHftodpynXaudmtN/ncWsn1pZ8MjDK2qCSB0OIHvhH/97qXwCbQbC8HPirWnadKWLVbdPVlETw2IEQtaJ/9LG//xz/9G7//Qjnn519TaShrwAA==',
-  koszary: 'data:image/webp;base64,UklGRsoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSDwAAAABH6AgbQOm/iXv2oiI4BcYQpIkqfbpNWifQdinwQ/qICL6H4JtSMC7lUq74UAMW/+Yclppt62tgA1Z8AFWUDggaAAAAFACAJ0BKhAAEAACADQlAF2GCNERDzgBfp6y8AD8okK2ji93ic0O0a/mcF8w6OAE7SQHiMUM0GcnosjIuargbjkenmPD9UAGdD0I0JCFr7TqsLMpwmj8kGg1P3XUGsWT44RHyq0FEgAA',
-  stajnia: 'data:image/webp;base64,UklGRlQBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSKQAAAABgFtt2/LkTpDICNTuNokv4G4VabEBKJOeyjrSoa3t4O6uN/IdZoiICQBo2lLdaiIYm/g0+DkRA2Iz/nMmBv2q89XV86r9lO2pQwBD6l5Zn5olmFX7MmpjqFHNzOpGIlQwr5tjOhcNJcd1ZVktDBWq2936XB6aeNf2hkufU6H2Gy8bSOvD+p/d40/T0Hapryk4u9bLNmBJvYM7dQlgQL2He3UAAFZQOCCKAAAAcAIAnQEqEAAQAAIANCWUAnQGLBdonPTPfpG8QAD7BevlbIPVryFTxR/zoSjDeRPS2Bk9p7P3C28Y4D2bG05ybxNil+JKVgLmHSH7rsk2F4OtqO3L9EcnkmS9iMvZ/8/+ZSgxRvuTzpybTV+FfYuMQrVC1Fi9UeisLJyXRSsfeKJRhRO8nVF9IAAA',
-  warsztat: 'data:image/webp;base64,UklGRn4BAABXRUJQVlA4WAoAAAAQAAAAEQAAEgAAQUxQSLAAAAABgKtt//nlzbZt25vdWgfQ3OTOwG7zZJtnYJuT25pcb/h+fscQERMAwHowV/c4A5rJjU7uaSjuo1pD7r5AFwFpJFsvSFKILiAbYU8yWeiYJe88s0iaCfmU1+IC/P4BwkZo5EspQlU31XzNLum95kRETREAx8VcQ267HlC5AbmdysNkwYYkF52f+D5ipNL9V4hnklTBcIXqkywBj0ISZIptGgKcbKcY7b0arQFAFXUBAFZQOCCoAAAAsAQAnQEqEgATAD6RPpdIpaMiISgNULASCWcOYAAEbBuwA3V0B2tlwqTb5B7YAAD9a0bLZQCEcbi6WQDqTDzl2zzL/+1UxdTByZb5JIPeIjWp56QgIETnL17UqDwP67eFpkNL3160vlgGGbh9yPpn5//8oZ8lPN3c6Ar/YUCNqLwEpv9IXTXhH89sB/gDP6kwDOC3TlTJVU9RVRyw9pQXv7I/gfZqqAAA',
-  wieza: 'data:image/webp;base64,UklGRiIBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSGcAAAABcFNr29p8aiIiAiIgcqKBU9RQEdlKK+PUjZnpKX5TBETEBIgABXC4FQD5Bg6whYNKmzJyY1JPvKQ84Sa/lyxWtljTJUtFWDw3LqVYZwzvMzNUrOhex27vMWL1Z8P/zZ8loXyHLNMFAFZQOCCUAAAAUAQAnQEqEgASAD6ROplIJaMioSgNULASCWIAriokABMyeTr34Nr7U0bOaADOFe1tuNU5pDP9aFBb/T/+m2ahnB8SB2o7VAC2Nwd6VwldR9Q394M9+xrIIQ1ZVYMa08+jlcmsfGa9nWlWlrFZbpik/nyiiC3vadCn8j37071GFcdfWxOkxXK8eeB6SCD67vC7dzEAAA==',
-  palac: 'data:image/webp;base64,UklGRigBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGcAAAABcFpt27K8v+HukEgcmq7AHNZtA/dMIrGFW2UFtyUcfvd/gIiYAOCMbUk3CO6TZEZQ+U2S/7CAFMneuVkRI1gmHORGB5jlVIHog4scwPhHkukRyXtvkhqcn4somNsiArqhCJupLiIEAFZQOCCaAAAA8AIAnQEqEAAQAAIANCWQAnQwTMlT/jiRQD6zzJiskUAA/st16PeFze7Mr20kNyzlA6ScYd+n8/ify24iCaK0Qr5koUqc3vQjtXbsJvrofBisdPB3qfhXrLjoX/j4H1TwxqtPGAbtVvFb9nqP7orzPVmf7Ta2+em8WBnttun5GH0ifmaN25ta92TwzObe9BrVPfuOb8gyM7bQAA==',
-  kuznia: 'data:image/webp;base64,UklGRngBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSLQAAAABgGNrm/LkjQvu7u7au8MKYAWsgC4VVA5tSnQDXlO6U7q72+R/kZnJFiJiAvA/cmP54NAE7SWSvm69lIs3itdELfQJUsxomAuO345JGtkSpylrnuTrAPlZIunc+H482OgLTt8Zi4HUuDtb7IgGYIeyypsIf2NMvfSzx1L5rWe0AvC86mzE4799ReX1QB40bcga0xVo98m+whSZ+1R2mSRFz1R+nadJRr+/ny8vL9+EeHmvBQBWUDggngAAANAEAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgllAMZBi0pwur7v8R7WXIcZJvYcSqQAAP7r93myokOWj+funVlUrOqDUn+xdugX91z+cvqegT1TUsggMibuwT3Mme7+vqsg8fpH74jOz6Zb/A5RilgNeZIQ/yzAdUz34hLf/xBdSuAf1Iri+r9NRWs8sJxpyMUMVaIH4Zl7dpaXBYgAAAAA',
-  plac: 'data:image/webp;base64,UklGRgYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFTb1rKcH3fXoTVgMWZGAHKQgyYEIAdBfOZ+sfd9iwYRMQFQleMQYOIyA/296dMHtzEe04TPrusjfObWeVDZSVpYI+hJ2lg5SEnapowYRCU9kkYOEpIUM/LQ+koAVlA4IIIAAACQAgCdASoQABAAAgA0JYwAEiAc3J5aMl4bq+wxkAD+ZZn1Phtsb6ZmzO3qA2fRPNonpvH9svnY3+zW5URhBvtjVX9M7mZjaoV0KZFXlUPYuX6x+5290/K8Oe0cAqh/EKoV4ez0zbjip/PA9nb9hzSN+aI6/X/3Wsf6gL3rE4BsSwAA',
-  piedestal: 'data:image/webp;base64,UklGRrABAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK4AAAABgGLb1vLmhaOYObGZQDwVdXWrWLaWmRUzOmaQDIpUZ8AMim7hvX8MESEgKGINscp33hd6SKnEwN17W3WhZFJ1X73XuykSjnFmw9bHjI2Iol0TRkZb+X1D/93hIpvxlz1gvXE4I/4FuIkXnPkA794utuRd3t+zz7Uk6uvLPmHnk1IVzG1CSReA1bXXAgXufQBH0zhtkQYgOpCupWPpXYL0Kg1KN1JQ2gZy1wHkEAFWUDgg3AAAALAFAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgliAJ0orzle267VaYAOS6PGOPnu5zsFNHHWX1DWAAD+ACpoRmtPRAoss07yn9yh3dH81aBZ+3jQeze5PseUmzgLyr7lxPtKy0Jce2jfP3bMIxXPVNrwLs0yIl2VG3VcAWU228LzztKZ9Kwq1W1m1KEQn3tZ5p5qnz//+iQX/n///vZfssgkxKS4h+Hv3R7/yKNjoOuXX/Ocl6r4tgrjF3o9XbIJ3/zjtD2+xiciQXNznNrzuNBAxqiPN/vEQ6HCgpbRAAA=',
-  rynek: 'data:image/webp;base64,UklGRhYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGoAAAABL0CQbTN/qrHc4DnANSIi+BrhOLLdtoEC7ngiUYBTAUr31ABg9d+NQwsR/d8DCYdUEafupAS9NRvqXNaspC+jZTkhShlHZZcVLqn885m32B6ljDetvoyew5HOZc2LDHprNlScupMi4ZAqVlA4IIYAAADQAgCdASoQABAAAgA0JbACdLoAEIfugCq5HPnZtFIAAP4xRuZNW9HP7cazUwZ7Ooaadci6IV5ydOyarvNtoqceOGGL7fZZYt0AILKFFW9tkxCbweBc68Yh7TrdEuowp0m6GRJwqmoELasn8p4w53lQi4n/owD2683ttFNi4I/I0UP/Rk5AAA==',
-  tartak: 'data:image/webp;base64,UklGRjgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSIEAAAABgFpt2/LmDTMOwKg5iiZg1gwyNinJ2i5AK/AG7SCkmCGP+GiFiJgAkvUe3AIia6j/CPASbuvi5AXAyyBOrtUz7v8A4LuhITq82oB93ysTC+7nLEB83leShIUtBtcpAfk4+GkZeMQDbvK85j/vt8UrPPCSGgaSp8sNSlJsRWmotE8AVlA4IJAAAAAwAgCdASoQABAAAgA0JaACdH8AgnTGWUJUAAD8h86+qS3sW3s9dru/it2K129zWhzwd1HnN85Phlv8F0GTTZFoqzE+MXU0dIXhdEYIAmSZwNEuyD6apVZqSk5eH+E0Ig78KH+1N+5SK2yzbPkZtUvyi76upj3wwetzt0lMK2RckFzB02i+Rhpp6ECxPUAAAAA=',
-  cegielnia: 'data:image/webp;base64,UklGRvoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSE4AAAABcFPbthM9USQnqaLLqaRCABU+0JCsRAPTs27zwlqjICImgPQBoHNekP4E6YFZBwykTD4ApPRWGA6w0ghLyk1CuHAk/j4mksBnVU+EvwdWUDgghgAAAJACAJ0BKhAAEAACADQlsALElQHV/i1ZNufwmXAAAP7TLelIF8doDuqqFIJJBCR2OnqVl1CqJg/nWIgHIbOV4x2iy9V9PImuIPR+XSN1pNCuHFD3ABNcUWNz9/dGs4P/tM0xUP678b/tunMZACPG/E9A+jRkV45ijwzYd8jjVZtK/jbeAAAA',
-  huta: 'data:image/webp;base64,UklGRjABAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHsAAAABgGJt27Lo2QPS2AELILm7ZBqbgDXQyWRNTiNCJLlEd5eZZ+TlPzM7iIgJgKZuh1y88tOjbXMlGTP3lwMpkoK/RQLAmUwAyJxJ/M6SBEgSoupOGW+TEt6bBCj9o4ASINpkQ6cIgS7nMcEgAPEBS3oAhyl/b9Md8j4j+O8AVlA4II4AAABwAgCdASoQABAAAgA0JQBOgNPlzP/lZMfTWqFAAP7vqtS9xPo+zwHPlJP3OrEW2iW5a22u/f866wSKgB8yJuK7tumL/g3fH+lGNnnP9oXvZpOFFZXVgeKRgkvDnn+YmlUkA0vNU030G8hvi/9/ROjv1PO0hGstCc00zUwX2iyELz27DLEAyXyi7qh0AAAA',
-  zagroda: 'data:image/webp;base64,UklGRi4BAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFpt25I9eNRKJrIDO5CJRFZgAzZgA9cFSL/NYUmb4TpBREwANqlc6r5ODNn18N1kAFBuPfGsgbbq6bJxmpH47xkLlrNYb9pOAhFPudEAKHfkk3IYVJ17XdcVj00CVlA4IKoAAAAQAwCdASoQABAAAgA0JbACdLoBJgLf/smIiEyQmYht/RAA4dTa1Lg/iRciYdSt6qRVyWeyHNulyluvOfHlCE48wY4c3ihK9Fv9NAtOTlR8rxFm4X+V8QQ+aTwj6TF0wfvzR4j4wDZK1AYBrnRyfo+T0qspjtmYYvs2IURajp18bCzu3S/F/I6A0DP/GLFRe5tj3rdkFJJ2K49b49Iyez9R6GbeHLxrApXAAA==',
-  spichlerz: 'data:image/webp;base64,UklGRtQBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSIAAAAABgGpb27LoxRrJKomoySokz3Qy2SV68u7uiVtwSDSSQ4LOvCOfzCVExAQA1b8JA7t1h4g2Fkkf/76tDHmkeihKpH8spCYD4j0AAEnkzIEReZ8w55rpkfdL2uPZm0Fl0KjTDAkgbxhOXtKYAdFOkB1Y6gSACoOPAq4XIh6riwj8K1ZQOCAuAQAAkAcAnQEqEgASAD6RQptKJaOiIagIALASCWwAnTKEgsiBagOfF0wDlACCU/YDfgegAHFZtIZJ07YM6NNtkqqokvBYwRwAAP0gXRTxfPyQQbd0hr1HC/Zu+QPyAA5SJuT6szujIWV+90ziJIjqT8HoUHdhfxLqhNvXW493dspMaK1RsyM3pkfxBsneqnqGHz/BedN+fKsvlbBQXiG8p34wK/RizVfAermLIev+mkchQmfT39ns9pvYZvTRHDVIXfC6uyD7lcm7KMwVOjCIsLfVYmHOUMpGmMle7Jb7E79LPBjvRSeQl5+k9BdpK9bYhzenqwTBzLGcD0p5148Yn43lxBB/Ywf+OyEM0Z6utqjfKQ4Qo/qjRBI2jkuKLJ3CM0gqWPupANQ+MApMtP+NIAA=',
-  schowek: 'data:image/webp;base64,UklGRkgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSJAAAAABgFpt2/LmOScOXQaIZE4kMypyzHGMBR/XDbgdgrldoqcTRDK9pe+bISImANztigycWgfR6tDwn8F/9EB/539E0trXhv4HIAzMiBOQpohz14C8M2dd1Y+hLMyIORHGnvE5I+bchrc4iPMCVgLPGnjh2wCrNNcQijswVvHx2oHNC2uMUUgAcrGmU/q4XtBkSgRWUDggkgAAAHADAJ0BKhAAEAACADQlnAARADxWPSf1m9gD9ZiktXudvumoAAD+y25d5rKOQXc3iQTqlLAnPQ6/ZbEVwC7DEhOdIxfLU02SS+qO7DJJYuFU//abs+VqirPLUhMF3OaUmaAE9mXm7p9IB1c7E9fPb/OecK2s08nIka11mEdcToRxhK9czoK9Dvqi2bZl+1dljgQA',
-  mur: 'data:image/webp;base64,UklGRkoBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGQAAAABcFpt27I8Fanu7pqsaf+34TCA+waMQGQLOs0tusODk+gRMQF4FTVDAHDFx/SyDRFipywAAiBp8BorXADqnPSNrNU/8mzD5NCDi2S8S5IdkBd5mF+WSRqEb64khcw3r+vdL38WVlA4IMAAAAAQAwCdASoQABAAAgA0JbACdLoA4wHP/2RwRDBIumDQHAAA/uf/+ns3/+z+f9u31Lqjq8j322tOdOKbaNVOfzHM0bG3rw87Es3PTk5IRKi7wFj5/JzZd2W8syuYkU+YfQ99j527VPvPJ5ccpZaI1BWibqjrcUItnvvhFok0anrC+1fK7oNR/d+2VPfonrETUDHwwWnWjbGOzmXrs+vzH/4E810XG7OfFFhlzJUQf68/aAFSII+UkkOcM5WjuoSAAAA=',
-});
-
-// src/wioska/strona.js
-// Warstwa DOM. Funkcje budujace HTML sa czyste — logika prezentacji siedzi
-// w nich i daje sie testowac bez przegladarki. uruchom() to tylko wpiecie zdarzen.
-const KLUCZ_MAGAZYNU = 'plemiona-wioska';
-
-const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function komorkaBudynku(budynek, nazwa, opis) {
+// src/wioska/widok-budynki.js
+// Tabela budynkow, wzorowana na ekranie Ratusza w grze.const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));function ikonaHTML(budynek, nazwa) {
   const src = IKONY_BUDYNKOW[budynek];
-  const ikona = src ? `<img class="ikona-budynku" src="${esc(src)}" alt="">` : '';
-  return `<td><span class="budynek-opis">${ikona}<span>${esc(nazwa)}<br><small>${opis}</small></span></span></td>`;
-}
-function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
+  return src ? `<img class="ikona" src="${esc(src)}" alt="" title="${esc(nazwa)}">` : '';
+}function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
   const obecny = poziomy[budynek] ?? 0;
   const nazwa = NAZWY[budynek] ?? budynek;
   const maks = maksPoziom(s, budynek);
   if (obecny >= maks) {
-    return `<tr>${komorkaBudynku(budynek, nazwa, `Poziom ${obecny}`)}`
-      + `<td colspan="6"><em>Budynek całkowicie rozbudowany</em></td></tr>`;
+    return `<tr><td>${ikonaHTML(budynek, nazwa)}${esc(nazwa)}<br><small>Poziom ${obecny}</small></td>`
+      + '<td colspan="6"><em>Budynek całkowicie rozbudowany</em></td></tr>';
   }
   const docelowy = obecny + 1;
   const k = kosztPoziomu(s, budynek, docelowy);
-  const { sekundy, pewny } = czasBudowy(s, budynek, docelowy, poziomRatusza);
+  const { sekundy } = czasBudowy(s, budynek, docelowy, poziomRatusza);
   const ludnosc = ludnoscPoziomu(s, budynek, docelowy) - ludnoscPoziomu(s, budynek, obecny);
   const brak = brakujaceWymagania(budynek, poziomy);
   const zablokowany = brak.length > 0;
@@ -794,25 +887,130 @@ function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
     ? `<button disabled>Poziom ${docelowy}</button><div class="powod">${esc(opisWymagan(brak, NAZWY))}</div>`
     : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
   return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
-    + komorkaBudynku(budynek, nazwa, obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`)
+    + `<td>${ikonaHTML(budynek, nazwa)}${esc(nazwa)}<br><small>${obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`}</small></td>`
     + `<td>${k.drewno}</td><td>${k.glina}</td><td>${k.zelazo}</td>`
-    + `<td class="${pewny ? '' : 'niepewny'}">${pewny ? '' : '≈ '}${czasCzytelny(sekundy)}</td>`
+    + `<td>${czasCzytelny(sekundy)}</td>`
     + `<td>${ludnosc}</td><td>${przycisk}</td></tr>`;
 }
-function krokHTML(krok, indeks) {
+
+// src/wioska/widok-kolejka.js
+// Kolejka jako os czasu. Czas kroku nie jest tu pokazywany — pasek stanu
+// podaje go dla zaznaczonego momentu, a tu zabieralby miejsce w kazdym wierszu.function krokHTML(krok, indeks, zaznaczony) {
   const nazwa = `${NAZWY[krok.budynek] ?? krok.budynek} → ${krok.doPoziomu}`;
   const klasy = ['krok'];
   if (krok.blad) klasy.push('blad');
-  if (!krok.pewny) klasy.push('niepewny');
+  if (zaznaczony) klasy.push('zaznaczony');
   const czekanie = krok.czekanieS > 0
-    ? `<div class="czekanie">czeka ${czasCzytelny(krok.czekanieS)} na ${esc(NAZWY_SUROWCOW[krok.czekanieNa] ?? krok.czekanieNa)}</div>`
+    ? `<span class="czekanie" title="czeka na ${esc(NAZWY_SUROWCOW[krok.czekanieNa] ?? krok.czekanieNa)}">⏳</span>`
     : '';
   return `<li class="${klasy.join(' ')}" draggable="true" data-krok="${indeks}">`
     + `<span class="nr">${indeks + 1}</span>`
-    + `<span class="opis">${esc(nazwa)}${czekanie}</span>`
-    + `<span class="czas">${czasCzytelny(krok.startS)} · ${krok.pewny ? '' : '≈ '}${czasCzytelny(krok.trwanieS)}</span>`
+    + `<span class="opis">${ikonaHTML(krok.budynek, nazwa)}${esc(nazwa)}</span>`
+    + `${czekanie}`
     + `<button data-usun="${indeks}" title="Usuń">×</button></li>`;
 }
+
+// Wtracenia gracza pokazujemy w miejscu, w ktorym wypadaja na osi — edytuje
+// sie je w kolumnie zaopatrzenia, ale dzialaja tutaj.function wtracenieHTML(rodzaj, wpis) {
+  const kiedy = czasCzytelny(wpis.czasS);
+  if (rodzaj === 'dochod') {
+    return `<li class="wtracenie dochod">`
+      + `<span class="kiedy">od ${esc(kiedy)}</span>`
+      + `<span class="opis">dochód ${wpis.drewnoD} / ${wpis.glinaD} / ${wpis.zelazoD} na dobę</span></li>`;
+  }
+  return `<li class="wtracenie dosylka">`
+    + `<span class="kiedy">po ${esc(kiedy)}</span>`
+    + `<span class="opis">dosyłka ${wpis.drewno} / ${wpis.glina} / ${wpis.zelazo}</span></li>`;
+}
+
+// src/wioska/widok-status.js
+// Stan wioski na wskazany moment osi. Gorna czesc to rzad ikon z poziomami,
+// wzorowany na "Podsumowaniu" w Menedzerze Konta — z ta roznica, ze pokazuje
+// wioske w wybranej chwili, a nie stan koncowy.
+
+const SUROWCE_S = ['drewno', 'glina', 'zelazo'];
+
+function stanNaKrok(plan, wynik, indeks) {
+  if (indeks === null || !wynik.kroki[indeks]) {
+    const ostatni = wynik.kroki[wynik.kroki.length - 1];
+    return {
+      poziomy: ostatni ? ostatni.poziomyPo : { ...plan.start.poziomy },
+      czasS: wynik.podsumowanie.czasS,
+      ludnosc: ostatni ? ostatni.ludnoscPo : 0,
+      wydano: wynik.podsumowanie.koszt,
+      indeks: null,
+    };
+  }
+  const k = wynik.kroki[indeks];
+  const wydano = { drewno: 0, glina: 0, zelazo: 0 };
+  // Krok zatrzymany bledem ma w polu koszt wartosc zamierzona, ale surowce
+  // nigdy nie zeszly z magazynu — podsumowanie planu tez go pomija.
+  for (let i = 0; i <= indeks; i++) {
+    if (wynik.kroki[i].blad) continue;
+    for (const r of SUROWCE_S) wydano[r] += wynik.kroki[i].koszt[r];
+  }
+  return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc: k.ludnoscPo, wydano, indeks };
+}
+
+function dosylkiDo(plan, czasS) {
+  const suma = { drewno: 0, glina: 0, zelazo: 0 };
+  for (const z of plan.zastrzyki) {
+    if (z.czasS <= czasS) for (const r of SUROWCE_S) suma[r] += z[r];
+  }
+  return suma;
+}
+
+function dochodWChwiliS(plan, czasS) {
+  let biezacy = { drewnoD: 0, glinaD: 0, zelazoD: 0 };
+  for (const d of plan.dochody) { if (d.czasS <= czasS) biezacy = d; else break; }
+  return biezacy;
+}
+function pasekStanuHTML(s, plan, wynik, zap, indeks) {
+  const st = stanNaKrok(plan, wynik, indeks);
+  const ikony = budynkiSwiata(s)
+    .map(b => `<span class="poziom-budynku" data-poziom-${esc(b)}="${st.poziomy[b] ?? 0}">`
+      + `${ikonaHTML(b, NAZWY[b] ?? b)}<b>${st.poziomy[b] ?? 0}</b></span>`)
+    .join('');
+
+  const prodH = {
+    drewno: produkcjaGodzinowa(s, st.poziomy.tartak ?? 0),
+    glina: produkcjaGodzinowa(s, st.poziomy.cegielnia ?? 0),
+    zelazo: produkcjaGodzinowa(s, st.poziomy.huta ?? 0),
+  };
+  const limit = maksLudnosc(st.poziomy.zagroda ?? 1);
+  const dos = dosylkiDo(plan, st.czasS);
+  const doch = dochodWChwiliS(plan, st.czasS);
+  const w = zap.wymaganyDobowo;
+  const etykieta = indeks === null
+    ? 'stan końcowy'
+    : `krok ${indeks + 1} — ${czasCzytelny(st.czasS)}`;
+
+  const wiersze = [
+    `<div class="stan-moment">● ${esc(etykieta)}</div>`,
+    `<div class="stan-ikony">${ikony}</div>`,
+    `<div class="stan-liczby">`,
+    `<span><b>Czas netto</b> ${czasCzytelny(zap.czasNettoS)} · <b>realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</span>`,
+    `<span><b>Populacja</b> ${st.ludnosc} / ${limit}</span>`,
+    `<span><b>Wydano</b> ${st.wydano.drewno} / ${st.wydano.glina} / ${st.wydano.zelazo}</span>`,
+    `<span><b>Produkcja</b> ${prodH.drewno} / ${prodH.glina} / ${prodH.zelazo} na h · ${prodH.drewno * 24} / ${prodH.glina * 24} / ${prodH.zelazo * 24} na dobę</span>`,
+    `<span><b>Dochód</b> ${doch.drewnoD} / ${doch.glinaD} / ${doch.zelazoD} na dobę · <b>wymagany</b> ${w.drewno} / ${w.glina} / ${w.zelazo} na dobę</span>`,
+    `<span><b>Dosłano</b> ${dos.drewno} / ${dos.glina} / ${dos.zelazo}</span>`,
+    `</div>`,
+  ];
+  if (zap.waskieGardlo) {
+    const g = zap.waskieGardlo;
+    wiersze.push(`<div class="stan-gardlo">Wąskie gardło: krok ${g.indeks + 1} — ${esc(NAZWY[g.budynek] ?? g.budynek)} → ${g.doPoziomu}</div>`);
+  }
+  if (zap.brakNaStart) {
+    wiersze.push('<div class="stan-gardlo">Na pierwszy krok nie starcza surowców startowych.</div>');
+  }
+  return wiersze.join('');
+}
+
+// src/wioska/strona.js
+// Warstwa DOM. Funkcje budujace HTML sa czyste — logika prezentacji siedzi
+// w nich i daje sie testowac bez przegladarki. uruchom() to tylko wpiecie zdarzen.
+const KLUCZ_MAGAZYNU = 'plemiona-wioska';
 function podsumowanieHTML(wynik) {
   const { czasS, koszt, zmarnowane, zZastrzykow, czasNiepewnyS } = wynik.podsumowanie;
   const linie = [
@@ -865,7 +1063,7 @@ function uruchom() {
 
     const bledy = bledyPlanu(plan);
     const wynik = bledy.length ? { kroki: [], ostrzezenia: [], podsumowanie: { czasS: 0, koszt: { drewno: 0, glina: 0, zelazo: 0 }, zZastrzykow: { drewno: 0, glina: 0, zelazo: 0 }, zmarnowane: { drewno: 0, glina: 0, zelazo: 0 }, czasNiepewnyS: 0 } } : symuluj(plan);
-    $('lista-krokow').innerHTML = wynik.kroki.map(krokHTML).join('');
+    $('lista-krokow').innerHTML = wynik.kroki.map((k, i) => krokHTML(k, i, false)).join('');
     $('podsumowanie').innerHTML = podsumowanieHTML(wynik);
     $('ostrzezenia').innerHTML = [...bledy.map(b => `<li>${esc(b)}</li>`),
       ...wynik.ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`)].join('');

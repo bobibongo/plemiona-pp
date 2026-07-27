@@ -7,22 +7,22 @@
 <style>/*INJECT:css*/</style>
 </head>
 <body>
-<header><div class="wrap">
-  <div class="brand">
-    <div class="eyebrow">Plemiona · symulator</div>
-    <h1>Budowa wioski</h1>
-  </div>
-  <div class="start">
-    <label>Świat <select id="swiat"></select></label>
-    <label>Drewno <input id="start-drewno" type="number" min="0" value="1000"></label>
-    <label>Glina <input id="start-glina" type="number" min="0" value="1000"></label>
-    <label>Żelazo <input id="start-zelazo" type="number" min="0" value="1000"></label>
-  </div>
-</div></header>
 
-<main class="wrap">
-<div class="kolumny">
+<header id="pasek-narzedzi">
+  <div class="marka">Plemiona · symulator</div>
+  <label>Świat <select id="swiat"></select></label>
+  <span class="rozpychacz"></span>
+  <button id="zapisz">Zapisz</button>
+  <button id="wczytaj">Wczytaj</button>
+  <button id="kopiuj-tekst">Tekst</button>
+  <button id="kopiuj-json" class="primary">JSON</button>
+  <button id="wklej-json">Wklej</button>
+  <button id="wyczysc">Wyczyść</button>
+</header>
 
+<section id="stan-wioski"></section>
+
+<main class="kolumny">
   <section id="budynki">
     <h2>Budynki</h2>
     <table id="tabela-budynkow">
@@ -35,23 +35,18 @@
   </section>
 
   <section id="kolejka">
-    <div class="kolejka-gora">
-      <h2>Kolejka</h2>
-      <div class="akcje">
-        <button id="dodaj-dochod">+ dochód</button>
-        <button id="dodaj-zastrzyk">+ dosyłka</button>
-        <button id="kopiuj-tekst">Kopiuj tekst</button>
-        <button id="kopiuj-json" class="primary">Kopiuj JSON</button>
-        <button id="wklej-json">Wklej JSON</button>
-        <button id="wyczysc">Wyczyść</button>
-      </div>
-    </div>
+    <h2>Kolejka</h2>
     <ol id="lista-krokow"></ol>
-    <div id="podsumowanie"></div>
     <ul id="ostrzezenia"></ul>
   </section>
 
-</div>
+  <section id="zaopatrzenie">
+    <h2>Zaopatrzenie</h2>
+    <h3>Dochód stały <button id="dodaj-dochod">+</button></h3>
+    <ul id="lista-dochodow"></ul>
+    <h3>Dosyłki <button id="dodaj-zastrzyk">+</button></h3>
+    <ul id="lista-dosylek"></ul>
+  </section>
 </main>
 
 <div id="modal" class="modal" hidden>
