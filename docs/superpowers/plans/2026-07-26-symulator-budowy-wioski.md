@@ -1799,7 +1799,9 @@ const p = normalizujPlan({
 const w = symuluj(p);
 
 test('czasCzytelny rozbija sekundy na dni, godziny i minuty', () => {
-  assert.equal(czasCzytelny(0), '0 min');
+  assert.equal(czasCzytelny(0), '0 s');
+  assert.equal(czasCzytelny(10), '10 s');
+  assert.equal(czasCzytelny(59), '59 s');
   assert.equal(czasCzytelny(90), '1 min');
   assert.equal(czasCzytelny(3600), '1 h 00 min');
   assert.equal(czasCzytelny(90000), '1 d 01 h 00 min');
@@ -1865,7 +1867,10 @@ export function czasCzytelny(sekundy) {
   const m = Math.floor((s % 3600) / 60);
   if (d) return `${d} d ${String(h).padStart(2, '0')} h ${String(m).padStart(2, '0')} min`;
   if (h) return `${h} h ${String(m).padStart(2, '0')} min`;
-  return `${m} min`;
+  // Ponizej minuty pokazujemy sekundy: minimalny czas budowy to 10 s, a caly
+  // wczesny etap planu miescilby sie w tym zakresie i wyswietlal jako zero.
+  if (m) return `${m} min`;
+  return `${s} s`;
 }
 
 export function planJSON(plan) {
@@ -1928,11 +1933,16 @@ import { normalizujPlan, bledyPlanu } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { osCzasuTekst, planTekst } from '../src/wioska/format.js';
 
-const zrodlo = process.argv[2]
-  ? readFileSync(process.argv[2], 'utf8')
-  : readFileSync(0, 'utf8');
-
-const plan = normalizujPlan(JSON.parse(zrodlo));
+let plan;
+try {
+  const zrodlo = process.argv[2]
+    ? readFileSync(process.argv[2], 'utf8')
+    : readFileSync(0, 'utf8');
+  plan = normalizujPlan(JSON.parse(zrodlo));
+} catch (e) {
+  console.error(`Nie udało się wczytać planu: ${e.message}`);
+  process.exit(1);
+}
 const bledy = bledyPlanu(plan);
 if (bledy.length) {
   console.error('Plan jest niepoprawny:');
