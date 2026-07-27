@@ -90,3 +90,13 @@ test('wtracenie dosylki podaje moment i ilosci', () => {
   assert.match(html, /1 d/);
   assert.match(html, /5000/);
 });
+
+test('wtracenie w srodku kolejki niesie indeks kroku, przed ktorym stoi', () => {
+  const html = wtracenieHTML('dosylka', { czasS: 86400, drewno: 5000, glina: 5000, zelazo: 5000 }, 3);
+  assert.match(html, /data-przed-krokiem="3"/);
+});
+
+test('wtracenie na koncu kolejki nie niesie indeksu, bo koniec listy jest poprawnym celem', () => {
+  const html = wtracenieHTML('dochod', { czasS: 86400, drewnoD: 1, glinaD: 1, zelazoD: 1 });
+  assert.doesNotMatch(html, /data-przed-krokiem/);
+});

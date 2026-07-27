@@ -63,7 +63,7 @@ export function uruchom() {
     const out = [];
     wynik.kroki.forEach((k, i) => {
       while (w < wtracenia.length && wtracenia[w].czasS <= k.startS) {
-        out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis));
+        out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis, i));
         w += 1;
       }
       out.push(krokHTML(k, i, i === zaznaczony));
@@ -173,6 +173,17 @@ export function uruchom() {
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
   });
 
+  // Cel upuszczenia moze byc kafelkiem kroku albo wtraceniem, ktore niesie
+  // indeks kroku stojacego za nim. Brak obu znaczy upuszczenie pod lista.
+  function elementCelu(e) {
+    return e.target.closest('[data-krok],[data-przed-krokiem]');
+  }
+  function indeksZElementu(el) {
+    if (!el) return null;
+    const wartosc = el.dataset.krok ?? el.dataset.przedKrokiem;
+    return wartosc === undefined ? null : Number(wartosc);
+  }
+
   // Bez podswietlenia celu nie widac, gdzie krok wyladuje.
   lista.addEventListener('dragover', (e) => {
     if (ciagniony === null) return;
@@ -180,10 +191,10 @@ export function uruchom() {
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     for (const el of lista.querySelectorAll('.cel-gora,.cel-dol')) el.classList.remove('cel-gora', 'cel-dol');
     lista.classList.remove('cel-koniec');
-    const li = e.target.closest('[data-krok]');
-    if (!li) { lista.classList.add('cel-koniec'); return; }
-    const cel = Number(li.dataset.krok);
-    li.classList.add(cel < ciagniony ? 'cel-gora' : 'cel-dol');
+    const el = elementCelu(e);
+    const cel = indeksZElementu(el);
+    if (cel === null) { lista.classList.add('cel-koniec'); return; }
+    el.classList.add(cel < ciagniony ? 'cel-gora' : 'cel-dol');
   });
 
   function posprzatajPodswietlenie() {
@@ -196,9 +207,9 @@ export function uruchom() {
   lista.addEventListener('drop', (e) => {
     if (ciagniony === null) return;
     e.preventDefault();
-    const li = e.target.closest('[data-krok]');
-    // Upuszczenie pod ostatnim kafelkiem dokłada krok na koniec.
-    const cel = li ? Number(li.dataset.krok) : plan.kroki.length - 1;
+    const indeks = indeksZElementu(elementCelu(e));
+    // Upuszczenie pod ostatnim kafelkiem albo pod koncowym wtraceniem dokłada krok na koniec.
+    const cel = indeks === null ? plan.kroki.length - 1 : indeks;
     if (cel !== ciagniony) {
       const [krok] = plan.kroki.splice(ciagniony, 1);
       plan.kroki.splice(cel, 0, krok);

@@ -23,14 +23,18 @@ export function krokHTML(krok, indeks, zaznaczony) {
 
 // Wtracenia gracza pokazujemy w miejscu, w ktorym wypadaja na osi — edytuje
 // sie je w kolumnie zaopatrzenia, ale dzialaja tutaj.
-export function wtracenieHTML(rodzaj, wpis) {
+// Wtracenie stojace przed jakims krokiem niesie jego indeks, zeby upuszczenie
+// przeciaganego kafelka na ten wiersz trafilo w to miejsce kolejki, a nie
+// zostalo pomylone z upuszczeniem pod cala lista.
+export function wtracenieHTML(rodzaj, wpis, przedKrokiem = null) {
   const kiedy = czasCzytelny(wpis.czasS);
+  const cel = przedKrokiem === null ? '' : ` data-przed-krokiem="${przedKrokiem}"`;
   if (rodzaj === 'dochod') {
-    return `<li class="wtracenie dochod">`
+    return `<li class="wtracenie dochod"${cel}>`
       + `<span class="kiedy">od ${esc(kiedy)}</span>`
       + `<span class="opis">dochód ${wpis.drewnoD} / ${wpis.glinaD} / ${wpis.zelazoD} na dobę</span></li>`;
   }
-  return `<li class="wtracenie dosylka">`
+  return `<li class="wtracenie dosylka"${cel}>`
     + `<span class="kiedy">po ${esc(kiedy)}</span>`
     + `<span class="opis">dosyłka ${wpis.drewno} / ${wpis.glina} / ${wpis.zelazo}</span></li>`;
 }
