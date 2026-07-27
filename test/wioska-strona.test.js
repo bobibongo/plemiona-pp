@@ -57,6 +57,15 @@ test('krok z poziomu bez pomiaru jest oznaczony', () => {
   assert.match(krokHTML(w.kroki[0], 0), /niepewny/);
 });
 
+test('krok niesie pozycje w kolejce, na ktorej opiera sie przeciaganie', () => {
+  const w = symuluj(normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+  }));
+  assert.match(krokHTML(w.kroki[0], 0), /data-krok="0"/);
+  assert.match(krokHTML(w.kroki[1], 1), /data-krok="1"/);
+});
+
 test('podsumowanie podaje laczny czas i sumy surowcow', () => {
   const w = symuluj(normalizujPlan({
     swiat: 'pl231',

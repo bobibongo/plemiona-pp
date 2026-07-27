@@ -3,7 +3,7 @@
 // w nich i daje sie testowac bez przegladarki. uruchom() to tylko wpiecie zdarzen.
 
 import { SWIATY, swiat } from './swiaty.js';
-import { kosztPoziomu, ludnoscPoziomu, maksPoziom, budynkiSwiata, poziomyStartowe } from './swiat.js';
+import { kosztPoziomu, ludnoscPoziomu, maksPoziom, budynkiSwiata } from './swiat.js';
 import { czasBudowy } from './czas.js';
 import { brakujaceWymagania, opisWymagan } from './wymagania.js';
 import { normalizujPlan, bledyPlanu } from './plan.js';
@@ -45,7 +45,7 @@ export function krokHTML(krok, indeks) {
   if (krok.blad) klasy.push('blad');
   if (!krok.pewny) klasy.push('niepewny');
   const czekanie = krok.czekanieS > 0
-    ? `<div class="czekanie">czeka ${czasCzytelny(krok.czekanieS)} na ${NAZWY_SUROWCOW[krok.czekanieNa] ?? krok.czekanieNa}</div>`
+    ? `<div class="czekanie">czeka ${czasCzytelny(krok.czekanieS)} na ${esc(NAZWY_SUROWCOW[krok.czekanieNa] ?? krok.czekanieNa)}</div>`
     : '';
   return `<li class="${klasy.join(' ')}" draggable="true" data-krok="${indeks}">`
     + `<span class="nr">${indeks + 1}</span>`
@@ -148,6 +148,40 @@ export function uruchom() {
     }
   }
 
+  // Po zmianie kolejnosci poziomy docelowe przestaja byc ciagle, wiec przelicz()
+  // numeruje je od nowa wedlug nowej kolejnosci krokow.
+  let ciagniony = null;
+  const lista = $('lista-krokow');
+
+  lista.addEventListener('dragstart', (e) => {
+    const li = e.target.closest('[data-krok]');
+    if (!li) return;
+    ciagniony = Number(li.dataset.krok);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  });
+
+  lista.addEventListener('dragover', (e) => {
+    if (ciagniony === null) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  });
+
+  lista.addEventListener('drop', (e) => {
+    const li = e.target.closest('[data-krok]');
+    if (ciagniony === null || !li) return;
+    e.preventDefault();
+    const cel = Number(li.dataset.krok);
+    if (cel !== ciagniony) {
+      const [krok] = plan.kroki.splice(ciagniony, 1);
+      plan.kroki.splice(cel, 0, krok);
+      przelicz();
+      rysuj();
+    }
+    ciagniony = null;
+  });
+
+  lista.addEventListener('dragend', () => { ciagniony = null; });
+
   $('dodaj-dochod').addEventListener('click', () => {
     const czasS = pytajOLiczbe('Od której godziny obowiązuje (w godzinach od startu)?') * 3600;
     plan.dochody.push({
@@ -172,18 +206,38 @@ export function uruchom() {
     rysuj();
   });
 
-  $('kopiuj-json').addEventListener('click', () => navigator.clipboard.writeText(planJSON(plan)));
-  $('kopiuj-tekst').addEventListener('click', () => navigator.clipboard.writeText(planTekst(plan, symuluj(plan))));
+  // Okno sluzy dwóm rzeczom: wklejaniu planu i awaryjnemu kopiowaniu recznemu,
+  // gdy przegladarka nie da Clipboard API (zdarza sie przy otwarciu z dysku).
+  let trybModalu = 'wklej';
 
-  $('wklej-json').addEventListener('click', () => {
+  function otworzModal(tryb, tytul, tresc) {
+    trybModalu = tryb;
+    $('modal-tytul').textContent = tytul;
+    $('modal-pole').value = tresc;
+    $('modal-info').textContent = '';
     $('modal').hidden = false;
-    $('modal-pole').value = '';
     $('modal-pole').focus();
-  });
+    if (tryb === 'kopiuj') $('modal-pole').select();
+  }
+
+  async function doSchowka(tekst, opis) {
+    try {
+      await navigator.clipboard.writeText(tekst);
+    } catch {
+      otworzModal('kopiuj', `${opis} — skopiuj ręcznie`, tekst);
+    }
+  }
+
+  $('kopiuj-json').addEventListener('click', () => doSchowka(planJSON(plan), 'Plan w formacie JSON'));
+  $('kopiuj-tekst').addEventListener('click', () => doSchowka(planTekst(plan, symuluj(plan)), 'Plan tekstem'));
+
+  $('wklej-json').addEventListener('click', () => otworzModal('wklej', 'Wklej plan', ''));
   $('modal-anuluj').addEventListener('click', () => { $('modal').hidden = true; });
   $('modal-ok').addEventListener('click', () => {
+    if (trybModalu === 'kopiuj') { $('modal').hidden = true; return; }
     try {
       plan = normalizujPlan(JSON.parse($('modal-pole').value));
+      przelicz();
       $('modal').hidden = true;
       rysuj();
     } catch (err) {
@@ -208,7 +262,6 @@ export function uruchom() {
   $('swiat').value = plan.swiat;
   $('swiat').addEventListener('change', (e) => {
     plan = normalizujPlan({ swiat: e.target.value });
-    plan.start.poziomy = poziomyStartowe(swiat(e.target.value));
     rysuj();
   });
 
