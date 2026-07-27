@@ -1,16 +1,19 @@
 // test/wioska-strona.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizujPlan } from '../src/wioska/plan.js';
-import { symuluj } from '../src/wioska/symulacja.js';
-import { podsumowanieHTML } from '../src/wioska/strona.js';
+import { KLUCZ_MAGAZYNU, uruchom } from '../src/wioska/strona.js';
 
-test('podsumowanie podaje laczny czas i sumy surowcow', () => {
-  const w = symuluj(normalizujPlan({
-    swiat: 'pl231',
-    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
-  }));
-  const html = podsumowanieHTML(w);
-  assert.match(html, /Łączny czas/);
-  assert.match(html, /115/);
+test('klucz magazynu jest staly', () => {
+  assert.equal(KLUCZ_MAGAZYNU, 'plemiona-wioska');
+});
+
+// Modul jest sklejany do strony i importowany w testach, wiec bez dokumentu
+// musi wyjsc natychmiast, zamiast sie wywrocic.
+test('uruchom nie wywraca sie bez dokumentu', () => {
+  assert.doesNotThrow(() => uruchom());
+});
+
+test('podsumowanieHTML zniklo — zastapil je pasek stanu', async () => {
+  const m = await import('../src/wioska/strona.js');
+  assert.equal(m.podsumowanieHTML, undefined);
 });
