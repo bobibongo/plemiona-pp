@@ -24,7 +24,10 @@ function stanNaKrok(plan, wynik, indeks) {
   }
   const k = wynik.kroki[indeks];
   const wydano = { drewno: 0, glina: 0, zelazo: 0 };
+  // Krok zatrzymany bledem ma w polu koszt wartosc zamierzona, ale surowce
+  // nigdy nie zeszly z magazynu — podsumowanie planu tez go pomija.
   for (let i = 0; i <= indeks; i++) {
+    if (wynik.kroki[i].blad) continue;
     for (const r of SUROWCE_S) wydano[r] += wynik.kroki[i].koszt[r];
   }
   return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc: k.ludnoscPo, wydano, indeks };

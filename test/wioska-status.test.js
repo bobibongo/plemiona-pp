@@ -64,3 +64,48 @@ test('pusty plan nie wywraca paska', () => {
   const html = pasekStanuHTML(s, p, symuluj(p), zapotrzebowanie(p), null);
   assert.ok(html.length > 0);
 });
+
+test('wydano pomija krok zatrzymany bledem, tak jak podsumowanie planu', () => {
+  // Wieza na poziom 1 kosztuje wiecej niz miesci Spichlerz 1, wiec krok
+  // zatrzymuje sie bledem 'ponad-spichlerz' — koszt w wynik.kroki jest
+  // zamierzony, ale surowce nigdy nie zeszly z magazynu.
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    start: {
+      poziomy: { ratusz: 5, zagroda: 5 },
+      surowce: { drewno: 99999, glina: 99999, zelazo: 99999 },
+    },
+    kroki: [
+      { budynek: 'wieza', doPoziomu: 1 },
+      { budynek: 'tartak', doPoziomu: 1 },
+    ],
+  });
+  const w = symuluj(p);
+  assert.equal(w.kroki[0].blad, 'ponad-spichlerz', 'pierwszy krok ma zawiesc, inaczej test nic nie sprawdza');
+  const zapP = zapotrzebowanie(p);
+  const zZaznaczeniem = pasekStanuHTML(s, p, w, zapP, 1);
+  const bezZaznaczenia = pasekStanuHTML(s, p, w, zapP, null);
+  const wydanoZ = zZaznaczeniem.match(/<b>Wydano<\/b>[^<]*/)[0];
+  const wydanoBez = bezZaznaczenia.match(/<b>Wydano<\/b>[^<]*/)[0];
+  assert.equal(wydanoZ, wydanoBez);
+});
+
+test('pasek pokazuje waskie gardlo, gdy plan go ma', () => {
+  const kroki = [];
+  for (let i = 1; i <= 10; i++) kroki.push({ budynek: 'tartak', doPoziomu: i });
+  const p = normalizujPlan({ swiat: 'pl231', kroki });
+  const zapP = zapotrzebowanie(p);
+  assert.ok(zapP.waskieGardlo, 'plan ma miec waskie gardlo, inaczej test nic nie sprawdza');
+  assert.match(pasekStanuHTML(s, p, symuluj(p), zapP, null), /Wąskie gardło/);
+});
+
+test('pasek ostrzega, gdy na pierwszy krok nie starcza surowcow startowych', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    start: { poziomy: { ratusz: 5, zagroda: 5 }, surowce: { drewno: 10, glina: 10, zelazo: 10 } },
+    kroki: [{ budynek: 'wieza', doPoziomu: 1 }],
+  });
+  const zapP = zapotrzebowanie(p);
+  assert.equal(zapP.brakNaStart, true, 'plan ma miec ustawiona flage, inaczej test nic nie sprawdza');
+  assert.match(pasekStanuHTML(s, p, symuluj(p), zapP, null), /surowców startowych/);
+});
