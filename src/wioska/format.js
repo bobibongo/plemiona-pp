@@ -25,15 +25,29 @@ function liczba(n) {
   return Math.round(n).toLocaleString('pl-PL');
 }
 
-export function planTekst(plan, wynik) {
+export function planTekst(plan, wynik, zap = null) {
   const linie = [`Plan budowy — ${plan.swiat}`, ''];
   plan.kroki.forEach((k, i) => {
     linie.push(`${String(i + 1).padStart(3)}. ${NAZWY[k.budynek] ?? k.budynek} → ${k.doPoziomu}`);
   });
   const { koszt, czasS, zmarnowane, zZastrzykow } = wynik.podsumowanie;
   linie.push('', 'Podsumowanie');
+  if (zap) {
+    linie.push(`  Czas netto (bez przestojów): ${czasCzytelny(zap.czasNettoS)}`);
+  }
   linie.push(`  Łączny czas: ${czasCzytelny(czasS)}`);
   linie.push(`  Surowce: ${liczba(koszt.drewno)} drewna, ${liczba(koszt.glina)} gliny, ${liczba(koszt.zelazo)} żelaza`);
+  if (zap) {
+    const w = zap.wymaganyDobowo;
+    linie.push(`  Wymagany dochód: ${liczba(w.drewno)} / ${liczba(w.glina)} / ${liczba(w.zelazo)} na dobę`);
+    if (zap.waskieGardlo) {
+      const g = zap.waskieGardlo;
+      linie.push(`  Wąskie gardło: krok ${g.indeks + 1} — ${NAZWY[g.budynek] ?? g.budynek} → ${g.doPoziomu}`);
+    }
+    if (zap.brakNaStart) {
+      linie.push('  Uwaga: na pierwszy krok nie starcza surowców startowych.');
+    }
+  }
   if (zZastrzykow.drewno || zZastrzykow.glina || zZastrzykow.zelazo) {
     linie.push(`  Z dosyłek: ${liczba(zZastrzykow.drewno)} / ${liczba(zZastrzykow.glina)} / ${liczba(zZastrzykow.zelazo)}`);
   }
@@ -50,7 +64,6 @@ export function osCzasuTekst(wynik) {
     const uwagi = [];
     if (k.blad) uwagi.push(`BŁĄD: ${k.blad}`);
     if (k.czekanieS > 0) uwagi.push(`czeka ${czasCzytelny(k.czekanieS)} na ${NAZWY_SUROWCOW[k.czekanieNa] ?? k.czekanieNa}`);
-    if (!k.pewny) uwagi.push('≈ czas z poziomu bez pomiaru');
     linie.push(
       `${String(i + 1).padStart(3)} | ${czasCzytelny(k.startS).padEnd(12)} | ${nazwa.padEnd(25)} | ${czasCzytelny(k.trwanieS).padEnd(12)} | ${uwagi.join('; ')}`,
     );

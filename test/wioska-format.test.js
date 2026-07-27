@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { czasCzytelny, planJSON, planTekst, osCzasuTekst } from '../src/wioska/format.js';
+import { zapotrzebowanie } from '../src/wioska/zapotrzebowanie.js';
 
 const p = normalizujPlan({
   swiat: 'pl231',
@@ -50,11 +51,26 @@ test('osCzasuTekst pokazuje przestoj i surowiec, na ktory czekano', () => {
   assert.match(osCzasuTekst(wolny), /czeka/);
 });
 
-test('osCzasuTekst oznacza kroki z poziomow bez pomiaru', () => {
-  const niepewny = symuluj(normalizujPlan({
+test('os czasu nie zawiera juz znaku przyblizenia', () => {
+  const w = symuluj(normalizujPlan({
     swiat: 'pl231',
     start: { poziomy: { tartak: 4 }, surowce: { drewno: 999999, glina: 999999, zelazo: 999999 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 5 }],
   }));
-  assert.match(osCzasuTekst(niepewny), /≈/);
+  assert.doesNotMatch(osCzasuTekst(w), /≈/);
+});
+
+test('podsumowanie tekstowe nie zawiera znaku przyblizenia', () => {
+  assert.doesNotMatch(planTekst(p, w), /≈/);
+});
+
+test('podsumowanie podaje czas netto i wymagany dochod, gdy je przekazano', () => {
+  const zap = zapotrzebowanie(p);
+  const t = planTekst(p, w, zap);
+  assert.match(t, /Czas netto/);
+  assert.match(t, /na dobę/);
+});
+
+test('podsumowanie bez zapotrzebowania nadal dziala', () => {
+  assert.match(planTekst(p, w), /Łączny czas/);
 });

@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { normalizujPlan, bledyPlanu } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { osCzasuTekst, planTekst } from '../src/wioska/format.js';
+import { zapotrzebowanie } from '../src/wioska/zapotrzebowanie.js';
 
 let plan;
 try {
@@ -30,4 +31,4 @@ if (bledy.length) {
 const wynik = symuluj(plan);
 console.log(osCzasuTekst(wynik));
 console.log('');
-console.log(planTekst(plan, wynik));
+console.log(planTekst(plan, wynik, zapotrzebowanie(plan)));
