@@ -1,7 +1,7 @@
 // test/build.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -89,6 +89,30 @@ test('strona kursów zawiera logikę historii, sygnałów i wykresu', () => {
 // Strona ma działać otwarta z dysku, więc nie wolno jej sięgać po nic z sieci.
 test('strona kursów jest samowystarczalna — zero odwołań na zewnątrz', () => {
   const html = buildRatesPage();
+  assert.doesNotMatch(html, /\bfetch\s*\(/);
+  assert.doesNotMatch(html, /XMLHttpRequest/);
+  assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);
+  assert.doesNotMatch(html, /<script[^>]+src=/);
+  assert.doesNotMatch(html, /<link[^>]+stylesheet/);
+});
+
+test('strona wioski nie zawiera markerów ani importów', () => {
+  const html = buildWioskaPage();
+  assert.doesNotMatch(html, /INJECT:/);
+  assert.doesNotMatch(html, /^\s*import\s/m);
+  assert.doesNotMatch(html, /^\s*export\s/m);
+});
+
+test('strona wioski zawiera silnik symulacji i dane świata', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /function symuluj/);
+  assert.match(html, /pl231/);
+  assert.match(html, /TABELA_G/);
+});
+
+// Strona ma dzialac otwarta z dysku, wiec nie wolno jej siegac po nic z sieci.
+test('strona wioski jest samowystarczalna — zero odwołań na zewnątrz', () => {
+  const html = buildWioskaPage();
   assert.doesNotMatch(html, /\bfetch\s*\(/);
   assert.doesNotMatch(html, /XMLHttpRequest/);
   assert.doesNotMatch(html, /https?:\/\/(?!www\.w3\.org)/);

@@ -44,6 +44,32 @@ export function buildRatesPage() {
     .replace('/*INJECT:js*/', () => js);
 }
 
+// Kolejnosc ma znaczenie: stripModule usuwa importy, wiec dane musza byc
+// zdefiniowane przed kodem, ktory z nich korzysta.
+const WIOSKA_LOGIC = [
+  'src/wioska/swiaty.js',
+  'src/wioska/czas-dane.js',
+  'src/wioska/wymagania-dane.js',
+  'src/wioska/nazwy.js',
+  'src/wioska/swiat.js',
+  'src/wioska/tabele.js',
+  'src/wioska/czas.js',
+  'src/wioska/wymagania.js',
+  'src/wioska/plan.js',
+  'src/wioska/symulacja.js',
+  'src/wioska/format.js',
+  'src/wioska/strona.js',
+];
+
+// Symulator budowy wioski (dist/wioska/index.html) — samowystarczalny plik.
+export function buildWioskaPage() {
+  const css = read('./src/wioska.css');
+  const js = WIOSKA_LOGIC.map(p => stripModule(read('./' + p))).join('\n');
+  return read('./src/wioska.template.html')
+    .replace('/*INJECT:css*/', () => css)
+    .replace('/*INJECT:js*/', () => js);
+}
+
 // Userscript (dist/kursy.user.js) — kolektor kursów giełdy premium.
 // Zostawiamy komentarze i nowe linie: userscript jest wielolinijkowy,
 // więc nie grozi mu problem sklejania, który dotyczy bookmarkletu.
@@ -136,5 +162,7 @@ if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   writeFileSync(new URL('./dist/kursy.user.js', import.meta.url), buildUserscript());
   mkdirSync(new URL('./dist/kursy/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/kursy/index.html', import.meta.url), buildRatesPage());
-  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów)');
+  mkdirSync(new URL('./dist/wioska/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/wioska/index.html', import.meta.url), buildWioskaPage());
+  console.log('Zbudowano dist/: index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów), wioska/index.html (symulator budowy)');
 }

@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator budowy wioski — Plemiona</title>
+<style>:root{--w:#2c2015;--w2:#170f08;--pg:#f4ead2;--ink:#38291a;--ink2:#6b543a;
+  --acc:#7c2b2b;--gold:#a8842c;--line:#c4ac7c;--ok:#2f6b34;--zle:#8c2f2f}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+  background:radial-gradient(ellipse at 50% -10%,#3a2c1c,var(--w) 45%,var(--w2)) fixed;min-height:100vh}
+.wrap{width:94%;max-width:1400px;margin:0 auto}
+header{color:#f6ecd4;padding:20px 0}
+header .wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--gold)}
+h1{margin:.1em 0 0;font-size:1.6rem}
+.start{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto}
+.start label{display:flex;flex-direction:column;font-size:.72rem;color:var(--line)}
+.start input,.start select{width:110px;padding:4px 6px;border:1px solid var(--line);border-radius:3px}
+.kolumny{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;padding-bottom:60px}
+@media (max-width:1000px){.kolumny{grid-template-columns:1fr}}
+section{background:var(--pg);border:1px solid var(--line);border-radius:4px;padding:14px}
+h2{margin:0 0 10px;font-size:1.05rem}
+table{width:100%;border-collapse:collapse;font-size:.86rem}
+th{text-align:left;background:#e3d4b0;padding:6px;border-bottom:1px solid var(--line)}
+td{padding:5px 6px;border-bottom:1px solid #e0d2b4}
+tr.zablokowany td{color:var(--ink2);background:#efe4c8}
+tr.zablokowany .powod{font-size:.76rem;color:var(--acc)}
+button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;
+  background:#e3d4b0;cursor:pointer}
+button:hover{background:#eddfbe}
+button.primary{background:var(--acc);color:#f6ecd4;border-color:#5d2020}
+button:disabled{opacity:.45;cursor:not-allowed}
+.kolejka-gora{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.akcje{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+#lista-krokow{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
+#lista-krokow li{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;
+  padding:6px;border-bottom:1px solid #e0d2b4;font-size:.86rem}
+#lista-krokow li.wtracenie{background:#e8f0e2}
+#lista-krokow li.blad{background:#f3dede}
+#lista-krokow li[draggable=true]{cursor:grab}
+.czekanie{font-size:.76rem;color:var(--acc)}
+.niepewny{color:var(--ink2)}
+#podsumowanie{margin-top:10px;padding-top:10px;border-top:2px solid var(--line);font-size:.9rem}
+#ostrzezenia{margin:8px 0 0;padding-left:18px;font-size:.82rem;color:var(--acc)}
+.modal{position:fixed;inset:0;background:rgba(20,12,6,.72);display:flex;align-items:center;justify-content:center}
+.modal[hidden]{display:none}
+.modal-box{background:var(--pg);border:1px solid var(--line);border-radius:4px;padding:16px;width:min(680px,92vw)}
+.modal-box textarea{width:100%;height:280px;font-family:ui-monospace,monospace;font-size:.8rem}
+.modal-foot{display:flex;gap:8px;align-items:center;margin-top:10px}
+.spacer{flex:1}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="brand">
+    <div class="eyebrow">Plemiona · symulator</div>
+    <h1>Budowa wioski</h1>
+  </div>
+  <div class="start">
+    <label>Świat <select id="swiat"></select></label>
+    <label>Drewno <input id="start-drewno" type="number" min="0" value="1000"></label>
+    <label>Glina <input id="start-glina" type="number" min="0" value="1000"></label>
+    <label>Żelazo <input id="start-zelazo" type="number" min="0" value="1000"></label>
+  </div>
+</div></header>
+
+<main class="wrap">
+<div class="kolumny">
+
+  <section id="budynki">
+    <h2>Budynki</h2>
+    <table id="tabela-budynkow">
+      <thead><tr>
+        <th>Budynek</th><th>Drewno</th><th>Glina</th><th>Żelazo</th>
+        <th>Czas</th><th>Ludność</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section id="kolejka">
+    <div class="kolejka-gora">
+      <h2>Kolejka</h2>
+      <div class="akcje">
+        <button id="dodaj-dochod">+ dochód</button>
+        <button id="dodaj-zastrzyk">+ dosyłka</button>
+        <button id="kopiuj-tekst">Kopiuj tekst</button>
+        <button id="kopiuj-json" class="primary">Kopiuj JSON</button>
+        <button id="wklej-json">Wklej JSON</button>
+        <button id="wyczysc">Wyczyść</button>
+      </div>
+    </div>
+    <ol id="lista-krokow"></ol>
+    <div id="podsumowanie"></div>
+    <ul id="ostrzezenia"></ul>
+  </section>
+
+</div>
+</main>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-box">
+    <h3 id="modal-tytul">Wklej plan</h3>
+    <textarea id="modal-pole" spellcheck="false"></textarea>
+    <div class="modal-foot">
+      <span id="modal-info"></span>
+      <span class="spacer"></span>
+      <button id="modal-anuluj">Anuluj</button>
+      <button id="modal-ok" class="primary">Zatwierdź</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">// src/wioska/swiaty.js
+// Dane swiatow generowane przez tools/fetch-swiat.js z publicznych endpointow
+// interface.php. Nie edytowac recznie — zmiany nadpisze kolejne uruchomienie.
+// Tabele kosztow nie sa tu zapisywane: licza sie ze wzoru baza x mnoznik^(poziom-1).
+const SWIATY = {
+  pl231: {
+    kod: 'pl231',
+    nazwa: 'Świat 231',
+    predkosc: 1,
+    predkoscJednostek: 1,
+    produkcjaBazowa: 30,
+    wzorCzasu: 2,
+    budynki: {
+      ratusz:    { kod: 'main',       maks: 30, min: 1, drewno: 90,    glina: 80,    zelazo: 70,    pop: 5,   fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 900 },
+      koszary:   { kod: 'barracks',   maks: 25, min: 0, drewno: 200,   glina: 170,   zelazo: 90,    pop: 7,   fDrewno: 1.26,  fGlina: 1.28,  fZelazo: 1.26,  fPop: 1.17,  czas: 1800 },
+      stajnia:   { kod: 'stable',     maks: 20, min: 0, drewno: 270,   glina: 240,   zelazo: 260,   pop: 8,   fDrewno: 1.26,  fGlina: 1.28,  fZelazo: 1.26,  fPop: 1.17,  czas: 6000 },
+      warsztat:  { kod: 'garage',     maks: 15, min: 0, drewno: 300,   glina: 240,   zelazo: 260,   pop: 8,   fDrewno: 1.26,  fGlina: 1.28,  fZelazo: 1.26,  fPop: 1.17,  czas: 6000 },
+      kuznia:    { kod: 'smith',      maks: 20, min: 0, drewno: 220,   glina: 180,   zelazo: 240,   pop: 20,  fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 6000 },
+      palac:     { kod: 'snob',       maks: 1,  min: 0, drewno: 15000, glina: 25000, zelazo: 10000, pop: 80,  fDrewno: 2,     fGlina: 2,     fZelazo: 2,     fPop: 1.17,  czas: 586800 },
+      plac:      { kod: 'place',      maks: 1,  min: 0, drewno: 10,    glina: 40,    zelazo: 30,    pop: 0,   fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 10860 },
+      piedestal: { kod: 'statue',     maks: 1,  min: 0, drewno: 220,   glina: 220,   zelazo: 220,   pop: 10,  fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 1500 },
+      rynek:     { kod: 'market',     maks: 25, min: 0, drewno: 100,   glina: 100,   zelazo: 100,   pop: 20,  fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 2700 },
+      tartak:    { kod: 'wood',       maks: 30, min: 0, drewno: 50,    glina: 60,    zelazo: 40,    pop: 5,   fDrewno: 1.25,  fGlina: 1.275, fZelazo: 1.245, fPop: 1.155, czas: 900 },
+      cegielnia: { kod: 'stone',      maks: 30, min: 0, drewno: 65,    glina: 50,    zelazo: 40,    pop: 10,  fDrewno: 1.27,  fGlina: 1.265, fZelazo: 1.24,  fPop: 1.14,  czas: 900 },
+      huta:      { kod: 'iron',       maks: 30, min: 0, drewno: 75,    glina: 65,    zelazo: 70,    pop: 10,  fDrewno: 1.252, fGlina: 1.275, fZelazo: 1.24,  fPop: 1.17,  czas: 1080 },
+      zagroda:   { kod: 'farm',       maks: 30, min: 1, drewno: 45,    glina: 40,    zelazo: 30,    pop: 0,   fDrewno: 1.3,   fGlina: 1.32,  fZelazo: 1.29,  fPop: 1,     czas: 1200 },
+      spichlerz: { kod: 'storage',    maks: 30, min: 1, drewno: 60,    glina: 50,    zelazo: 40,    pop: 0,   fDrewno: 1.265, fGlina: 1.27,  fZelazo: 1.245, fPop: 1.15,  czas: 1020 },
+      schowek:   { kod: 'hide',       maks: 10, min: 0, drewno: 50,    glina: 60,    zelazo: 50,    pop: 2,   fDrewno: 1.25,  fGlina: 1.25,  fZelazo: 1.25,  fPop: 1.17,  czas: 1800 },
+      mur:       { kod: 'wall',       maks: 20, min: 0, drewno: 50,    glina: 100,   zelazo: 20,    pop: 5,   fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 3600 },
+      wieza:     { kod: 'watchtower', maks: 20, min: 0, drewno: 12000, glina: 14000, zelazo: 10000, pop: 500, fDrewno: 1.17,  fGlina: 1.17,  fZelazo: 1.18,  fPop: 1.18,  czas: 13200 },
+    },
+  },
+};
+function swiat(kod) {
+  const s = SWIATY[kod];
+  if (!s) throw new Error(`Nieznany świat: ${kod}. Dostępne: ${Object.keys(SWIATY).join(', ')}`);
+  return s;
+}
+
+// src/wioska/czas-dane.js
+// Tabela G — czysta funkcja poziomu, wspolna dla wszystkich budynkow.
+// Generowana przez tools/kalibracja.js z zapisanych stron Ratusza.
+//
+// zmierzony: true  — wartosc odczytana z gry
+// zmierzony: false — interpolacja miedzy pomiarami (poziomy 5, 6, 8, 16-20)
+//                    albo ekstrapolacja wspolczynnikiem 1,20467 (poziomy 22-30)
+const TABELA_G = {
+  1: { g: 0.00772, zmierzony: true },
+  // Poziomy 1 i 2 sa nierozroznialne: gra pokazuje czasy w pelnych sekundach,
+  // a jedyna obserwacja poziomu 2 (Schowek 13 s przy Ratuszu 1) daje przedzial
+  // 0,00729-0,00788, w ktorym miesci sie G(1). Bierzemy wartosc rowna G(1),
+  // bo czas budowy nie moze malec z poziomem, a 0,00772 nadal odtwarza te 13 s.
+  2: { g: 0.00772, zmierzony: true },
+  3: { g: 0.16146, zmierzony: true },
+  4: { g: 0.50042, zmierzony: true },
+  5: { g: 1.05552, zmierzony: false },
+  6: { g: 1.61879, zmierzony: false },
+  7: { g: 2.15879, zmierzony: true },
+  8: { g: 2.88378, zmierzony: false },
+  9: { g: 3.82677, zmierzony: true },
+  10: { g: 4.89263, zmierzony: true },
+  11: { g: 6.15777, zmierzony: true },
+  12: { g: 7.65959, zmierzony: true },
+  13: { g: 9.44427, zmierzony: true },
+  14: { g: 11.5661, zmierzony: true },
+  15: { g: 14.08831, zmierzony: true },
+  16: { g: 17.08524, zmierzony: false },
+  17: { g: 20.64453, zmierzony: false },
+  18: { g: 24.87289, zmierzony: false },
+  19: { g: 29.90201, zmierzony: false },
+  20: { g: 35.89576, zmierzony: false },
+  21: { g: 43.05963, zmierzony: true },
+  22: { g: 51.8727, zmierzony: false },
+  23: { g: 62.48955, zmierzony: false },
+  24: { g: 75.27937, zmierzony: false },
+  25: { g: 90.6869, zmierzony: false },
+  26: { g: 109.24791, zmierzony: false },
+  27: { g: 131.60782, zmierzony: false },
+  28: { g: 158.54416, zmierzony: false },
+  29: { g: 190.9936, zmierzony: false },
+  30: { g: 230.08451, zmierzony: false },
+};
+const MINIMALNY_CZAS_S = 10;
+
+// Mur na poziomach 1 i 2 pokazuje rowne 4:00 w wioskach o Ratuszu 3 i 14,
+// czyli nie skaluje sie wcale. Mechanika nieznana — wartosc obserwowana.
+const MUR_STALY_CZAS_S = 240;
+const MUR_STALY_DO_POZIOMU = 2;
+
+// src/wioska/wymagania-dane.js
+// Wymagania sa wspolne dla swiatow — nie ma ich w zadnym endpoincie
+// interface.php, wiec pochodza z ekranu Ratusza i wiki.
+// Budynki niewymienione nie maja zadnych wymagan.
+const WYMAGANIA = {
+  koszary: { ratusz: 3 },
+  mur: { koszary: 1 },
+  kuznia: { ratusz: 5, koszary: 1 },
+  rynek: { ratusz: 3, spichlerz: 2 },
+  stajnia: { ratusz: 10, koszary: 5, kuznia: 5 },
+  warsztat: { ratusz: 10, kuznia: 10 },
+  palac: { ratusz: 20, kuznia: 20, rynek: 10 },
+  kosciol: { ratusz: 5, zagroda: 5 },
+  wieza: { ratusz: 5, zagroda: 5 },
+};
+
+// src/wioska/nazwy.js
+// Nazwy widoczne dla gracza — wspolne dla komunikatow silnika i interfejsu,
+// zeby nie rozjechaly sie miedzy jednym a drugim.
+const NAZWY = {
+  ratusz: 'Ratusz', koszary: 'Koszary', stajnia: 'Stajnia', warsztat: 'Warsztat',
+  kuznia: 'Kuźnia', palac: 'Pałac', plac: 'Plac', piedestal: 'Piedestał',
+  rynek: 'Rynek', tartak: 'Tartak', cegielnia: 'Cegielnia', huta: 'Huta żelaza',
+  zagroda: 'Zagroda', spichlerz: 'Spichlerz', schowek: 'Schowek', mur: 'Mur obronny',
+  wieza: 'Wieża strażnicza', kosciol: 'Kościół',
+};
+const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glina', zelazo: 'żelazo' };
+
+// src/wioska/swiat.js
+// Wyprowadzenie kosztow i ludnosci z danych swiata. Gra liczy je ze wzoru,
+// wiec my tez — dzieki temu dowolny swiat dziala bez wklejania tabel.
+
+// Math.round(-0.5) daje -0, a gra zaokragla polowke zawsze w gore.
+function zaokr(x) {
+  return Math.floor(x + 0.5);
+}
+
+function danegoBudynku(s, budynek) {
+  const d = s.budynki[budynek];
+  if (!d) throw new Error(`Budynek ${budynek} nie istnieje na świecie ${s.kod}`);
+  return d;
+}
+function kosztPoziomu(s, budynek, poziom) {
+  const d = danegoBudynku(s, budynek);
+  return {
+    drewno: zaokr(d.drewno * d.fDrewno ** (poziom - 1)),
+    glina: zaokr(d.glina * d.fGlina ** (poziom - 1)),
+    zelazo: zaokr(d.zelazo * d.fZelazo ** (poziom - 1)),
+  };
+}
+
+// Wartosc w tabeli gry jest skumulowana: to laczna ludnosc budynku na tym
+// poziomie, a nie przyrost wzgledem poprzedniego.
+function ludnoscPoziomu(s, budynek, poziom) {
+  const d = danegoBudynku(s, budynek);
+  if (poziom <= 0 || d.pop === 0) return 0;
+  return zaokr(d.pop * d.fPop ** (poziom - 1));
+}
+function maksPoziom(s, budynek) {
+  return danegoBudynku(s, budynek).maks;
+}
+
+// Budynek nieobecny w configu swiata jest na nim wylaczony (np. Kosciol na 231).
+function budynkiSwiata(s) {
+  return Object.keys(s.budynki);
+}
+function poziomyStartowe(s) {
+  const p = {};
+  for (const b of budynkiSwiata(s)) p[b] = s.budynki[b].min;
+  return p;
+}
+
+// src/wioska/tabele.js
+// Tabele niezalezne od swiata, przepisane z _share/budynki.xlsx i zweryfikowane
+// wzgledem gry. Trzymamy tabele zamiast wzorow, bo najlepsze dopasowane wzory
+// myla sie o jednostke na kilkunastu poziomach.
+const POJEMNOSC_SPICHLERZA = [
+  1000, 1229, 1512, 1859, 2285, 2810, 3454, 4247, 5222, 6420,
+  7893, 9705, 11932, 14670, 18037, 22177, 27266, 33523, 41217, 50675,
+  62305, 76604, 94184, 115798, 142373, 175047, 215219, 264611, 325337, 400000,
+];
+const MAKS_LUDNOSC_ZAGRODY = [
+  240, 281, 329, 386, 452, 530, 622, 729, 854, 1002,
+  1174, 1376, 1613, 1891, 2216, 2598, 3045, 3569, 4183, 4904,
+  5748, 6737, 7896, 9255, 10848, 12715, 14904, 17469, 20476, 24000,
+];
+
+// Wartosci dla swiata o produkcjaBazowa = 30. Inne swiaty skaluja sie liniowo.
+const PRODUKCJA_H_BAZA30 = [
+  30, 35, 41, 47, 55, 64, 74, 86, 100, 117,
+  136, 158, 184, 214, 249, 289, 337, 391, 455, 530,
+  616, 717, 833, 969, 1127, 1311, 1525, 1774, 2063, 2400,
+];
+const SCHOWANE_SUROWCE = [150, 200, 267, 356, 474, 632, 843, 1125, 1500, 2000];
+
+// Jedyna tabela bez wzoru: do 11 rosnie o jeden, potem skacze.
+const KUPCY = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+  11, 14, 19, 26, 35, 46, 59, 74, 91, 110,
+  131, 154, 179, 206, 235,
+];
+
+function zTabeli(tabela, poziom, nazwa) {
+  const v = tabela[poziom - 1];
+  if (v === undefined) throw new Error(`${nazwa}: poziom ${poziom} poza zakresem 1–${tabela.length}`);
+  return v;
+}
+function pojemnosc(poziom) {
+  return zTabeli(POJEMNOSC_SPICHLERZA, poziom, 'Spichlerz');
+}
+function maksLudnosc(poziom) {
+  return zTabeli(MAKS_LUDNOSC_ZAGRODY, poziom, 'Zagroda');
+}
+function schowane(poziom) {
+  return zTabeli(SCHOWANE_SUROWCE, poziom, 'Schowek');
+}
+function kupcy(poziom) {
+  return zTabeli(KUPCY, poziom, 'Rynek');
+}
+
+// Kopalnia na poziomie 0 nie produkuje nic. Zalozenie: nie udalo sie tego
+// potwierdzic obserwacyjnie, ale bledna wartosc rzedu kilku jednostek na
+// godzine zmienia wynik kilkudniowego planu o promile.
+function produkcjaGodzinowa(s, poziom) {
+  if (poziom <= 0) return 0;
+  return Math.floor(zTabeli(PRODUKCJA_H_BAZA30, poziom, 'Kopalnia') * s.produkcjaBazowa / 30 + 0.5);
+}
+
+// src/wioska/czas.js
+// czas = maks(10 s, build_time x G(poziom) x 1,05^(-ratusz) / predkosc swiata)
+function wspolczynnikG(poziom) {
+  const w = TABELA_G[poziom];
+  if (!w) throw new Error(`Brak współczynnika czasu dla poziomu ${poziom}`);
+  return w;
+}
+function czasBudowy(s, budynek, poziom, poziomRatusza) {
+  if (budynek === 'mur' && poziom <= MUR_STALY_DO_POZIOMU) {
+    return { sekundy: MUR_STALY_CZAS_S, pewny: true };
+  }
+  const d = s.budynki[budynek];
+  if (!d) throw new Error(`Budynek ${budynek} nie istnieje na świecie ${s.kod}`);
+  const { g, zmierzony } = wspolczynnikG(poziom);
+  const surowy = d.czas * g * 1.05 ** -poziomRatusza / s.predkosc;
+  return { sekundy: Math.max(MINIMALNY_CZAS_S, Math.round(surowy)), pewny: zmierzony };
+}
+
+// src/wioska/wymagania.js
+
+// Pusta lista znaczy „mozna budowac". Kolejnosc wynikow idzie za kolejnoscia
+// wpisow w WYMAGANIA, zeby komunikat byl zawsze taki sam.
+function brakujaceWymagania(budynek, poziomy) {
+  const wym = WYMAGANIA[budynek];
+  if (!wym) return [];
+  const brak = [];
+  for (const [wymagany, poziom] of Object.entries(wym)) {
+    if ((poziomy[wymagany] ?? 0) < poziom) brak.push({ budynek: wymagany, poziom });
+  }
+  return brak;
+}
+function opisWymagan(brakujace, nazwy) {
+  if (!brakujace.length) return '';
+  const czesci = brakujace.map(b => `${nazwy[b.budynek] ?? b.budynek} ${b.poziom}`);
+  return `Wymaga: ${czesci.join(', ')}`;
+}
+
+// src/wioska/plan.js
+// Plan to czysty obiekt bez stanu interfejsu — ten sam ksztalt jedzie
+// do CLI, do schowka i do localStorage.
+
+// Obie stale sa wspoldzielone przez caly proces. Zamrazamy je, zeby
+// przypadkowa mutacja wywalila sie od razu, zamiast po cichu zmienic
+// wartosci domyslne kolejnych planow. Kopie do modyfikacji daje
+// normalizujPlan, ktory zawsze buduje nowe obiekty.
+function zamroz(obiekt) {
+  for (const v of Object.values(obiekt)) {
+    if (v && typeof v === 'object') zamroz(v);
+  }
+  return Object.freeze(obiekt);
+}
+const SUROWCE_STARTOWE = zamroz({ drewno: 1000, glina: 1000, zelazo: 1000 });
+const PLAN_PUSTY = zamroz(normalizujPlan({ swiat: 'pl231' }));
+function normalizujPlan(surowy) {
+  const kod = surowy?.swiat ?? 'pl231';
+  const s = SWIATY[kod];
+  const poziomy = s ? poziomyStartowe(s) : {};
+  return {
+    swiat: kod,
+    start: {
+      poziomy: { ...poziomy, ...(surowy?.start?.poziomy ?? {}) },
+      surowce: { ...SUROWCE_STARTOWE, ...(surowy?.start?.surowce ?? {}) },
+    },
+    kroki: (surowy?.kroki ?? []).map(k => ({
+      budynek: k.budynek,
+      doPoziomu: Number(k.doPoziomu),
+    })),
+    dochody: [...(surowy?.dochody ?? [])]
+      .map(d => ({
+        czasS: Number(d.czasS ?? 0),
+        drewnoH: Number(d.drewnoH ?? 0),
+        glinaH: Number(d.glinaH ?? 0),
+        zelazoH: Number(d.zelazoH ?? 0),
+      }))
+      .sort((a, b) => a.czasS - b.czasS),
+    zastrzyki: [...(surowy?.zastrzyki ?? [])]
+      .map(z => ({
+        czasS: Number(z.czasS ?? 0),
+        drewno: Number(z.drewno ?? 0),
+        glina: Number(z.glina ?? 0),
+        zelazo: Number(z.zelazo ?? 0),
+      }))
+      .sort((a, b) => a.czasS - b.czasS),
+  };
+}
+function bledyPlanu(plan) {
+  const bledy = [];
+  let s;
+  try {
+    s = swiat(plan.swiat);
+  } catch (e) {
+    return [e.message];
+  }
+  const dostepne = new Set(budynkiSwiata(s));
+  // Kopia poziomow startowych — sprawdzamy, czy kroki tworza ciagla sciezke.
+  const poziomy = { ...plan.start.poziomy };
+  plan.kroki.forEach((krok, i) => {
+    if (!dostepne.has(krok.budynek)) {
+      bledy.push(`Krok ${i + 1}: budynek ${krok.budynek} nie istnieje na świecie ${plan.swiat}`);
+      return;
+    }
+    const maks = maksPoziom(s, krok.budynek);
+    if (krok.doPoziomu > maks) {
+      bledy.push(`Krok ${i + 1}: ${krok.budynek} ma maksymalnie ${maks} poziomów, nie ${krok.doPoziomu}`);
+      return;
+    }
+    const oczekiwany = (poziomy[krok.budynek] ?? 0) + 1;
+    if (krok.doPoziomu !== oczekiwany) {
+      bledy.push(`Krok ${i + 1}: ${krok.budynek} powinien iść na poziom ${oczekiwany}, nie ${krok.doPoziomu}`);
+      return;
+    }
+    poziomy[krok.budynek] = krok.doPoziomu;
+  });
+  return bledy;
+}
+
+// src/wioska/symulacja.js
+// Przebieg osi czasu. W wiosce buduje sie jeden budynek naraz, wiec kroki
+// ida sekwencyjnie — liczba slotow kolejki nie zmienia laczonego czasu.
+
+const SUROWCE = ['drewno', 'glina', 'zelazo'];
+// Prog, powyzej ktorego przestoj przestaje byc szumem i warto o nim powiedziec.
+const PROG_PRZESTOJU_S = 3600;
+// Tolerancja na blad zaokraglenia zmiennoprzecinkowego. Bez niej "starczy na
+// koszt" potrafi zostac tuz ponizej progu (np. 59,999999999999986 zamiast 60)
+// o kwote mniejsza niz precyzja dodawania do zegara — dt liczony wprost z tej
+// reszty wtedy nie przesuwa juz czasu i petla nigdy sie nie konczy.
+const EPS = 1e-6;
+
+const zeroSurowce = () => ({ drewno: 0, glina: 0, zelazo: 0 });
+
+function produkcjaNaSekunde(s, poziomy, dochod) {
+  return {
+    drewno: (produkcjaGodzinowa(s, poziomy.tartak ?? 0) + dochod.drewnoH) / 3600,
+    glina: (produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) + dochod.glinaH) / 3600,
+    zelazo: (produkcjaGodzinowa(s, poziomy.huta ?? 0) + dochod.zelazoH) / 3600,
+  };
+}
+
+// Dochod obowiazuje od swojego czasu do nastepnego wpisu. Przed pierwszym
+// wpisem gracz nie ma zadnego dodatkowego zrodla.
+function dochodWChwili(dochody, czas) {
+  let biezacy = { czasS: 0, drewnoH: 0, glinaH: 0, zelazoH: 0 };
+  for (const d of dochody) {
+    if (d.czasS <= czas) biezacy = d; else break;
+  }
+  return biezacy;
+}
+
+function nastepneZdarzenie(plan, czas) {
+  let naj = Infinity;
+  for (const d of plan.dochody) if (d.czasS > czas && d.czasS < naj) naj = d.czasS;
+  for (const z of plan.zastrzyki) if (z.czasS > czas && z.czasS < naj) naj = z.czasS;
+  return naj;
+}
+
+function dolej(stan, ile, sufit) {
+  for (const r of SUROWCE) {
+    const suma = stan.zasoby[r] + ile[r];
+    if (suma > sufit) {
+      stan.zmarnowane[r] += suma - sufit;
+      stan.zasoby[r] = sufit;
+    } else {
+      stan.zasoby[r] = suma;
+    }
+  }
+}
+function symuluj(plan) {
+  const s = swiat(plan.swiat);
+  const poziomy = { ...plan.start.poziomy };
+  const stan = {
+    zasoby: { ...plan.start.surowce },
+    zmarnowane: zeroSurowce(),
+  };
+  const zZastrzykow = zeroSurowce();
+  const zastosowaneZastrzyki = new Set();
+  let czas = 0;
+  const kroki = [];
+  const ostrzezenia = [];
+  const koszt = zeroSurowce();
+  let czasNiepewnyS = 0;
+
+  const ludnoscZajeta = () => budynkiSwiata(s)
+    .reduce((suma, b) => suma + ludnoscPoziomu(s, b, poziomy[b] ?? 0), 0);
+
+  // Zastrzyki wpadaja dokladnie w swoim czasie; kazdy tylko raz.
+  const wpuscZastrzyki = (doCzasu, sufit) => {
+    for (let i = 0; i < plan.zastrzyki.length; i++) {
+      const z = plan.zastrzyki[i];
+      if (zastosowaneZastrzyki.has(i) || z.czasS > doCzasu) continue;
+      zastosowaneZastrzyki.add(i);
+      dolej(stan, { drewno: z.drewno, glina: z.glina, zelazo: z.zelazo }, sufit);
+      for (const r of SUROWCE) zZastrzykow[r] += z[r];
+    }
+  };
+
+  plan.kroki.forEach((krok, i) => {
+    const sufit = pojemnosc(poziomy.spichlerz ?? 1);
+    const wpis = {
+      budynek: krok.budynek,
+      doPoziomu: krok.doPoziomu,
+      startS: czas,
+      czekanieS: 0,
+      czekanieNa: null,
+      trwanieS: 0,
+      koniecS: czas,
+      koszt: zeroSurowce(),
+      pewny: true,
+      zasobyPo: { ...stan.zasoby },
+      ludnoscPo: ludnoscZajeta(),
+      blad: null,
+    };
+
+    const brak = brakujaceWymagania(krok.budynek, poziomy);
+    if (brak.length) {
+      wpis.blad = 'wymagania';
+      ostrzezenia.push({ typ: 'wymagania', krok: i, tekst: `Krok ${i + 1}: ${opisWymagan(brak, NAZWY)}` });
+      kroki.push(wpis);
+      return;
+    }
+
+    const c = kosztPoziomu(s, krok.budynek, krok.doPoziomu);
+    wpis.koszt = c;
+
+    if (SUROWCE.some(r => c[r] > sufit)) {
+      wpis.blad = 'ponad-spichlerz';
+      ostrzezenia.push({
+        typ: 'ponad-spichlerz', krok: i,
+        tekst: `Krok ${i + 1}: ${NAZWY[krok.budynek]} ${krok.doPoziomu} kosztuje więcej, niż mieści Spichlerz ${poziomy.spichlerz} (${sufit}). Rozbuduj Spichlerz wcześniej.`,
+      });
+      kroki.push(wpis);
+      return;
+    }
+
+    const ludnoscPo = ludnoscZajeta()
+      - ludnoscPoziomu(s, krok.budynek, poziomy[krok.budynek] ?? 0)
+      + ludnoscPoziomu(s, krok.budynek, krok.doPoziomu);
+    const limit = maksLudnosc(poziomy.zagroda ?? 1);
+    if (ludnoscPo > limit) {
+      wpis.blad = 'ponad-zagrode';
+      ostrzezenia.push({
+        typ: 'ponad-zagrode', krok: i,
+        tekst: `Krok ${i + 1}: ${NAZWY[krok.budynek]} ${krok.doPoziomu} wymaga ${ludnoscPo} ludności, a Zagroda ${poziomy.zagroda} daje ${limit}.`,
+      });
+      kroki.push(wpis);
+      return;
+    }
+
+    // Przesuwaj zegar skokami miedzy zdarzeniami, az stac na krok.
+    const poczatek = czas;
+    let czekanieNa = null;
+    // Zapamietane przed czekaniem: przelanie magazynu potrafi zdarzyc sie
+    // zarowno w tej fazie, jak i pozniej w trakcie budowy — porownanie na
+    // koncu kroku ma objac obie.
+    const zmarnowanePrzed = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
+    wpuscZastrzyki(czas, sufit);
+    for (;;) {
+      if (SUROWCE.every(r => stan.zasoby[r] >= c[r] - EPS)) break;
+      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, czas));
+      let potrzebaS = 0;
+      for (const r of SUROWCE) {
+        const brakuje = c[r] - stan.zasoby[r];
+        if (brakuje <= 0) continue;
+        const dt = stawka[r] > 0 ? brakuje / stawka[r] : Infinity;
+        if (dt > potrzebaS) { potrzebaS = dt; czekanieNa = r; }
+      }
+      const zdarzenie = nastepneZdarzenie(plan, czas);
+      if (potrzebaS === Infinity && zdarzenie === Infinity) {
+        wpis.blad = 'brak-dochodu';
+        ostrzezenia.push({
+          typ: 'przestoj', krok: i,
+          tekst: `Krok ${i + 1}: przy zerowej produkcji ${czekanieNa} tego kroku nie da się nigdy opłacić.`,
+        });
+        break;
+      }
+      const doCzasu = Math.min(czas + potrzebaS, zdarzenie);
+      const dt = doCzasu - czas;
+      dolej(stan, {
+        drewno: stawka.drewno * dt, glina: stawka.glina * dt, zelazo: stawka.zelazo * dt,
+      }, sufit);
+      czas = doCzasu;
+      wpuscZastrzyki(czas, sufit);
+    }
+
+    if (wpis.blad) { kroki.push(wpis); return; }
+
+    wpis.czekanieS = Math.round(czas - poczatek);
+    wpis.czekanieNa = wpis.czekanieS > 0 ? czekanieNa : null;
+    wpis.startS = Math.round(czas);
+    if (wpis.czekanieS >= PROG_PRZESTOJU_S) {
+      ostrzezenia.push({
+        typ: 'przestoj', krok: i,
+        tekst: `Krok ${i + 1}: ${Math.round(wpis.czekanieS / 3600)} h przestoju w oczekiwaniu na ${czekanieNa}.`,
+      });
+    }
+    for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
+
+    const { sekundy, pewny } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
+    wpis.trwanieS = sekundy;
+    wpis.pewny = pewny;
+    if (!pewny) czasNiepewnyS += sekundy;
+
+    // Produkcja plynie takze w trakcie budowy. Stawka liczona osobno w kazdym
+    // segmencie miedzy zdarzeniami — dochod gracza potrafi zmienic sie w
+    // srodku okna budowy, wiec jednorazowe przeliczenie na starcie kroku
+    // pomijaloby te zmiane.
+    const koniec = czas + sekundy;
+    let biezacy = czas;
+    for (;;) {
+      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, biezacy));
+      const zdarzenie = Math.min(nastepneZdarzenie(plan, biezacy), koniec);
+      const dt = zdarzenie - biezacy;
+      dolej(stan, {
+        drewno: stawka.drewno * dt, glina: stawka.glina * dt, zelazo: stawka.zelazo * dt,
+      }, sufit);
+      biezacy = zdarzenie;
+      wpuscZastrzyki(biezacy, sufit);
+      if (biezacy >= koniec) break;
+    }
+    czas = koniec;
+
+    // Ostrzegamy raz, ale dopiero po fazie budowy — magazyn potrafi przelac
+    // sie wylacznie w jej trakcie, gdy na krok stac od reki i nie bylo
+    // oczekiwania, wiec sprawdzenie sprzed fazy budowy by to przegapilo.
+    const zmarnowanePo = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
+    if (zmarnowanePo > zmarnowanePrzed && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
+      ostrzezenia.push({
+        typ: 'przepelnienie', krok: i,
+        tekst: 'Spichlerz się przepełnia — część produkcji przepada. Rozbuduj go wcześniej.',
+      });
+    }
+
+    poziomy[krok.budynek] = krok.doPoziomu;
+    wpis.koniecS = Math.round(czas);
+    wpis.zasobyPo = { ...stan.zasoby };
+    wpis.ludnoscPo = ludnoscZajeta();
+    kroki.push(wpis);
+  });
+
+  return {
+    kroki,
+    ostrzezenia,
+    podsumowanie: {
+      czasS: Math.round(czas),
+      koszt,
+      zZastrzykow,
+      zmarnowane: {
+        drewno: Math.round(stan.zmarnowane.drewno),
+        glina: Math.round(stan.zmarnowane.glina),
+        zelazo: Math.round(stan.zmarnowane.zelazo),
+      },
+      czasNiepewnyS,
+    },
+  };
+}
+
+// src/wioska/format.js
+// Dwie postacie eksportu: tekst do przepisania do Menedzera Konta
+// i JSON, ktory jest kanalem wymiany planu z Claude.
+function czasCzytelny(sekundy) {
+  const s = Math.max(0, Math.round(sekundy));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `${d} d ${String(h).padStart(2, '0')} h ${String(m).padStart(2, '0')} min`;
+  if (h) return `${h} h ${String(m).padStart(2, '0')} min`;
+  // Ponizej minuty pokazujemy sekundy: minimalny czas budowy to 10 s, a caly
+  // wczesny etap planu mieści sie w tym zakresie i wyswietlalby sie jako zero.
+  if (m) return `${m} min`;
+  return `${s} s`;
+}
+function planJSON(plan) {
+  return JSON.stringify(plan, null, 2);
+}
+
+function liczba(n) {
+  return Math.round(n).toLocaleString('pl-PL');
+}
+function planTekst(plan, wynik) {
+  const linie = [`Plan budowy — ${plan.swiat}`, ''];
+  plan.kroki.forEach((k, i) => {
+    linie.push(`${String(i + 1).padStart(3)}. ${NAZWY[k.budynek] ?? k.budynek} → ${k.doPoziomu}`);
+  });
+  const { koszt, czasS, zmarnowane, zZastrzykow } = wynik.podsumowanie;
+  linie.push('', 'Podsumowanie');
+  linie.push(`  Łączny czas: ${czasCzytelny(czasS)}`);
+  linie.push(`  Surowce: ${liczba(koszt.drewno)} drewna, ${liczba(koszt.glina)} gliny, ${liczba(koszt.zelazo)} żelaza`);
+  if (zZastrzykow.drewno || zZastrzykow.glina || zZastrzykow.zelazo) {
+    linie.push(`  Z dosyłek: ${liczba(zZastrzykow.drewno)} / ${liczba(zZastrzykow.glina)} / ${liczba(zZastrzykow.zelazo)}`);
+  }
+  if (zmarnowane.drewno || zmarnowane.glina || zmarnowane.zelazo) {
+    linie.push(`  Zmarnowane przez pełny spichlerz: ${liczba(zmarnowane.drewno)} / ${liczba(zmarnowane.glina)} / ${liczba(zmarnowane.zelazo)}`);
+  }
+  return linie.join('\n');
+}
+function osCzasuTekst(wynik) {
+  const linie = ['  # | start        | krok                      | trwanie      | uwagi'];
+  wynik.kroki.forEach((k, i) => {
+    const nazwa = `${NAZWY[k.budynek] ?? k.budynek} → ${k.doPoziomu}`;
+    const uwagi = [];
+    if (k.blad) uwagi.push(`BŁĄD: ${k.blad}`);
+    if (k.czekanieS > 0) uwagi.push(`czeka ${czasCzytelny(k.czekanieS)} na ${NAZWY_SUROWCOW[k.czekanieNa] ?? k.czekanieNa}`);
+    if (!k.pewny) uwagi.push('≈ czas z poziomu bez pomiaru');
+    linie.push(
+      `${String(i + 1).padStart(3)} | ${czasCzytelny(k.startS).padEnd(12)} | ${nazwa.padEnd(25)} | ${czasCzytelny(k.trwanieS).padEnd(12)} | ${uwagi.join('; ')}`,
+    );
+  });
+  if (wynik.ostrzezenia.length) {
+    linie.push('', 'Ostrzeżenia:');
+    for (const o of wynik.ostrzezenia) linie.push(`  • ${o.tekst}`);
+  }
+  return linie.join('\n');
+}
+
+// src/wioska/strona.js
+// Warstwa DOM. Cala arytmetyka siedzi w pozostalych modulach — tutaj tylko
+// przepisywanie stanu na ekran i z powrotem.
+function uruchom() {
+  if (typeof document === 'undefined') return;
+}
+
+uruchom();
+</script>
+</body>
+</html>
