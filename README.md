@@ -12,12 +12,16 @@ w Twojej przeglądarce** — żadne dane nie trafiają na serwer.
 
 ## Jak używać (wersja hostowana)
 
-1. **Krok 1 – kolektor.** Otwórz stronę główną i przeciągnij przycisk „Pobierz log PP”
-   na pasek zakładek przeglądarki.
+Strona główna to rozdzielnik z kartami do czterech narzędzi. Symulator wioski
+i kursy giełdy działają od razu — wystarczy wejść na ich kartę, żadnego
+kolektora nie trzeba instalować. Analiza punktów premium potrzebuje logu z gry:
+
+1. **Krok 1 – kolektor.** Wejdź na kartę „Kolektory” i przeciągnij przycisk
+   „Pobierz log PP” na pasek zakładek przeglądarki.
 2. **Krok 2 – pobierz log.** Zaloguj się w grze, wejdź na *Premium → Log punktów*,
    kliknij zakładkę. Zapisze się plik `plemiona-log-*.json`.
-3. **Krok 3 – analiza.** Otwórz dashboard i przeciągnij na niego plik JSON (lub CSV).
-   Zobaczysz bilans PP, arbitraż giełdowy, wydatki i wykresy.
+3. **Krok 3 – analiza.** Otwórz kartę „Analiza punktów premium” i przeciągnij na
+   nią plik JSON (lub CSV). Zobaczysz bilans PP, arbitraż giełdowy, wydatki i wykresy.
 
 ## Prywatność
 

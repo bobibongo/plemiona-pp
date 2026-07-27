@@ -227,7 +227,9 @@ const NAZWY = {
   zagroda: 'Zagroda', spichlerz: 'Spichlerz', schowek: 'Schowek', mur: 'Mur obronny',
   wieza: 'Wieża strażnicza', kosciol: 'Kościół',
 };
-const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glina', zelazo: 'żelazo' };
+
+// Formy uzywane wylacznie po przyimku "na", stad biernik.
+const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glinę', zelazo: 'żelazo' };
 
 // src/wioska/swiat.js
 // Wyprowadzenie kosztow i ludnosci z danych swiata. Gra liczy je ze wzoru,
@@ -621,7 +623,7 @@ function symuluj(plan) {
     if (wpis.czekanieS >= PROG_PRZESTOJU_S) {
       ostrzezenia.push({
         typ: 'przestoj', krok: i,
-        tekst: `Krok ${i + 1}: ${Math.round(wpis.czekanieS / 3600)} h przestoju w oczekiwaniu na ${czekanieNa}.`,
+        tekst: `Krok ${i + 1}: ${czasCzytelny(wpis.czekanieS)} przestoju w oczekiwaniu na ${NAZWY_SUROWCOW[czekanieNa] ?? czekanieNa}.`,
       });
     }
     for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }

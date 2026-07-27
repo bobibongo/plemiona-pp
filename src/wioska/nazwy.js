@@ -10,4 +10,5 @@ export const NAZWY = {
   wieza: 'Wieża strażnicza', kosciol: 'Kościół',
 };
 
-export const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glina', zelazo: 'żelazo' };
+// Formy uzywane wylacznie po przyimku "na", stad biernik.
+export const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glinę', zelazo: 'żelazo' };

@@ -60,7 +60,10 @@ Poza zakresem (v1):
 ### Dane świata
 
 `tools/fetch-swiat.js pl231` pobiera trzy publiczne endpointy (`get_config`,
-`get_building_info`, `get_unit_info`) i zapisuje `src/data/swiaty/pl231.json`.
+`get_building_info`, `get_unit_info`) i wypisuje na stdout gotowy wpis do
+wklejenia do stałej `SWIATY` w `src/wioska/swiaty.js` — nie plik JSON. Dane
+świata żyją jako moduł JS z nazwanym eksportem, bo `build.js` skleja moduły
+przez usuwanie linii `import`, a import pliku JSON tego by nie przetrwał.
 Endpointy nie wymagają logowania. Strona nie pobiera ich w locie — CORS na to
 nie pozwala — więc światy są wbudowane w paczkę, a poza tym strona przyjmuje
 wklejony config świata, którego w paczce nie ma.

@@ -7,7 +7,8 @@ import { kosztPoziomu, ludnoscPoziomu, budynkiSwiata } from './swiat.js';
 import { pojemnosc, maksLudnosc, produkcjaGodzinowa } from './tabele.js';
 import { czasBudowy } from './czas.js';
 import { brakujaceWymagania, opisWymagan } from './wymagania.js';
-import { NAZWY } from './nazwy.js';
+import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
+import { czasCzytelny } from './format.js';
 
 const SUROWCE = ['drewno', 'glina', 'zelazo'];
 // Prog, powyzej ktorego przestoj przestaje byc szumem i warto o nim powiedziec.
@@ -182,7 +183,7 @@ export function symuluj(plan) {
     if (wpis.czekanieS >= PROG_PRZESTOJU_S) {
       ostrzezenia.push({
         typ: 'przestoj', krok: i,
-        tekst: `Krok ${i + 1}: ${Math.round(wpis.czekanieS / 3600)} h przestoju w oczekiwaniu na ${czekanieNa}.`,
+        tekst: `Krok ${i + 1}: ${czasCzytelny(wpis.czekanieS)} przestoju w oczekiwaniu na ${NAZWY_SUROWCOW[czekanieNa] ?? czekanieNa}.`,
       });
     }
     for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
