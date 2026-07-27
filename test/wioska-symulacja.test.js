@@ -145,3 +145,43 @@ test('dlugi przestoj daje ostrzezenie', () => {
   }));
   assert.ok(w.ostrzezenia.some(o => o.typ === 'przestoj'));
 });
+
+// Pulapka: stawka produkcji w fazie budowy liczona raz na starcie kroku,
+// zamiast przeliczana po kazdym zdarzeniu dochodu w oknie budowy — zmiana
+// dochodu w polowie dlugiej budowy byla po cichu ignorowana.
+test('zmiana dochodu w trakcie trwania budowy zwieksza zebrane zasoby', () => {
+  const zBudowa = (dochody) => plan({
+    start: {
+      poziomy: { tartak: 14, ratusz: 1, spichlerz: 20 },
+      surowce: { drewno: 2000, glina: 3000, zelazo: 2000 },
+    },
+    kroki: [{ budynek: 'tartak', doPoziomu: 15 }],
+    dochody,
+  });
+  const bez = symuluj(zBudowa([{ czasS: 0, drewnoH: 100, glinaH: 100, zelazoH: 100 }]));
+  const z = symuluj(zBudowa([
+    { czasS: 0, drewnoH: 100, glinaH: 100, zelazoH: 100 },
+    { czasS: 6000, drewnoH: 5000, glinaH: 5000, zelazoH: 5000 },
+  ]));
+  // Krok jest oplacalny od reki w obu wariantach — cala roznica w zasobyPo
+  // musi pochodzic z przeliczenia stawki w trakcie budowy, nie z czekania.
+  assert.equal(bez.kroki[0].czekanieS, 0);
+  assert.equal(z.kroki[0].czekanieS, 0);
+  assert.ok(z.kroki[0].zasobyPo.glina > bez.kroki[0].zasobyPo.glina + 1000);
+});
+
+// Pulapka: ostrzezenie o przepelnieniu sprawdzane bylo przed faza budowy, wiec
+// przelanie magazynu wylacznie podczas budowy (bez zadnego oczekiwania) nigdy
+// nie generowalo ostrzezenia, mimo ze podsumowanie.zmarnowane bylo niezerowe.
+test('przelanie magazynu wylacznie w trakcie budowy tez daje ostrzezenie o przepelnieniu', () => {
+  const w = symuluj(plan({
+    start: {
+      poziomy: { ratusz: 3, spichlerz: 1, tartak: 20, cegielnia: 20, huta: 20, zagroda: 10 },
+      surowce: { drewno: 1000, glina: 1000, zelazo: 1000 },
+    },
+    kroki: [{ budynek: 'koszary', doPoziomu: 6 }],
+  }));
+  assert.equal(w.kroki[0].czekanieS, 0);
+  assert.ok(w.podsumowanie.zmarnowane.zelazo > 0);
+  assert.ok(w.ostrzezenia.some(o => o.typ === 'przepelnienie'));
+});

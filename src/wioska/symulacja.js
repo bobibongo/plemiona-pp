@@ -141,6 +141,10 @@ export function symuluj(plan) {
     // Przesuwaj zegar skokami miedzy zdarzeniami, az stac na krok.
     const poczatek = czas;
     let czekanieNa = null;
+    // Zapamietane przed czekaniem: przelanie magazynu potrafi zdarzyc sie
+    // zarowno w tej fazie, jak i pozniej w trakcie budowy — porownanie na
+    // koncu kroku ma objac obie.
+    const zmarnowanePrzed = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
     wpuscZastrzyki(czas, sufit);
     for (;;) {
       if (SUROWCE.every(r => stan.zasoby[r] >= c[r] - EPS)) break;
@@ -181,13 +185,6 @@ export function symuluj(plan) {
         tekst: `Krok ${i + 1}: ${Math.round(wpis.czekanieS / 3600)} h przestoju w oczekiwaniu na ${czekanieNa}.`,
       });
     }
-    if (SUROWCE.some(r => stan.zmarnowane[r] > 0) && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
-      ostrzezenia.push({
-        typ: 'przepelnienie', krok: i,
-        tekst: 'Spichlerz się przepełnia — część produkcji przepada. Rozbuduj go wcześniej.',
-      });
-    }
-
     for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
 
     const { sekundy, pewny } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
@@ -195,11 +192,14 @@ export function symuluj(plan) {
     wpis.pewny = pewny;
     if (!pewny) czasNiepewnyS += sekundy;
 
-    // Produkcja plynie takze w trakcie budowy.
-    const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, czas));
+    // Produkcja plynie takze w trakcie budowy. Stawka liczona osobno w kazdym
+    // segmencie miedzy zdarzeniami — dochod gracza potrafi zmienic sie w
+    // srodku okna budowy, wiec jednorazowe przeliczenie na starcie kroku
+    // pomijaloby te zmiane.
     const koniec = czas + sekundy;
     let biezacy = czas;
     for (;;) {
+      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, biezacy));
       const zdarzenie = Math.min(nastepneZdarzenie(plan, biezacy), koniec);
       const dt = zdarzenie - biezacy;
       dolej(stan, {
@@ -210,6 +210,17 @@ export function symuluj(plan) {
       if (biezacy >= koniec) break;
     }
     czas = koniec;
+
+    // Ostrzegamy raz, ale dopiero po fazie budowy — magazyn potrafi przelac
+    // sie wylacznie w jej trakcie, gdy na krok stac od reki i nie bylo
+    // oczekiwania, wiec sprawdzenie sprzed fazy budowy by to przegapilo.
+    const zmarnowanePo = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
+    if (zmarnowanePo > zmarnowanePrzed && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
+      ostrzezenia.push({
+        typ: 'przepelnienie', krok: i,
+        tekst: 'Spichlerz się przepełnia — część produkcji przepada. Rozbuduj go wcześniej.',
+      });
+    }
 
     poziomy[krok.budynek] = krok.doPoziomu;
     wpis.koniecS = Math.round(czas);
