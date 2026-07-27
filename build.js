@@ -58,13 +58,29 @@ const WIOSKA_LOGIC = [
   'src/wioska/plan.js',
   'src/wioska/symulacja.js',
   'src/wioska/format.js',
+  'src/wioska/ikony.js',
   'src/wioska/strona.js',
 ];
 
+function osadzIkonyBudynkow(js) {
+  const katalog = './src/assets/buildings/';
+  const pliki = [
+    'main', 'barracks', 'stable', 'garage', 'watchtower', 'snob', 'smith',
+    'place', 'statue', 'market', 'wood', 'stone', 'iron', 'farm', 'storage',
+    'hide', 'wall',
+  ];
+  let wynik = js;
+  for (const nazwa of pliki) {
+    const sciezka = `../assets/buildings/${nazwa}.webp`;
+    const base64 = readFileSync(new URL(`${katalog}${nazwa}.webp`, import.meta.url)).toString('base64');
+    wynik = wynik.replaceAll(sciezka, `data:image/webp;base64,${base64}`);
+  }
+  return wynik;
+}
 // Symulator budowy wioski (dist/wioska/index.html) — samowystarczalny plik.
 export function buildWioskaPage() {
   const css = read('./src/wioska.css');
-  const js = WIOSKA_LOGIC.map(p => stripModule(read('./' + p))).join('\n');
+  const js = osadzIkonyBudynkow(WIOSKA_LOGIC.map(p => stripModule(read('./' + p))).join('\n'));
   return read('./src/wioska.template.html')
     .replace('/*INJECT:css*/', () => css)
     .replace('/*INJECT:js*/', () => js);

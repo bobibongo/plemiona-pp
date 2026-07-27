@@ -10,17 +10,23 @@ import { normalizujPlan, bledyPlanu } from './plan.js';
 import { symuluj } from './symulacja.js';
 import { czasCzytelny, planJSON, planTekst } from './format.js';
 import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
+import { IKONY_BUDYNKOW } from './ikony.js';
 
 export const KLUCZ_MAGAZYNU = 'plemiona-wioska';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function komorkaBudynku(budynek, nazwa, opis) {
+  const src = IKONY_BUDYNKOW[budynek];
+  const ikona = src ? `<img class="ikona-budynku" src="${esc(src)}" alt="">` : '';
+  return `<td><span class="budynek-opis">${ikona}<span>${esc(nazwa)}<br><small>${opis}</small></span></span></td>`;
+}
 
 export function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
   const obecny = poziomy[budynek] ?? 0;
   const nazwa = NAZWY[budynek] ?? budynek;
   const maks = maksPoziom(s, budynek);
   if (obecny >= maks) {
-    return `<tr><td>${esc(nazwa)}<br><small>Poziom ${obecny}</small></td>`
+    return `<tr>${komorkaBudynku(budynek, nazwa, `Poziom ${obecny}`)}`
       + `<td colspan="6"><em>Budynek całkowicie rozbudowany</em></td></tr>`;
   }
   const docelowy = obecny + 1;
@@ -33,7 +39,7 @@ export function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
     ? `<button disabled>Poziom ${docelowy}</button><div class="powod">${esc(opisWymagan(brak, NAZWY))}</div>`
     : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
   return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
-    + `<td>${esc(nazwa)}<br><small>${obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`}</small></td>`
+    + komorkaBudynku(budynek, nazwa, obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`)
     + `<td>${k.drewno}</td><td>${k.glina}</td><td>${k.zelazo}</td>`
     + `<td class="${pewny ? '' : 'niepewny'}">${pewny ? '' : '≈ '}${czasCzytelny(sekundy)}</td>`
     + `<td>${ludnosc}</td><td>${przycisk}</td></tr>`;

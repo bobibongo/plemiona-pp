@@ -18,6 +18,8 @@ h2{margin:0 0 10px;font-size:1.05rem}
 table{width:100%;border-collapse:collapse;font-size:.86rem}
 th{text-align:left;background:#e3d4b0;padding:6px;border-bottom:1px solid var(--line)}
 td{padding:5px 6px;border-bottom:1px solid #e0d2b4}
+.budynek-opis{display:flex;align-items:center;gap:7px;min-width:125px}
+.ikona-budynku{width:28px;height:28px;object-fit:contain;image-rendering:auto;flex:0 0 28px}
 tr.zablokowany td{color:var(--ink2);background:#efe4c8}
 tr.zablokowany .powod{font-size:.76rem;color:var(--acc)}
 button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;

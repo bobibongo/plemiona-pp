@@ -24,6 +24,8 @@ h2{margin:0 0 10px;font-size:1.05rem}
 table{width:100%;border-collapse:collapse;font-size:.86rem}
 th{text-align:left;background:#e3d4b0;padding:6px;border-bottom:1px solid var(--line)}
 td{padding:5px 6px;border-bottom:1px solid #e0d2b4}
+.budynek-opis{display:flex;align-items:center;gap:7px;min-width:125px}
+.ikona-budynku{width:28px;height:28px;object-fit:contain;image-rendering:auto;flex:0 0 28px}
 tr.zablokowany td{color:var(--ink2);background:#efe4c8}
 tr.zablokowany .powod{font-size:.76rem;color:var(--acc)}
 button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;
@@ -745,18 +747,45 @@ function osCzasuTekst(wynik) {
   return linie.join('\n');
 }
 
+// Lokalne kopie ikon z CDN gry. Podczas budowania strony sciezki sa zamieniane
+// na data URI, dzieki czemu dist/wioska/index.html pozostaje samowystarczalny.
+const IKONY_BUDYNKOW = Object.freeze({
+  ratusz: 'data:image/webp;base64,UklGRqwBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK8AAAABgGPb2rHn/rbV2YjVmVOwzRGYVaaQyulSqbRKVklp23nC9/uHEBETgAh75jdKjXwmVRfRw1y5WfCfueuWiOhltsj0B987Rf++Taf8Klgn1q0UAE/EvugHiOtMPA640GbW0PknB9rLqRu7+GAjqyizZYLtEBK7yDt8z3DUBr4QotSa8b/2R3otACAxImt8jeh6vcGYaP7Fg8Trcg8utKenCqTSX4BQDCij8rUaASIKAFZQOCDWAAAAEAUAnQEqEgASAD6RQpxKJaOioagIALASCWIAnTKDx55hQZdo3AwnVJmxLKrOyQDvkAD5udeSouTLcPJDAhV3aBtbIGXcGnK9HB1jfzMc6fdWJihN/pUaKtRVqQgmpCESRDygorGvhlKc2JYrbJ/SyjPvD82H7ogdHJXwfQ5QPi6K98AWRHftodpynXaudmtN/ncWsn1pZ8MjDK2qCSB0OIHvhH/97qXwCbQbC8HPirWnadKWLVbdPVlETw2IEQtaJ/9LG//xz/9G7//Qjnn519TaShrwAA==',
+  koszary: 'data:image/webp;base64,UklGRsoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSDwAAAABH6AgbQOm/iXv2oiI4BcYQpIkqfbpNWifQdinwQ/qICL6H4JtSMC7lUq74UAMW/+Yclppt62tgA1Z8AFWUDggaAAAAFACAJ0BKhAAEAACADQlAF2GCNERDzgBfp6y8AD8okK2ji93ic0O0a/mcF8w6OAE7SQHiMUM0GcnosjIuargbjkenmPD9UAGdD0I0JCFr7TqsLMpwmj8kGg1P3XUGsWT44RHyq0FEgAA',
+  stajnia: 'data:image/webp;base64,UklGRlQBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSKQAAAABgFtt2/LkTpDICNTuNokv4G4VabEBKJOeyjrSoa3t4O6uN/IdZoiICQBo2lLdaiIYm/g0+DkRA2Iz/nMmBv2q89XV86r9lO2pQwBD6l5Zn5olmFX7MmpjqFHNzOpGIlQwr5tjOhcNJcd1ZVktDBWq2936XB6aeNf2hkufU6H2Gy8bSOvD+p/d40/T0Hapryk4u9bLNmBJvYM7dQlgQL2He3UAAFZQOCCKAAAAcAIAnQEqEAAQAAIANCWUAnQGLBdonPTPfpG8QAD7BevlbIPVryFTxR/zoSjDeRPS2Bk9p7P3C28Y4D2bG05ybxNil+JKVgLmHSH7rsk2F4OtqO3L9EcnkmS9iMvZ/8/+ZSgxRvuTzpybTV+FfYuMQrVC1Fi9UeisLJyXRSsfeKJRhRO8nVF9IAAA',
+  warsztat: 'data:image/webp;base64,UklGRn4BAABXRUJQVlA4WAoAAAAQAAAAEQAAEgAAQUxQSLAAAAABgKtt//nlzbZt25vdWgfQ3OTOwG7zZJtnYJuT25pcb/h+fscQERMAwHowV/c4A5rJjU7uaSjuo1pD7r5AFwFpJFsvSFKILiAbYU8yWeiYJe88s0iaCfmU1+IC/P4BwkZo5EspQlU31XzNLum95kRETREAx8VcQ267HlC5AbmdysNkwYYkF52f+D5ipNL9V4hnklTBcIXqkywBj0ISZIptGgKcbKcY7b0arQFAFXUBAFZQOCCoAAAAsAQAnQEqEgATAD6RPpdIpaMiISgNULASCWcOYAAEbBuwA3V0B2tlwqTb5B7YAAD9a0bLZQCEcbi6WQDqTDzl2zzL/+1UxdTByZb5JIPeIjWp56QgIETnL17UqDwP67eFpkNL3160vlgGGbh9yPpn5//8oZ8lPN3c6Ar/YUCNqLwEpv9IXTXhH89sB/gDP6kwDOC3TlTJVU9RVRyw9pQXv7I/gfZqqAAA',
+  wieza: 'data:image/webp;base64,UklGRiIBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSGcAAAABcFNr29p8aiIiAiIgcqKBU9RQEdlKK+PUjZnpKX5TBETEBIgABXC4FQD5Bg6whYNKmzJyY1JPvKQ84Sa/lyxWtljTJUtFWDw3LqVYZwzvMzNUrOhex27vMWL1Z8P/zZ8loXyHLNMFAFZQOCCUAAAAUAQAnQEqEgASAD6ROplIJaMioSgNULASCWIAriokABMyeTr34Nr7U0bOaADOFe1tuNU5pDP9aFBb/T/+m2ahnB8SB2o7VAC2Nwd6VwldR9Q394M9+xrIIQ1ZVYMa08+jlcmsfGa9nWlWlrFZbpik/nyiiC3vadCn8j37071GFcdfWxOkxXK8eeB6SCD67vC7dzEAAA==',
+  palac: 'data:image/webp;base64,UklGRigBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGcAAAABcFpt27K8v+HukEgcmq7AHNZtA/dMIrGFW2UFtyUcfvd/gIiYAOCMbUk3CO6TZEZQ+U2S/7CAFMneuVkRI1gmHORGB5jlVIHog4scwPhHkukRyXtvkhqcn4somNsiArqhCJupLiIEAFZQOCCaAAAA8AIAnQEqEAAQAAIANCWQAnQwTMlT/jiRQD6zzJiskUAA/st16PeFze7Mr20kNyzlA6ScYd+n8/ify24iCaK0Qr5koUqc3vQjtXbsJvrofBisdPB3qfhXrLjoX/j4H1TwxqtPGAbtVvFb9nqP7orzPVmf7Ta2+em8WBnttun5GH0ifmaN25ta92TwzObe9BrVPfuOb8gyM7bQAA==',
+  kuznia: 'data:image/webp;base64,UklGRngBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSLQAAAABgGNrm/LkjQvu7u7au8MKYAWsgC4VVA5tSnQDXlO6U7q72+R/kZnJFiJiAvA/cmP54NAE7SWSvm69lIs3itdELfQJUsxomAuO345JGtkSpylrnuTrAPlZIunc+H482OgLTt8Zi4HUuDtb7IgGYIeyypsIf2NMvfSzx1L5rWe0AvC86mzE4799ReX1QB40bcga0xVo98m+whSZ+1R2mSRFz1R+nadJRr+/ny8vL9+EeHmvBQBWUDggngAAANAEAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgllAMZBi0pwur7v8R7WXIcZJvYcSqQAAP7r93myokOWj+funVlUrOqDUn+xdugX91z+cvqegT1TUsggMibuwT3Mme7+vqsg8fpH74jOz6Zb/A5RilgNeZIQ/yzAdUz34hLf/xBdSuAf1Iri+r9NRWs8sJxpyMUMVaIH4Zl7dpaXBYgAAAAA',
+  plac: 'data:image/webp;base64,UklGRgYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFTb1rKcH3fXoTVgMWZGAHKQgyYEIAdBfOZ+sfd9iwYRMQFQleMQYOIyA/296dMHtzEe04TPrusjfObWeVDZSVpYI+hJ2lg5SEnapowYRCU9kkYOEpIUM/LQ+koAVlA4IIIAAACQAgCdASoQABAAAgA0JYwAEiAc3J5aMl4bq+wxkAD+ZZn1Phtsb6ZmzO3qA2fRPNonpvH9svnY3+zW5URhBvtjVX9M7mZjaoV0KZFXlUPYuX6x+5290/K8Oe0cAqh/EKoV4ez0zbjip/PA9nb9hzSN+aI6/X/3Wsf6gL3rE4BsSwAA',
+  piedestal: 'data:image/webp;base64,UklGRrABAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK4AAAABgGLb1vLmhaOYObGZQDwVdXWrWLaWmRUzOmaQDIpUZ8AMim7hvX8MESEgKGINscp33hd6SKnEwN17W3WhZFJ1X73XuykSjnFmw9bHjI2Iol0TRkZb+X1D/93hIpvxlz1gvXE4I/4FuIkXnPkA794utuRd3t+zz7Uk6uvLPmHnk1IVzG1CSReA1bXXAgXufQBH0zhtkQYgOpCupWPpXYL0Kg1KN1JQ2gZy1wHkEAFWUDgg3AAAALAFAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgliAJ0orzle267VaYAOS6PGOPnu5zsFNHHWX1DWAAD+ACpoRmtPRAoss07yn9yh3dH81aBZ+3jQeze5PseUmzgLyr7lxPtKy0Jce2jfP3bMIxXPVNrwLs0yIl2VG3VcAWU228LzztKZ9Kwq1W1m1KEQn3tZ5p5qnz//+iQX/n///vZfssgkxKS4h+Hv3R7/yKNjoOuXX/Ocl6r4tgrjF3o9XbIJ3/zjtD2+xiciQXNznNrzuNBAxqiPN/vEQ6HCgpbRAAA=',
+  rynek: 'data:image/webp;base64,UklGRhYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGoAAAABL0CQbTN/qrHc4DnANSIi+BrhOLLdtoEC7ngiUYBTAUr31ABg9d+NQwsR/d8DCYdUEafupAS9NRvqXNaspC+jZTkhShlHZZcVLqn885m32B6ljDetvoyew5HOZc2LDHprNlScupMi4ZAqVlA4IIYAAADQAgCdASoQABAAAgA0JbACdLoAEIfugCq5HPnZtFIAAP4xRuZNW9HP7cazUwZ7Ooaadci6IV5ydOyarvNtoqceOGGL7fZZYt0AILKFFW9tkxCbweBc68Yh7TrdEuowp0m6GRJwqmoELasn8p4w53lQi4n/owD2683ttFNi4I/I0UP/Rk5AAA==',
+  tartak: 'data:image/webp;base64,UklGRjgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSIEAAAABgFpt2/LmDTMOwKg5iiZg1gwyNinJ2i5AK/AG7SCkmCGP+GiFiJgAkvUe3AIia6j/CPASbuvi5AXAyyBOrtUz7v8A4LuhITq82oB93ysTC+7nLEB83leShIUtBtcpAfk4+GkZeMQDbvK85j/vt8UrPPCSGgaSp8sNSlJsRWmotE8AVlA4IJAAAAAwAgCdASoQABAAAgA0JaACdH8AgnTGWUJUAAD8h86+qS3sW3s9dru/it2K129zWhzwd1HnN85Phlv8F0GTTZFoqzE+MXU0dIXhdEYIAmSZwNEuyD6apVZqSk5eH+E0Ig78KH+1N+5SK2yzbPkZtUvyi76upj3wwetzt0lMK2RckFzB02i+Rhpp6ECxPUAAAAA=',
+  cegielnia: 'data:image/webp;base64,UklGRvoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSE4AAAABcFPbthM9USQnqaLLqaRCABU+0JCsRAPTs27zwlqjICImgPQBoHNekP4E6YFZBwykTD4ApPRWGA6w0ghLyk1CuHAk/j4mksBnVU+EvwdWUDgghgAAAJACAJ0BKhAAEAACADQlsALElQHV/i1ZNufwmXAAAP7TLelIF8doDuqqFIJJBCR2OnqVl1CqJg/nWIgHIbOV4x2iy9V9PImuIPR+XSN1pNCuHFD3ABNcUWNz9/dGs4P/tM0xUP678b/tunMZACPG/E9A+jRkV45ijwzYd8jjVZtK/jbeAAAA',
+  huta: 'data:image/webp;base64,UklGRjABAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHsAAAABgGJt27Lo2QPS2AELILm7ZBqbgDXQyWRNTiNCJLlEd5eZZ+TlPzM7iIgJgKZuh1y88tOjbXMlGTP3lwMpkoK/RQLAmUwAyJxJ/M6SBEgSoupOGW+TEt6bBCj9o4ASINpkQ6cIgS7nMcEgAPEBS3oAhyl/b9Md8j4j+O8AVlA4II4AAABwAgCdASoQABAAAgA0JQBOgNPlzP/lZMfTWqFAAP7vqtS9xPo+zwHPlJP3OrEW2iW5a22u/f866wSKgB8yJuK7tumL/g3fH+lGNnnP9oXvZpOFFZXVgeKRgkvDnn+YmlUkA0vNU030G8hvi/9/ROjv1PO0hGstCc00zUwX2iyELz27DLEAyXyi7qh0AAAA',
+  zagroda: 'data:image/webp;base64,UklGRi4BAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFpt25I9eNRKJrIDO5CJRFZgAzZgA9cFSL/NYUmb4TpBREwANqlc6r5ODNn18N1kAFBuPfGsgbbq6bJxmpH47xkLlrNYb9pOAhFPudEAKHfkk3IYVJ17XdcVj00CVlA4IKoAAAAQAwCdASoQABAAAgA0JbACdLoBJgLf/smIiEyQmYht/RAA4dTa1Lg/iRciYdSt6qRVyWeyHNulyluvOfHlCE48wY4c3ihK9Fv9NAtOTlR8rxFm4X+V8QQ+aTwj6TF0wfvzR4j4wDZK1AYBrnRyfo+T0qspjtmYYvs2IURajp18bCzu3S/F/I6A0DP/GLFRe5tj3rdkFJJ2K49b49Iyez9R6GbeHLxrApXAAA==',
+  spichlerz: 'data:image/webp;base64,UklGRtQBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSIAAAAABgGpb27LoxRrJKomoySokz3Qy2SV68u7uiVtwSDSSQ4LOvCOfzCVExAQA1b8JA7t1h4g2Fkkf/76tDHmkeihKpH8spCYD4j0AAEnkzIEReZ8w55rpkfdL2uPZm0Fl0KjTDAkgbxhOXtKYAdFOkB1Y6gSACoOPAq4XIh6riwj8K1ZQOCAuAQAAkAcAnQEqEgASAD6RQptKJaOiIagIALASCWwAnTKEgsiBagOfF0wDlACCU/YDfgegAHFZtIZJ07YM6NNtkqqokvBYwRwAAP0gXRTxfPyQQbd0hr1HC/Zu+QPyAA5SJuT6szujIWV+90ziJIjqT8HoUHdhfxLqhNvXW493dspMaK1RsyM3pkfxBsneqnqGHz/BedN+fKsvlbBQXiG8p34wK/RizVfAermLIev+mkchQmfT39ns9pvYZvTRHDVIXfC6uyD7lcm7KMwVOjCIsLfVYmHOUMpGmMle7Jb7E79LPBjvRSeQl5+k9BdpK9bYhzenqwTBzLGcD0p5148Yn43lxBB/Ywf+OyEM0Z6utqjfKQ4Qo/qjRBI2jkuKLJ3CM0gqWPupANQ+MApMtP+NIAA=',
+  schowek: 'data:image/webp;base64,UklGRkgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSJAAAAABgFpt2/LmOScOXQaIZE4kMypyzHGMBR/XDbgdgrldoqcTRDK9pe+bISImANztigycWgfR6tDwn8F/9EB/539E0trXhv4HIAzMiBOQpohz14C8M2dd1Y+hLMyIORHGnvE5I+bchrc4iPMCVgLPGnjh2wCrNNcQijswVvHx2oHNC2uMUUgAcrGmU/q4XtBkSgRWUDggkgAAAHADAJ0BKhAAEAACADQlnAARADxWPSf1m9gD9ZiktXudvumoAAD+y25d5rKOQXc3iQTqlLAnPQ6/ZbEVwC7DEhOdIxfLU02SS+qO7DJJYuFU//abs+VqirPLUhMF3OaUmaAE9mXm7p9IB1c7E9fPb/OecK2s08nIka11mEdcToRxhK9czoK9Dvqi2bZl+1dljgQA',
+  mur: 'data:image/webp;base64,UklGRkoBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGQAAAABcFpt27I8Fanu7pqsaf+34TCA+waMQGQLOs0tusODk+gRMQF4FTVDAHDFx/SyDRFipywAAiBp8BorXADqnPSNrNU/8mzD5NCDi2S8S5IdkBd5mF+WSRqEb64khcw3r+vdL38WVlA4IMAAAAAQAwCdASoQABAAAgA0JbACdLoA4wHP/2RwRDBIumDQHAAA/uf/+ns3/+z+f9u31Lqjq8j322tOdOKbaNVOfzHM0bG3rw87Es3PTk5IRKi7wFj5/JzZd2W8syuYkU+YfQ99j527VPvPJ5ccpZaI1BWibqjrcUItnvvhFok0anrC+1fK7oNR/d+2VPfonrETUDHwwWnWjbGOzmXrs+vzH/4E810XG7OfFFhlzJUQf68/aAFSII+UkkOcM5WjuoSAAAA=',
+});
+
 // src/wioska/strona.js
 // Warstwa DOM. Funkcje budujace HTML sa czyste — logika prezentacji siedzi
 // w nich i daje sie testowac bez przegladarki. uruchom() to tylko wpiecie zdarzen.
 const KLUCZ_MAGAZYNU = 'plemiona-wioska';
 
 const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function komorkaBudynku(budynek, nazwa, opis) {
+  const src = IKONY_BUDYNKOW[budynek];
+  const ikona = src ? `<img class="ikona-budynku" src="${esc(src)}" alt="">` : '';
+  return `<td><span class="budynek-opis">${ikona}<span>${esc(nazwa)}<br><small>${opis}</small></span></span></td>`;
+}
 function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
   const obecny = poziomy[budynek] ?? 0;
   const nazwa = NAZWY[budynek] ?? budynek;
   const maks = maksPoziom(s, budynek);
   if (obecny >= maks) {
-    return `<tr><td>${esc(nazwa)}<br><small>Poziom ${obecny}</small></td>`
+    return `<tr>${komorkaBudynku(budynek, nazwa, `Poziom ${obecny}`)}`
       + `<td colspan="6"><em>Budynek całkowicie rozbudowany</em></td></tr>`;
   }
   const docelowy = obecny + 1;
@@ -769,7 +798,7 @@ function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
     ? `<button disabled>Poziom ${docelowy}</button><div class="powod">${esc(opisWymagan(brak, NAZWY))}</div>`
     : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
   return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
-    + `<td>${esc(nazwa)}<br><small>${obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`}</small></td>`
+    + komorkaBudynku(budynek, nazwa, obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`)
     + `<td>${k.drewno}</td><td>${k.glina}</td><td>${k.zelazo}</td>`
     + `<td class="${pewny ? '' : 'niepewny'}">${pewny ? '' : '≈ '}${czasCzytelny(sekundy)}</td>`
     + `<td>${ludnosc}</td><td>${przycisk}</td></tr>`;

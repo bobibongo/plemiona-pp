@@ -11,6 +11,7 @@ const s = swiat('pl231');
 test('wiersz budynku pokazuje koszt nastepnego poziomu', () => {
   const html = wierszBudynkuHTML(s, 'tartak', { ratusz: 1, tartak: 0 }, 1);
   assert.match(html, /Tartak/);
+  assert.match(html, /wood\.webp/);
   assert.match(html, /50/);
   assert.match(html, />60</);
 });
