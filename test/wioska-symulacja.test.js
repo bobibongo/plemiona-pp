@@ -137,12 +137,40 @@ test('podsumowanie liczy czas pochodzacy z poziomow bez pomiaru', () => {
   assert.equal(w.podsumowanie.czasNiepewnyS, w.kroki[0].trwanieS);
 });
 
-test('dlugi przestoj daje ostrzezenie', () => {
+test('krok niesie poziomy budynkow po swoim zakonczeniu', () => {
+  const w = symuluj(plan({
+    start: { surowce: { drewno: 999999, glina: 999999, zelazo: 999999 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }],
+  }));
+  assert.equal(w.kroki[0].poziomyPo.tartak, 1);
+  assert.equal(w.kroki[1].poziomyPo.tartak, 2);
+  assert.equal(w.kroki[0].poziomyPo.ratusz, 1);
+});
+
+test('krok zatrzymany bledem nie podnosi poziomu', () => {
+  const w = symuluj(plan({ kroki: [{ budynek: 'koszary', doPoziomu: 1 }] }));
+  assert.equal(w.kroki[0].blad, 'wymagania');
+  assert.equal(w.kroki[0].poziomyPo.koszary, 0);
+});
+
+// Rozpisywanie przestoju przy kazdym kroku dawalo kilkanascie identycznych
+// wierszy; zapotrzebowanie raportuje osobny modul.
+test('dlugi przestoj nie tworzy juz ostrzezenia przy kroku', () => {
   const w = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
     dochody: [{ czasS: 0, drewnoD: 24, glinaD: 24, zelazoD: 24 }],
   }));
+  assert.ok(w.kroki[0].czekanieS > 0, 'przestoj nadal jest liczony');
+  assert.equal(w.ostrzezenia.length, 0);
+});
+
+test('plan niewykonalny przy zerowej produkcji nadal daje ostrzezenie', () => {
+  const w = symuluj(plan({
+    start: { surowce: { drewno: 0, glina: 0, zelazo: 0 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+  }));
+  assert.equal(w.kroki[0].blad, 'brak-dochodu');
   assert.ok(w.ostrzezenia.some(o => o.typ === 'przestoj'));
 });
 

@@ -7,12 +7,9 @@ import { kosztPoziomu, ludnoscPoziomu, budynkiSwiata } from './swiat.js';
 import { pojemnosc, maksLudnosc, produkcjaGodzinowa } from './tabele.js';
 import { czasBudowy } from './czas.js';
 import { brakujaceWymagania, opisWymagan } from './wymagania.js';
-import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
-import { czasCzytelny } from './format.js';
+import { NAZWY } from './nazwy.js';
 
 const SUROWCE = ['drewno', 'glina', 'zelazo'];
-// Prog, powyzej ktorego przestoj przestaje byc szumem i warto o nim powiedziec.
-const PROG_PRZESTOJU_S = 3600;
 // Tolerancja na blad zaokraglenia zmiennoprzecinkowego. Bez niej "starczy na
 // koszt" potrafi zostac tuz ponizej progu (np. 59,999999999999986 zamiast 60)
 // o kwote mniejsza niz precyzja dodawania do zegara — dt liczony wprost z tej
@@ -101,6 +98,7 @@ export function symuluj(plan) {
       pewny: true,
       zasobyPo: { ...stan.zasoby },
       ludnoscPo: ludnoscZajeta(),
+      poziomyPo: { ...poziomy },
       blad: null,
     };
 
@@ -180,12 +178,6 @@ export function symuluj(plan) {
     wpis.czekanieS = Math.round(czas - poczatek);
     wpis.czekanieNa = wpis.czekanieS > 0 ? czekanieNa : null;
     wpis.startS = Math.round(czas);
-    if (wpis.czekanieS >= PROG_PRZESTOJU_S) {
-      ostrzezenia.push({
-        typ: 'przestoj', krok: i,
-        tekst: `Krok ${i + 1}: ${czasCzytelny(wpis.czekanieS)} przestoju w oczekiwaniu na ${NAZWY_SUROWCOW[czekanieNa] ?? czekanieNa}.`,
-      });
-    }
     for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
 
     const { sekundy, pewny } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
@@ -227,6 +219,7 @@ export function symuluj(plan) {
     wpis.koniecS = Math.round(czas);
     wpis.zasobyPo = { ...stan.zasoby };
     wpis.ludnoscPo = ludnoscZajeta();
+    wpis.poziomyPo = { ...poziomy };
     kroki.push(wpis);
   });
 
