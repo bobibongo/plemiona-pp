@@ -139,7 +139,10 @@ export function uruchom() {
     const dodaj = e.target.closest('[data-dodaj]');
     if (dodaj) {
       const budynek = dodaj.dataset.dodaj;
-      plan.kroki.push({ budynek, doPoziomu: (poziomyPoKolejce()[budynek] ?? 0) + 1 });
+      // Poziom docelowy nadaje przelicz(), zeby regula numeracji zyla
+      // w jednym miejscu — tak samo jak przy usuwaniu i zmianie kolejnosci.
+      plan.kroki.push({ budynek, doPoziomu: 0 });
+      przelicz();
       rysuj();
       return;
     }

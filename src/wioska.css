@@ -3,16 +3,8 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
   background:radial-gradient(ellipse at 50% -10%,#3a2c1c,var(--w) 45%,var(--w2)) fixed;min-height:100vh}
-.wrap{width:94%;max-width:1400px;margin:0 auto}
 header{color:#f6ecd4;padding:20px 0}
-header .wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
-.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;color:var(--gold)}
 h1{margin:.1em 0 0;font-size:1.6rem}
-.start{display:flex;gap:12px;flex-wrap:wrap;margin-left:auto}
-.start label{display:flex;flex-direction:column;font-size:.72rem;color:var(--line)}
-.start input,.start select{width:110px;padding:4px 6px;border:1px solid var(--line);border-radius:3px}
-.kolumny{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;padding-bottom:60px}
-@media (max-width:1000px){.kolumny{grid-template-columns:1fr}}
 section{background:var(--pg);border:1px solid var(--line);border-radius:4px;padding:14px}
 h2{margin:0 0 10px;font-size:1.05rem}
 table{width:100%;border-collapse:collapse;font-size:.86rem}
