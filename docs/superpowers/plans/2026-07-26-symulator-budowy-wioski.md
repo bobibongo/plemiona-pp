@@ -1628,6 +1628,7 @@ export function symuluj(plan) {
 
     // Przesuwaj zegar skokami miedzy zdarzeniami, az stac na krok.
     const poczatek = czas;
+    const zmarnowanePrzed = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
     let czekanieNa = null;
     wpuscZastrzyki(czas, sufit);
     for (;;) {
@@ -1669,12 +1670,6 @@ export function symuluj(plan) {
         tekst: `Krok ${i + 1}: ${Math.round(wpis.czekanieS / 3600)} h przestoju w oczekiwaniu na ${czekanieNa}.`,
       });
     }
-    if (SUROWCE.some(r => stan.zmarnowane[r] > 0) && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
-      ostrzezenia.push({
-        typ: 'przepelnienie', krok: i,
-        tekst: 'Spichlerz się przepełnia — część produkcji przepada. Rozbuduj go wcześniej.',
-      });
-    }
 
     for (const r of SUROWCE) { stan.zasoby[r] = Math.max(0, stan.zasoby[r] - c[r]); koszt[r] += c[r]; }
 
@@ -1683,11 +1678,13 @@ export function symuluj(plan) {
     wpis.pewny = pewny;
     if (!pewny) czasNiepewnyS += sekundy;
 
-    // Produkcja plynie takze w trakcie budowy.
-    const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, czas));
+    // Produkcja plynie takze w trakcie budowy. Stawke liczymy w kazdym segmencie
+    // od nowa i z czasu biezacego, bo zmiana dochodu gracza moze wypasc w oknie
+    // budowy — liczona raz, przed petla, zostalaby ta sprzed granicy zdarzenia.
     const koniec = czas + sekundy;
     let biezacy = czas;
     for (;;) {
+      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, biezacy));
       const zdarzenie = Math.min(nastepneZdarzenie(plan, biezacy), koniec);
       const dt = zdarzenie - biezacy;
       dolej(stan, {
@@ -1698,6 +1695,16 @@ export function symuluj(plan) {
       if (biezacy >= koniec) break;
     }
     czas = koniec;
+
+    // Ostrzegamy raz, ale dopiero po fazie budowy — magazyn potrafi przelac sie
+    // wylacznie w jej trakcie, gdy na krok stac od reki i nie bylo oczekiwania.
+    const zmarnowanePo = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
+    if (zmarnowanePo > zmarnowanePrzed && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
+      ostrzezenia.push({
+        typ: 'przepelnienie', krok: i,
+        tekst: 'Spichlerz się przepełnia — część produkcji przepada. Rozbuduj go wcześniej.',
+      });
+    }
 
     poziomy[krok.budynek] = krok.doPoziomu;
     wpis.koniecS = Math.round(czas);
