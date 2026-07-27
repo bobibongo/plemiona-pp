@@ -62,6 +62,22 @@ test('kafelek z bledem dostaje klase blad', () => {
   assert.match(krokHTML(w.kroki[0], 0, false), /class="[^"]*blad/);
 });
 
+test('wiersz budynku niesie identyfikator do wpiecia zdarzenia', () => {
+  const html = wierszBudynkuHTML(s, 'tartak', { ratusz: 1, tartak: 0 }, 1);
+  assert.match(html, /data-dodaj="tartak"/);
+});
+
+test('kafelek kroku z przestojem mowi, na ktory surowiec czeka', () => {
+  const w = symuluj(normalizujPlan({
+    swiat: 'pl231',
+    start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    dochody: [{ czasS: 0, drewnoD: 1440, glinaD: 1440, zelazoD: 1440 }],
+  }));
+  assert.ok(w.kroki[0].czekanieS > 0, 'krok ma czekac, inaczej test nic nie sprawdza');
+  assert.match(krokHTML(w.kroki[0], 0, false), /czekanie/);
+});
+
 test('wtracenie dochodu podaje moment i wartosci na dobe', () => {
   const html = wtracenieHTML('dochod', { czasS: 172800, drewnoD: 2000, glinaD: 1000, zelazoD: 0 });
   assert.match(html, /2 d/);
