@@ -3,62 +3,14 @@
 // w nich i daje sie testowac bez przegladarki. uruchom() to tylko wpiecie zdarzen.
 
 import { SWIATY, swiat } from './swiaty.js';
-import { kosztPoziomu, ludnoscPoziomu, maksPoziom, budynkiSwiata } from './swiat.js';
-import { czasBudowy } from './czas.js';
-import { brakujaceWymagania, opisWymagan } from './wymagania.js';
+import { budynkiSwiata } from './swiat.js';
 import { normalizujPlan, bledyPlanu } from './plan.js';
 import { symuluj } from './symulacja.js';
 import { czasCzytelny, planJSON, planTekst } from './format.js';
-import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
-import { IKONY_BUDYNKOW } from './ikony.js';
+import { esc, wierszBudynkuHTML } from './widok-budynki.js';
+import { krokHTML, wtracenieHTML } from './widok-kolejka.js';
 
 export const KLUCZ_MAGAZYNU = 'plemiona-wioska';
-
-const esc = (t) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function komorkaBudynku(budynek, nazwa, opis) {
-  const src = IKONY_BUDYNKOW[budynek];
-  const ikona = src ? `<img class="ikona-budynku" src="${esc(src)}" alt="">` : '';
-  return `<td><span class="budynek-opis">${ikona}<span>${esc(nazwa)}<br><small>${opis}</small></span></span></td>`;
-}
-
-export function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
-  const obecny = poziomy[budynek] ?? 0;
-  const nazwa = NAZWY[budynek] ?? budynek;
-  const maks = maksPoziom(s, budynek);
-  if (obecny >= maks) {
-    return `<tr>${komorkaBudynku(budynek, nazwa, `Poziom ${obecny}`)}`
-      + `<td colspan="6"><em>Budynek całkowicie rozbudowany</em></td></tr>`;
-  }
-  const docelowy = obecny + 1;
-  const k = kosztPoziomu(s, budynek, docelowy);
-  const { sekundy, pewny } = czasBudowy(s, budynek, docelowy, poziomRatusza);
-  const ludnosc = ludnoscPoziomu(s, budynek, docelowy) - ludnoscPoziomu(s, budynek, obecny);
-  const brak = brakujaceWymagania(budynek, poziomy);
-  const zablokowany = brak.length > 0;
-  const przycisk = zablokowany
-    ? `<button disabled>Poziom ${docelowy}</button><div class="powod">${esc(opisWymagan(brak, NAZWY))}</div>`
-    : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
-  return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
-    + komorkaBudynku(budynek, nazwa, obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`)
-    + `<td>${k.drewno}</td><td>${k.glina}</td><td>${k.zelazo}</td>`
-    + `<td class="${pewny ? '' : 'niepewny'}">${pewny ? '' : '≈ '}${czasCzytelny(sekundy)}</td>`
-    + `<td>${ludnosc}</td><td>${przycisk}</td></tr>`;
-}
-
-export function krokHTML(krok, indeks) {
-  const nazwa = `${NAZWY[krok.budynek] ?? krok.budynek} → ${krok.doPoziomu}`;
-  const klasy = ['krok'];
-  if (krok.blad) klasy.push('blad');
-  if (!krok.pewny) klasy.push('niepewny');
-  const czekanie = krok.czekanieS > 0
-    ? `<div class="czekanie">czeka ${czasCzytelny(krok.czekanieS)} na ${esc(NAZWY_SUROWCOW[krok.czekanieNa] ?? krok.czekanieNa)}</div>`
-    : '';
-  return `<li class="${klasy.join(' ')}" draggable="true" data-krok="${indeks}">`
-    + `<span class="nr">${indeks + 1}</span>`
-    + `<span class="opis">${esc(nazwa)}${czekanie}</span>`
-    + `<span class="czas">${czasCzytelny(krok.startS)} · ${krok.pewny ? '' : '≈ '}${czasCzytelny(krok.trwanieS)}</span>`
-    + `<button data-usun="${indeks}" title="Usuń">×</button></li>`;
-}
 
 export function podsumowanieHTML(wynik) {
   const { czasS, koszt, zmarnowane, zZastrzykow, czasNiepewnyS } = wynik.podsumowanie;
@@ -113,7 +65,7 @@ export function uruchom() {
 
     const bledy = bledyPlanu(plan);
     const wynik = bledy.length ? { kroki: [], ostrzezenia: [], podsumowanie: { czasS: 0, koszt: { drewno: 0, glina: 0, zelazo: 0 }, zZastrzykow: { drewno: 0, glina: 0, zelazo: 0 }, zmarnowane: { drewno: 0, glina: 0, zelazo: 0 }, czasNiepewnyS: 0 } } : symuluj(plan);
-    $('lista-krokow').innerHTML = wynik.kroki.map(krokHTML).join('');
+    $('lista-krokow').innerHTML = wynik.kroki.map((k, i) => krokHTML(k, i, false)).join('');
     $('podsumowanie').innerHTML = podsumowanieHTML(wynik);
     $('ostrzezenia').innerHTML = [...bledy.map(b => `<li>${esc(b)}</li>`),
       ...wynik.ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`)].join('');
