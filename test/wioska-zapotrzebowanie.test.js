@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
-import { zapotrzebowanie, osBezPrzestojow, zuzycieNaDobe } from '../src/wioska/zapotrzebowanie.js';
+import { zapotrzebowanie, osBezPrzestojow, zuzycieNaDobe, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
 import { czasBudowy } from '../src/wioska/czas.js';
 import { swiat } from '../src/wioska/swiaty.js';
 
@@ -133,4 +133,57 @@ test('zuzycie na dobe dla pustego planu nie wywraca sie', () => {
   const z = zuzycieNaDobe(p, null);
   assert.deepEqual(z.suma, { drewno: 0, glina: 0, zelazo: 0 });
   assert.equal(z.doKonca, true);
+});
+
+test('zapotrzebowanie dzienne dla planu w jednym dniu daje jeden wiersz z pelna suma', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }] });
+  const dni = zapotrzebowanieDzienne(p);
+  const os = osBezPrzestojow(p);
+  assert.equal(dni.length, 1);
+  assert.equal(dni[0].dzien, 0);
+  assert.equal(dni[0].liczbaKrokow, 2);
+  assert.equal(dni[0].drewno, os[0].koszt.drewno + os[1].koszt.drewno);
+  assert.equal(dni[0].glina, os[0].koszt.glina + os[1].koszt.glina);
+  assert.equal(dni[0].zelazo, os[0].koszt.zelazo + os[1].koszt.zelazo);
+});
+
+test('zapotrzebowanie dzienne rozklada kroki na wlasciwe dni po starcie', () => {
+  const kroki = [];
+  for (let i = 1; i <= 20; i++) kroki.push({ budynek: 'ratusz', doPoziomu: i });
+  const p = plan({ kroki });
+  const os = osBezPrzestojow(p);
+  const dni = zapotrzebowanieDzienne(p);
+  const oczekiwaneDni = Math.ceil((os[os.length - 1].startS + os[os.length - 1].trwanieS) / 86400);
+  assert.equal(dni.length, oczekiwaneDni);
+  for (const wiersz of dni) assert.ok(wiersz.dzien >= 0 && wiersz.dzien < dni.length);
+});
+
+test('zapotrzebowanie dzienne: suma po wszystkich dniach rowna sumie kosztow wszystkich krokow', () => {
+  const kroki = [];
+  for (let i = 1; i <= 15; i++) kroki.push({ budynek: 'tartak', doPoziomu: i });
+  const p = plan({ kroki });
+  const os = osBezPrzestojow(p);
+  const dni = zapotrzebowanieDzienne(p);
+  const oczekiwany = { drewno: 0, glina: 0, zelazo: 0 };
+  for (const w of os) { oczekiwany.drewno += w.koszt.drewno; oczekiwany.glina += w.koszt.glina; oczekiwany.zelazo += w.koszt.zelazo; }
+  const suma = { drewno: 0, glina: 0, zelazo: 0 };
+  for (const w of dni) { suma.drewno += w.drewno; suma.glina += w.glina; suma.zelazo += w.zelazo; }
+  assert.deepEqual(suma, oczekiwany);
+});
+
+test('zapotrzebowanie dzienne: dzien bez startujacego kroku ma wiersz zerowy, nie jest pominiety', () => {
+  // Ratusz do poziomu 30 od poziomu 1 trwa ok. 55h (ponad dwie doby) — dzien 1
+  // nie ma zadnego startu, ale musi byc obecny w tablicy jako wiersz zerowy.
+  const p = plan({ start: { poziomy: { ratusz: 1 } }, kroki: [{ budynek: 'ratusz', doPoziomu: 30 }, { budynek: 'tartak', doPoziomu: 1 }] });
+  const os = osBezPrzestojow(p);
+  assert.ok(os[0].trwanieS > 86400, 'test zaklada krok dluzszy niz doba — dostosuj plan, jesli tabele swiata sie zmienily');
+  const dni = zapotrzebowanieDzienne(p);
+  assert.equal(dni[0].liczbaKrokow, 1);
+  assert.equal(dni[1].liczbaKrokow, 0);
+  assert.deepEqual({ drewno: dni[1].drewno, glina: dni[1].glina, zelazo: dni[1].zelazo }, { drewno: 0, glina: 0, zelazo: 0 });
+});
+
+test('zapotrzebowanie dzienne dla pustego planu jest pusta tablica', () => {
+  const p = plan({});
+  assert.deepEqual(zapotrzebowanieDzienne(p), []);
 });

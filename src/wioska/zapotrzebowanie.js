@@ -103,3 +103,26 @@ export function zuzycieNaDobe(plan, indeksKrokuLubNull) {
   }
   return { suma, doKonca };
 }
+
+export function zapotrzebowanieDzienne(plan) {
+  const os = osBezPrzestojow(plan);
+  if (os.length === 0) return [];
+
+  const ostatni = os[os.length - 1];
+  const czasNettoS = ostatni.startS + ostatni.trwanieS;
+  const liczbaDni = Math.ceil(czasNettoS / DOBA_S);
+
+  const dni = [];
+  for (let i = 0; i < liczbaDni; i++) {
+    dni.push({ dzien: i, drewno: 0, glina: 0, zelazo: 0, liczbaKrokow: 0 });
+  }
+
+  for (const wiersz of os) {
+    const indeksDnia = Math.floor(wiersz.startS / DOBA_S);
+    const cel = dni[indeksDnia];
+    cel.liczbaKrokow += 1;
+    for (const r of SUROWCE_Z) cel[r] += wiersz.koszt[r];
+  }
+
+  return dni;
+}
