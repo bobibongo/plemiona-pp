@@ -4,6 +4,7 @@
 
 import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
 import { esc, ikonaHTML } from './widok-budynki.js';
+import { osBezPrzestojow, zapotrzebowanieDzienne } from './zapotrzebowanie.js';
 
 export function krokHTML(krok, indeks, zaznaczony) {
   const nazwa = `${NAZWY[krok.budynek] ?? krok.budynek} → ${krok.doPoziomu}`;
@@ -35,4 +36,53 @@ export function wtracenieHTML(rodzaj, wpis, przedKrokiem = null, indeksWTablicy 
   }
   return `<li class="wtracenie dosylka"${cel}${wt}>`
     + `<span class="opis">dosyłka ${wpis.drewno} / ${wpis.glina} / ${wpis.zelazo}</span></li>`;
+}
+
+export function naglowekDniaHTML(wiersz) {
+  return `<li class="naglowek-dnia">Dzień ${wiersz.dzien + 1} · `
+    + `${Math.round(wiersz.drewno)} / ${Math.round(wiersz.glina)} / ${Math.round(wiersz.zelazo)} · `
+    + `${wiersz.liczbaKrokow} ${wiersz.liczbaKrokow === 1 ? 'krok' : 'kroki'}</li>`;
+}
+
+// Nazwa DOBA_S jest juz zajeta w zapotrzebowanie.js — build.js skleja oba
+// pliki w jeden wspolny zakres (patrz LOGIC w build.js), wiec druga stala
+// o tej samej nazwie bylaby bledem skladni w przegladarce.
+const DOBA_KOLEJKI_S = 86400;
+
+function indeksKotwicyKolejki(kotwica, kroki) {
+  if (kotwica === null) return -1;
+  return kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+}
+
+// Kroki, wtracenia gracza i naglowki dni w jednej liscie. Wtracenie stoi
+// zaraz po kroku, do ktorego kotwiczy — nawet gdy ten krok konczy dzien,
+// wiec wtracenie ma wyladowac PRZED naglowkiem kolejnego dnia, nie po nim.
+export function kolejkaHTML(plan, wynik, zaznaczony) {
+  const os = osBezPrzestojow(plan);
+  const dni = zapotrzebowanieDzienne(plan);
+  const wtracenia = [
+    ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyKolejki(d.kotwica, plan.kroki), rodzaj: 'dochod', wpis: d, idx })),
+    ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyKolejki(z.kotwica, plan.kroki), rodzaj: 'dosylka', wpis: z, idx })),
+  ].sort((a, b) => a.i - b.i);
+
+  let w = 0;
+  let ostatniDzien = -1;
+  const out = [];
+  wynik.kroki.forEach((k, i) => {
+    while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
+      const wpis = wtracenia[w];
+      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
+      w += 1;
+    }
+    const dzienKroku = Math.floor(os[i].startS / DOBA_KOLEJKI_S);
+    for (let d = ostatniDzien + 1; d <= dzienKroku; d++) out.push(naglowekDniaHTML(dni[d]));
+    ostatniDzien = dzienKroku;
+    out.push(krokHTML(k, i, i === zaznaczony));
+  });
+  while (w < wtracenia.length) {
+    const wpis = wtracenia[w];
+    out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
+    w += 1;
+  }
+  return out.join('');
 }

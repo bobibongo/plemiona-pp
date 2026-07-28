@@ -5,7 +5,8 @@ import { swiat } from '../src/wioska/swiaty.js';
 import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { esc, wierszBudynkuHTML } from '../src/wioska/widok-budynki.js';
-import { krokHTML, wtracenieHTML } from '../src/wioska/widok-kolejka.js';
+import { krokHTML, wtracenieHTML, naglowekDniaHTML, kolejkaHTML } from '../src/wioska/widok-kolejka.js';
+import { osBezPrzestojow, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
 
 const s = swiat('pl231');
 
@@ -115,4 +116,78 @@ test('wtracenie z indeksem w tablicy jest przeciagalne i niesie swoj indeks i ro
 test('wtracenie bez indeksu w tablicy nie jest przeciagalne', () => {
   const html = wtracenieHTML('dosylka', { kotwica: null, drewno: 1, glina: 0, zelazo: 0 });
   assert.doesNotMatch(html, /draggable/);
+});
+
+test('naglowek dnia pokazuje numer od jednego, sume surowcow i liczbe krokow', () => {
+  const html = naglowekDniaHTML({ dzien: 2, drewno: 12000, glina: 8000, zelazo: 5000, liczbaKrokow: 4 });
+  assert.match(html, /Dzień 3/);
+  assert.match(html, /12\s?000/);
+  assert.match(html, /8\s?000/);
+  assert.match(html, /5\s?000/);
+  assert.match(html, /4/);
+});
+
+test('naglowek pustego dnia pokazuje zera i nie wyglada jak krok', () => {
+  const html = naglowekDniaHTML({ dzien: 3, drewno: 0, glina: 0, zelazo: 0, liczbaKrokow: 0 });
+  assert.match(html, /Dzień 4/);
+  assert.match(html, /class="naglowek-dnia"/);
+  assert.doesNotMatch(html, /data-krok=/);
+});
+
+test('kolejka bez wielu dni ma jeden naglowek dnia na starcie', () => {
+  const p = normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }] });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/naglowek-dnia/g) ?? [];
+  assert.equal(dopasowania.length, 1);
+  assert.match(html, /Dzień 1/);
+});
+
+test('kolejka wstawia naglowek przy kazdej zmianie dnia', () => {
+  const kroki = [];
+  for (let i = 1; i <= 20; i++) kroki.push({ budynek: 'ratusz', doPoziomu: i });
+  const p = normalizujPlan({ swiat: 'pl231', kroki });
+  const w = symuluj(p);
+  const dni = zapotrzebowanieDzienne(p);
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/naglowek-dnia/g) ?? [];
+  assert.equal(dopasowania.length, dni.length);
+  for (let d = 0; d < dni.length; d++) assert.match(html, new RegExp(`Dzień ${d + 1}\\b`));
+});
+
+test('kolejka pokazuje naglowek dla dnia bez zadnego startujacego kroku', () => {
+  // Ratusz do poziomu 30 trwa ok. 55h (ponad dwie doby) — dzien 1 nie ma
+  // zadnego startu, ale ma sie pojawic jego naglowek z zerami.
+  const p = normalizujPlan({ swiat: 'pl231', start: { poziomy: { ratusz: 1 } }, kroki: [{ budynek: 'ratusz', doPoziomu: 30 }, { budynek: 'tartak', doPoziomu: 1 }] });
+  const os = osBezPrzestojow(p);
+  assert.ok(os[0].trwanieS > 86400, 'test zaklada krok dluzszy niz doba — dostosuj plan, jesli tabele swiata sie zmienily');
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  assert.match(html, /Dzień 2 · 0 \/ 0 \/ 0 · 0 kroki/);
+});
+
+test('kolejka zachowuje kolejnosc: wtracenie na koncu dnia przed naglowkiem kolejnego', () => {
+  const kroki = [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }];
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki,
+    zastrzyki: [{ kotwica: { budynek: 'tartak', doPoziomu: 1 }, drewno: 100, glina: 0, zelazo: 0 }],
+  });
+  const os = osBezPrzestojow(p);
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  const pozycjaWtracenia = html.indexOf('wtracenie');
+  const pozycjaDrugiegoNaglowka = html.indexOf('naglowek-dnia', html.indexOf('naglowek-dnia') + 1);
+  if (os[1].startS - os[0].startS >= 0 && Math.floor(os[1].startS / 86400) > Math.floor(os[0].startS / 86400)) {
+    assert.ok(pozycjaWtracenia !== -1 && pozycjaDrugiegoNaglowka !== -1 && pozycjaWtracenia < pozycjaDrugiegoNaglowka,
+      'wtracenie konczace dzien ma stac przed naglowkiem kolejnego dnia');
+  } else {
+    assert.equal(pozycjaDrugiegoNaglowka, -1, 'test zaklada dwa dni — dostosuj plan, jesli tabele swiata sie zmienily');
+  }
+});
+
+test('kolejka pustego planu nie ma zadnego naglowka dnia', () => {
+  const p = normalizujPlan({ swiat: 'pl231' });
+  const w = symuluj(p);
+  assert.equal(kolejkaHTML(p, w, null), '');
 });

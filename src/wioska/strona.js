@@ -9,7 +9,7 @@ import { symuluj } from './symulacja.js';
 import { zapotrzebowanie } from './zapotrzebowanie.js';
 import { planJSON, planTekst } from './format.js';
 import { esc, wierszBudynkuHTML } from './widok-budynki.js';
-import { krokHTML, wtracenieHTML } from './widok-kolejka.js';
+import { kolejkaHTML } from './widok-kolejka.js';
 import { pasekStanuHTML } from './widok-status.js';
 
 export const KLUCZ_MAGAZYNU = 'plemiona-wioska';
@@ -73,34 +73,6 @@ export function uruchom() {
     }
   }
 
-  // Wtracenia stoja zaraz po kroku wskazanym kotwica.
-  function indeksKotwicyStrony(kotwica) {
-    if (kotwica === null) return -1;
-    return plan.kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
-  }
-
-  function kolejkaHTML(wynik) {
-    const wtracenia = [
-      ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyStrony(d.kotwica), rodzaj: 'dochod', wpis: d, idx })),
-      ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyStrony(z.kotwica), rodzaj: 'dosylka', wpis: z, idx })),
-    ].sort((a, b) => a.i - b.i);
-    let w = 0;
-    const out = [];
-    wynik.kroki.forEach((k, i) => {
-      while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
-        const wpis = wtracenia[w];
-        out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
-        w += 1;
-      }
-      out.push(krokHTML(k, i, i === zaznaczony));
-    });
-    while (w < wtracenia.length) {
-      const wpis = wtracenia[w];
-      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
-      w += 1;
-    }
-    return out.join('');
-  }
   function zaopatrzenieHTML() {
     $('lista-dochodow').innerHTML = plan.dochody.map((d, i) =>
       `<li><span class="opis">${d.sumaD} na dobę (${esc(d.zrodlo)})</span>`
@@ -128,7 +100,7 @@ export function uruchom() {
     const wynik = symuluj(plan);
     const zap = zapotrzebowanie(plan);
     if (zaznaczony !== null && !wynik.kroki[zaznaczony]) zaznaczony = null;
-    $('lista-krokow').innerHTML = kolejkaHTML(wynik);
+    $('lista-krokow').innerHTML = kolejkaHTML(plan, wynik, zaznaczony);
     $('stan-wioski').innerHTML = pasekStanuHTML(s, plan, wynik, zap, zaznaczony);
     $('ostrzezenia').innerHTML = wynik.ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`).join('');
     zaopatrzenieHTML();

@@ -871,6 +871,28 @@ function zuzycieNaDobe(plan, indeksKrokuLubNull) {
   }
   return { suma, doKonca };
 }
+function zapotrzebowanieDzienne(plan) {
+  const os = osBezPrzestojow(plan);
+  if (os.length === 0) return [];
+
+  const ostatni = os[os.length - 1];
+  const czasNettoS = ostatni.startS + ostatni.trwanieS;
+  const liczbaDni = Math.ceil(czasNettoS / DOBA_S);
+
+  const dni = [];
+  for (let i = 0; i < liczbaDni; i++) {
+    dni.push({ dzien: i, drewno: 0, glina: 0, zelazo: 0, liczbaKrokow: 0 });
+  }
+
+  for (const wiersz of os) {
+    const indeksDnia = Math.floor(wiersz.startS / DOBA_S);
+    const cel = dni[indeksDnia];
+    cel.liczbaKrokow += 1;
+    for (const r of SUROWCE_Z) cel[r] += wiersz.koszt[r];
+  }
+
+  return dni;
+}
 
 // src/wioska/format.js
 // Dwie postacie eksportu: tekst do przepisania do Menedzera Konta
@@ -1002,6 +1024,52 @@ function osCzasuTekst(wynik) {
   }
   return `<li class="wtracenie dosylka"${cel}${wt}>`
     + `<span class="opis">dosyłka ${wpis.drewno} / ${wpis.glina} / ${wpis.zelazo}</span></li>`;
+}function naglowekDniaHTML(wiersz) {
+  return `<li class="naglowek-dnia">Dzień ${wiersz.dzien + 1} · `
+    + `${Math.round(wiersz.drewno)} / ${Math.round(wiersz.glina)} / ${Math.round(wiersz.zelazo)} · `
+    + `${wiersz.liczbaKrokow} ${wiersz.liczbaKrokow === 1 ? 'krok' : 'kroki'}</li>`;
+}
+
+// Nazwa DOBA_S jest juz zajeta w zapotrzebowanie.js — build.js skleja oba
+// pliki w jeden wspolny zakres (patrz LOGIC w build.js), wiec druga stala
+// o tej samej nazwie bylaby bledem skladni w przegladarce.
+const DOBA_KOLEJKI_S = 86400;
+
+function indeksKotwicyKolejki(kotwica, kroki) {
+  if (kotwica === null) return -1;
+  return kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+}
+
+// Kroki, wtracenia gracza i naglowki dni w jednej liscie. Wtracenie stoi
+// zaraz po kroku, do ktorego kotwiczy — nawet gdy ten krok konczy dzien,
+// wiec wtracenie ma wyladowac PRZED naglowkiem kolejnego dnia, nie po nim.function kolejkaHTML(plan, wynik, zaznaczony) {
+  const os = osBezPrzestojow(plan);
+  const dni = zapotrzebowanieDzienne(plan);
+  const wtracenia = [
+    ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyKolejki(d.kotwica, plan.kroki), rodzaj: 'dochod', wpis: d, idx })),
+    ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyKolejki(z.kotwica, plan.kroki), rodzaj: 'dosylka', wpis: z, idx })),
+  ].sort((a, b) => a.i - b.i);
+
+  let w = 0;
+  let ostatniDzien = -1;
+  const out = [];
+  wynik.kroki.forEach((k, i) => {
+    while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
+      const wpis = wtracenia[w];
+      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
+      w += 1;
+    }
+    const dzienKroku = Math.floor(os[i].startS / DOBA_KOLEJKI_S);
+    for (let d = ostatniDzien + 1; d <= dzienKroku; d++) out.push(naglowekDniaHTML(dni[d]));
+    ostatniDzien = dzienKroku;
+    out.push(krokHTML(k, i, i === zaznaczony));
+  });
+  while (w < wtracenia.length) {
+    const wpis = wtracenia[w];
+    out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
+    w += 1;
+  }
+  return out.join('');
 }
 // src/wioska/widok-bilans.js
 // Bilans zaopatrzenia dla wskazanego momentu: trzy strumienie dochodu
@@ -1215,34 +1283,6 @@ function uruchom() {
     }
   }
 
-  // Wtracenia stoja zaraz po kroku wskazanym kotwica.
-  function indeksKotwicyStrony(kotwica) {
-    if (kotwica === null) return -1;
-    return plan.kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
-  }
-
-  function kolejkaHTML(wynik) {
-    const wtracenia = [
-      ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyStrony(d.kotwica), rodzaj: 'dochod', wpis: d, idx })),
-      ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyStrony(z.kotwica), rodzaj: 'dosylka', wpis: z, idx })),
-    ].sort((a, b) => a.i - b.i);
-    let w = 0;
-    const out = [];
-    wynik.kroki.forEach((k, i) => {
-      while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
-        const wpis = wtracenia[w];
-        out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
-        w += 1;
-      }
-      out.push(krokHTML(k, i, i === zaznaczony));
-    });
-    while (w < wtracenia.length) {
-      const wpis = wtracenia[w];
-      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
-      w += 1;
-    }
-    return out.join('');
-  }
   function zaopatrzenieHTML() {
     $('lista-dochodow').innerHTML = plan.dochody.map((d, i) =>
       `<li><span class="opis">${d.sumaD} na dobę (${esc(d.zrodlo)})</span>`
@@ -1270,7 +1310,7 @@ function uruchom() {
     const wynik = symuluj(plan);
     const zap = zapotrzebowanie(plan);
     if (zaznaczony !== null && !wynik.kroki[zaznaczony]) zaznaczony = null;
-    $('lista-krokow').innerHTML = kolejkaHTML(wynik);
+    $('lista-krokow').innerHTML = kolejkaHTML(plan, wynik, zaznaczony);
     $('stan-wioski').innerHTML = pasekStanuHTML(s, plan, wynik, zap, zaznaczony);
     $('ostrzezenia').innerHTML = wynik.ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`).join('');
     zaopatrzenieHTML();
