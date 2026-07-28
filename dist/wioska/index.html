@@ -19,7 +19,6 @@ td{padding:5px 6px;border-bottom:1px solid #e0d2b4}
 .budynek-opis{display:flex;align-items:center;gap:7px;min-width:125px}
 .ikona-budynku{width:28px;height:28px;object-fit:contain;image-rendering:auto;flex:0 0 28px}
 tr.zablokowany td{color:var(--ink2);background:#efe4c8}
-tr.zablokowany .powod{font-size:.76rem;color:var(--acc)}
 button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;
   background:#e3d4b0;cursor:pointer}
 button:hover{background:#eddfbe}
@@ -49,14 +48,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #pasek-narzedzi .marka{font-weight:600;letter-spacing:.04em}
 #pasek-narzedzi label{font-size:.8rem;color:var(--line)}
 .rozpychacz{flex:1}
-#stan-wioski{width:94%;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
-  border-radius:4px;padding:10px 12px;font-size:.84rem}
+#stan-wioski{width:94%;max-width:1600px;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
+  border-radius:4px;padding:10px 12px;font-size:.84rem;display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start}
 .stan-moment{font-weight:600;color:var(--acc);margin-bottom:6px}
-.stan-ikony{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;
-  padding-bottom:8px;border-bottom:1px solid var(--line)}
-.poziom-budynku{display:flex;align-items:center;gap:3px}
+.stan-ikony{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;padding-bottom:8px}
+.poziom-budynku{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.78rem}
 .poziom-budynku img.ikona{width:20px;height:20px}
-.poziom-budynku b{min-width:1.2em;text-align:right}
+.poziom-budynku b{min-width:1.2em;text-align:center}
 .stan-liczby{display:flex;flex-wrap:wrap;gap:6px 22px}
 .stan-gardlo{margin-top:6px;color:var(--acc);font-weight:600}
 .kolumny{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.75fr);
@@ -74,7 +72,13 @@ li.krok.zaznaczony{outline:2px solid var(--acc);outline-offset:-2px;background:#
 #lista-krokow li.cel-gora{box-shadow:inset 0 3px 0 var(--acc)}
 #lista-krokow li.cel-dol{box-shadow:inset 0 -3px 0 var(--acc)}
 #lista-krokow.cel-koniec{box-shadow:inset 0 -4px 0 var(--acc)}
-</style>
+@media (max-width:900px){#stan-wioski{grid-template-columns:1fr}}
+.stan-lewa,.stan-prawa{min-width:0}
+.bilans{display:flex;flex-direction:column;gap:3px;font-size:.86rem}
+.bilans hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+.bilans-ujemny{color:var(--acc);font-weight:600}
+.stan-gardlo{grid-column:1/-1}
+li.wtracenie[draggable=true]{cursor:grab}</style>
 </head>
 <body>
 
@@ -251,26 +255,26 @@ const NAZWY = {
 // Formy uzywane wylacznie po przyimku "na", stad biernik.
 const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glinę', zelazo: 'żelazo' };
 
-// Lokalne kopie ikon z CDN gry. Podczas budowania strony sciezki sa zamieniane
+// Oryginalne piktogramy SVG stworzone dla projektu. Podczas budowania sciezki sa zamieniane
 // na data URI, dzieki czemu dist/wioska/index.html pozostaje samowystarczalny.
 const IKONY_BUDYNKOW = Object.freeze({
-  ratusz: 'data:image/webp;base64,UklGRqwBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK8AAAABgGPb2rHn/rbV2YjVmVOwzRGYVaaQyulSqbRKVklp23nC9/uHEBETgAh75jdKjXwmVRfRw1y5WfCfueuWiOhltsj0B987Rf++Taf8Klgn1q0UAE/EvugHiOtMPA640GbW0PknB9rLqRu7+GAjqyizZYLtEBK7yDt8z3DUBr4QotSa8b/2R3otACAxImt8jeh6vcGYaP7Fg8Trcg8utKenCqTSX4BQDCij8rUaASIKAFZQOCDWAAAAEAUAnQEqEgASAD6RQpxKJaOioagIALASCWIAnTKDx55hQZdo3AwnVJmxLKrOyQDvkAD5udeSouTLcPJDAhV3aBtbIGXcGnK9HB1jfzMc6fdWJihN/pUaKtRVqQgmpCESRDygorGvhlKc2JYrbJ/SyjPvD82H7ogdHJXwfQ5QPi6K98AWRHftodpynXaudmtN/ncWsn1pZ8MjDK2qCSB0OIHvhH/97qXwCbQbC8HPirWnadKWLVbdPVlETw2IEQtaJ/9LG//xz/9G7//Qjnn519TaShrwAA==',
-  koszary: 'data:image/webp;base64,UklGRsoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSDwAAAABH6AgbQOm/iXv2oiI4BcYQpIkqfbpNWifQdinwQ/qICL6H4JtSMC7lUq74UAMW/+Yclppt62tgA1Z8AFWUDggaAAAAFACAJ0BKhAAEAACADQlAF2GCNERDzgBfp6y8AD8okK2ji93ic0O0a/mcF8w6OAE7SQHiMUM0GcnosjIuargbjkenmPD9UAGdD0I0JCFr7TqsLMpwmj8kGg1P3XUGsWT44RHyq0FEgAA',
-  stajnia: 'data:image/webp;base64,UklGRlQBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSKQAAAABgFtt2/LkTpDICNTuNokv4G4VabEBKJOeyjrSoa3t4O6uN/IdZoiICQBo2lLdaiIYm/g0+DkRA2Iz/nMmBv2q89XV86r9lO2pQwBD6l5Zn5olmFX7MmpjqFHNzOpGIlQwr5tjOhcNJcd1ZVktDBWq2936XB6aeNf2hkufU6H2Gy8bSOvD+p/d40/T0Hapryk4u9bLNmBJvYM7dQlgQL2He3UAAFZQOCCKAAAAcAIAnQEqEAAQAAIANCWUAnQGLBdonPTPfpG8QAD7BevlbIPVryFTxR/zoSjDeRPS2Bk9p7P3C28Y4D2bG05ybxNil+JKVgLmHSH7rsk2F4OtqO3L9EcnkmS9iMvZ/8/+ZSgxRvuTzpybTV+FfYuMQrVC1Fi9UeisLJyXRSsfeKJRhRO8nVF9IAAA',
-  warsztat: 'data:image/webp;base64,UklGRn4BAABXRUJQVlA4WAoAAAAQAAAAEQAAEgAAQUxQSLAAAAABgKtt//nlzbZt25vdWgfQ3OTOwG7zZJtnYJuT25pcb/h+fscQERMAwHowV/c4A5rJjU7uaSjuo1pD7r5AFwFpJFsvSFKILiAbYU8yWeiYJe88s0iaCfmU1+IC/P4BwkZo5EspQlU31XzNLum95kRETREAx8VcQ267HlC5AbmdysNkwYYkF52f+D5ipNL9V4hnklTBcIXqkywBj0ISZIptGgKcbKcY7b0arQFAFXUBAFZQOCCoAAAAsAQAnQEqEgATAD6RPpdIpaMiISgNULASCWcOYAAEbBuwA3V0B2tlwqTb5B7YAAD9a0bLZQCEcbi6WQDqTDzl2zzL/+1UxdTByZb5JIPeIjWp56QgIETnL17UqDwP67eFpkNL3160vlgGGbh9yPpn5//8oZ8lPN3c6Ar/YUCNqLwEpv9IXTXhH89sB/gDP6kwDOC3TlTJVU9RVRyw9pQXv7I/gfZqqAAA',
-  wieza: 'data:image/webp;base64,UklGRiIBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSGcAAAABcFNr29p8aiIiAiIgcqKBU9RQEdlKK+PUjZnpKX5TBETEBIgABXC4FQD5Bg6whYNKmzJyY1JPvKQ84Sa/lyxWtljTJUtFWDw3LqVYZwzvMzNUrOhex27vMWL1Z8P/zZ8loXyHLNMFAFZQOCCUAAAAUAQAnQEqEgASAD6ROplIJaMioSgNULASCWIAriokABMyeTr34Nr7U0bOaADOFe1tuNU5pDP9aFBb/T/+m2ahnB8SB2o7VAC2Nwd6VwldR9Q394M9+xrIIQ1ZVYMa08+jlcmsfGa9nWlWlrFZbpik/nyiiC3vadCn8j37071GFcdfWxOkxXK8eeB6SCD67vC7dzEAAA==',
-  palac: 'data:image/webp;base64,UklGRigBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGcAAAABcFpt27K8v+HukEgcmq7AHNZtA/dMIrGFW2UFtyUcfvd/gIiYAOCMbUk3CO6TZEZQ+U2S/7CAFMneuVkRI1gmHORGB5jlVIHog4scwPhHkukRyXtvkhqcn4somNsiArqhCJupLiIEAFZQOCCaAAAA8AIAnQEqEAAQAAIANCWQAnQwTMlT/jiRQD6zzJiskUAA/st16PeFze7Mr20kNyzlA6ScYd+n8/ify24iCaK0Qr5koUqc3vQjtXbsJvrofBisdPB3qfhXrLjoX/j4H1TwxqtPGAbtVvFb9nqP7orzPVmf7Ta2+em8WBnttun5GH0ifmaN25ta92TwzObe9BrVPfuOb8gyM7bQAA==',
-  kuznia: 'data:image/webp;base64,UklGRngBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSLQAAAABgGNrm/LkjQvu7u7au8MKYAWsgC4VVA5tSnQDXlO6U7q72+R/kZnJFiJiAvA/cmP54NAE7SWSvm69lIs3itdELfQJUsxomAuO345JGtkSpylrnuTrAPlZIunc+H482OgLTt8Zi4HUuDtb7IgGYIeyypsIf2NMvfSzx1L5rWe0AvC86mzE4799ReX1QB40bcga0xVo98m+whSZ+1R2mSRFz1R+nadJRr+/ny8vL9+EeHmvBQBWUDggngAAANAEAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgllAMZBi0pwur7v8R7WXIcZJvYcSqQAAP7r93myokOWj+funVlUrOqDUn+xdugX91z+cvqegT1TUsggMibuwT3Mme7+vqsg8fpH74jOz6Zb/A5RilgNeZIQ/yzAdUz34hLf/xBdSuAf1Iri+r9NRWs8sJxpyMUMVaIH4Zl7dpaXBYgAAAAA',
-  plac: 'data:image/webp;base64,UklGRgYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFTb1rKcH3fXoTVgMWZGAHKQgyYEIAdBfOZ+sfd9iwYRMQFQleMQYOIyA/296dMHtzEe04TPrusjfObWeVDZSVpYI+hJ2lg5SEnapowYRCU9kkYOEpIUM/LQ+koAVlA4IIIAAACQAgCdASoQABAAAgA0JYwAEiAc3J5aMl4bq+wxkAD+ZZn1Phtsb6ZmzO3qA2fRPNonpvH9svnY3+zW5URhBvtjVX9M7mZjaoV0KZFXlUPYuX6x+5290/K8Oe0cAqh/EKoV4ez0zbjip/PA9nb9hzSN+aI6/X/3Wsf6gL3rE4BsSwAA',
-  piedestal: 'data:image/webp;base64,UklGRrABAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSK4AAAABgGLb1vLmhaOYObGZQDwVdXWrWLaWmRUzOmaQDIpUZ8AMim7hvX8MESEgKGINscp33hd6SKnEwN17W3WhZFJ1X73XuykSjnFmw9bHjI2Iol0TRkZb+X1D/93hIpvxlz1gvXE4I/4FuIkXnPkA794utuRd3t+zz7Uk6uvLPmHnk1IVzG1CSReA1bXXAgXufQBH0zhtkQYgOpCupWPpXYL0Kg1KN1JQ2gZy1wHkEAFWUDgg3AAAALAFAJ0BKhIAEgA+kUKbSiWjoiGoCACwEgliAJ0orzle267VaYAOS6PGOPnu5zsFNHHWX1DWAAD+ACpoRmtPRAoss07yn9yh3dH81aBZ+3jQeze5PseUmzgLyr7lxPtKy0Jce2jfP3bMIxXPVNrwLs0yIl2VG3VcAWU228LzztKZ9Kwq1W1m1KEQn3tZ5p5qnz//+iQX/n///vZfssgkxKS4h+Hv3R7/yKNjoOuXX/Ocl6r4tgrjF3o9XbIJ3/zjtD2+xiciQXNznNrzuNBAxqiPN/vEQ6HCgpbRAAA=',
-  rynek: 'data:image/webp;base64,UklGRhYBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGoAAAABL0CQbTN/qrHc4DnANSIi+BrhOLLdtoEC7ngiUYBTAUr31ABg9d+NQwsR/d8DCYdUEafupAS9NRvqXNaspC+jZTkhShlHZZcVLqn885m32B6ljDetvoyew5HOZc2LDHprNlScupMi4ZAqVlA4IIYAAADQAgCdASoQABAAAgA0JbACdLoAEIfugCq5HPnZtFIAAP4xRuZNW9HP7cazUwZ7Ooaadci6IV5ydOyarvNtoqceOGGL7fZZYt0AILKFFW9tkxCbweBc68Yh7TrdEuowp0m6GRJwqmoELasn8p4w53lQi4n/owD2683ttFNi4I/I0UP/Rk5AAA==',
-  tartak: 'data:image/webp;base64,UklGRjgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSIEAAAABgFpt2/LmDTMOwKg5iiZg1gwyNinJ2i5AK/AG7SCkmCGP+GiFiJgAkvUe3AIia6j/CPASbuvi5AXAyyBOrtUz7v8A4LuhITq82oB93ysTC+7nLEB83leShIUtBtcpAfk4+GkZeMQDbvK85j/vt8UrPPCSGgaSp8sNSlJsRWmotE8AVlA4IJAAAAAwAgCdASoQABAAAgA0JaACdH8AgnTGWUJUAAD8h86+qS3sW3s9dru/it2K129zWhzwd1HnN85Phlv8F0GTTZFoqzE+MXU0dIXhdEYIAmSZwNEuyD6apVZqSk5eH+E0Ig78KH+1N+5SK2yzbPkZtUvyi76upj3wwetzt0lMK2RckFzB02i+Rhpp6ECxPUAAAAA=',
-  cegielnia: 'data:image/webp;base64,UklGRvoAAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSE4AAAABcFPbthM9USQnqaLLqaRCABU+0JCsRAPTs27zwlqjICImgPQBoHNekP4E6YFZBwykTD4ApPRWGA6w0ghLyk1CuHAk/j4mksBnVU+EvwdWUDgghgAAAJACAJ0BKhAAEAACADQlsALElQHV/i1ZNufwmXAAAP7TLelIF8doDuqqFIJJBCR2OnqVl1CqJg/nWIgHIbOV4x2iy9V9PImuIPR+XSN1pNCuHFD3ABNcUWNz9/dGs4P/tM0xUP678b/tunMZACPG/E9A+jRkV45ijwzYd8jjVZtK/jbeAAAA',
-  huta: 'data:image/webp;base64,UklGRjABAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSHsAAAABgGJt27Lo2QPS2AELILm7ZBqbgDXQyWRNTiNCJLlEd5eZZ+TlPzM7iIgJgKZuh1y88tOjbXMlGTP3lwMpkoK/RQLAmUwAyJxJ/M6SBEgSoupOGW+TEt6bBCj9o4ASINpkQ6cIgS7nMcEgAPEBS3oAhyl/b9Md8j4j+O8AVlA4II4AAABwAgCdASoQABAAAgA0JQBOgNPlzP/lZMfTWqFAAP7vqtS9xPo+zwHPlJP3OrEW2iW5a22u/f866wSKgB8yJuK7tumL/g3fH+lGNnnP9oXvZpOFFZXVgeKRgkvDnn+YmlUkA0vNU030G8hvi/9/ROjv1PO0hGstCc00zUwX2iyELz27DLEAyXyi7qh0AAAA',
-  zagroda: 'data:image/webp;base64,UklGRi4BAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSF4AAAABcFpt25I9eNRKJrIDO5CJRFZgAzZgA9cFSL/NYUmb4TpBREwANqlc6r5ODNn18N1kAFBuPfGsgbbq6bJxmpH47xkLlrNYb9pOAhFPudEAKHfkk3IYVJ17XdcVj00CVlA4IKoAAAAQAwCdASoQABAAAgA0JbACdLoBJgLf/smIiEyQmYht/RAA4dTa1Lg/iRciYdSt6qRVyWeyHNulyluvOfHlCE48wY4c3ihK9Fv9NAtOTlR8rxFm4X+V8QQ+aTwj6TF0wfvzR4j4wDZK1AYBrnRyfo+T0qspjtmYYvs2IURajp18bCzu3S/F/I6A0DP/GLFRe5tj3rdkFJJ2K49b49Iyez9R6GbeHLxrApXAAA==',
-  spichlerz: 'data:image/webp;base64,UklGRtQBAABXRUJQVlA4WAoAAAAQAAAAEQAAEQAAQUxQSIAAAAABgGpb27LoxRrJKomoySokz3Qy2SV68u7uiVtwSDSSQ4LOvCOfzCVExAQA1b8JA7t1h4g2Fkkf/76tDHmkeihKpH8spCYD4j0AAEnkzIEReZ8w55rpkfdL2uPZm0Fl0KjTDAkgbxhOXtKYAdFOkB1Y6gSACoOPAq4XIh6riwj8K1ZQOCAuAQAAkAcAnQEqEgASAD6RQptKJaOiIagIALASCWwAnTKEgsiBagOfF0wDlACCU/YDfgegAHFZtIZJ07YM6NNtkqqokvBYwRwAAP0gXRTxfPyQQbd0hr1HC/Zu+QPyAA5SJuT6szujIWV+90ziJIjqT8HoUHdhfxLqhNvXW493dspMaK1RsyM3pkfxBsneqnqGHz/BedN+fKsvlbBQXiG8p34wK/RizVfAermLIev+mkchQmfT39ns9pvYZvTRHDVIXfC6uyD7lcm7KMwVOjCIsLfVYmHOUMpGmMle7Jb7E79LPBjvRSeQl5+k9BdpK9bYhzenqwTBzLGcD0p5148Yn43lxBB/Ywf+OyEM0Z6utqjfKQ4Qo/qjRBI2jkuKLJ3CM0gqWPupANQ+MApMtP+NIAA=',
-  schowek: 'data:image/webp;base64,UklGRkgBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSJAAAAABgFpt2/LmOScOXQaIZE4kMypyzHGMBR/XDbgdgrldoqcTRDK9pe+bISImANztigycWgfR6tDwn8F/9EB/539E0trXhv4HIAzMiBOQpohz14C8M2dd1Y+hLMyIORHGnvE5I+bchrc4iPMCVgLPGnjh2wCrNNcQijswVvHx2oHNC2uMUUgAcrGmU/q4XtBkSgRWUDggkgAAAHADAJ0BKhAAEAACADQlnAARADxWPSf1m9gD9ZiktXudvumoAAD+y25d5rKOQXc3iQTqlLAnPQ6/ZbEVwC7DEhOdIxfLU02SS+qO7DJJYuFU//abs+VqirPLUhMF3OaUmaAE9mXm7p9IB1c7E9fPb/OecK2s08nIka11mEdcToRxhK9czoK9Dvqi2bZl+1dljgQA',
-  mur: 'data:image/webp;base64,UklGRkoBAABXRUJQVlA4WAoAAAAQAAAADwAADwAAQUxQSGQAAAABcFpt27I8Fanu7pqsaf+34TCA+waMQGQLOs0tusODk+gRMQF4FTVDAHDFx/SyDRFipywAAiBp8BorXADqnPSNrNU/8mzD5NCDi2S8S5IdkBd5mF+WSRqEb64khcw3r+vdL38WVlA4IMAAAAAQAwCdASoQABAAAgA0JbACdLoA4wHP/2RwRDBIumDQHAAA/uf/+ns3/+z+f9u31Lqjq8j322tOdOKbaNVOfzHM0bG3rw87Es3PTk5IRKi7wFj5/JzZd2W8syuYkU+YfQ99j527VPvPJ5ccpZaI1BWibqjrcUItnvvhFok0anrC+1fK7oNR/d+2VPfonrETUDHwwWnWjbGOzmXrs+vzH/4E810XG7OfFFhlzJUQf68/aAFSII+UkkOcM5WjuoSAAAA=',
+  ratusz: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJSYXR1c3oiPgogIDxwYXRoIGZpbGw9IiNlYWQ3YTIiIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNMTAgNTNoNDRWMjlMMzIgMTQgMTAgMjl6Ii8+CiAgPHBhdGggZmlsbD0iI2I3NWIzNSIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Im03IDMwIDI1LTE4IDI1IDE4LTQgNS0yMS0xNUwxMSAzNXoiLz4KICA8cGF0aCBmaWxsPSIjOGY1NjM0IiBzdHJva2U9IiM1YjNhMjIiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTI3IDUzVjM5aDEwdjE0Ii8+CiAgPHBhdGggZmlsbD0iI2Q3YmQ3OSIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0yNSAxOFY3aDE0djExTTIyIDdoMjAiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjEyIiByPSIyLjUiIGZpbGw9IiM1YjNhMjIiLz4KPC9zdmc+Cg==',
+  koszary: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJLb3N6YXJ5Ij4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyNyIgZmlsbD0iI2VmZTBiZCIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiLz4KICA8cGF0aCBmaWxsPSIjYjljMGMyIiBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTE3IDEyYzIgMTIgOCAyMyAxNyAzMWwtNSA1QzE5IDM5IDEzIDI3IDEyIDE2ek00NyAxMmMtMiAxMi04IDIzLTE3IDMxbDUgNWMxMC05IDE2LTIxIDE3LTMyeiIvPgogIDxwYXRoIHN0cm9rZT0iIzdkNGMyZCIgc3Ryb2tlLXdpZHRoPSI1IiBzdHJva2UtbGluZWNhcD0icm91bmQiIGQ9Im0yMiA0Ni01IDVtMjUtNSA1IDUiLz4KPC9zdmc+Cg==',
+  stajnia: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTdGFqbmlhIj4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIyNyIgZmlsbD0iI2VmZTBiZCIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiLz4KICA8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiM4ZDYwMzgiIHN0cm9rZS13aWR0aD0iOSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBkPSJNMTcgMTh2MTVjMCAyMCAzMCAyMCAzMCAwVjE4Ii8+CiAgPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZjNkNThkIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1kYXNoYXJyYXk9IjEgOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBkPSJNMTcgMTh2MTVjMCAyMCAzMCAyMCAzMCAwVjE4Ii8+CiAgPHBhdGggc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZD0iTTEzIDE4aDltMjAgMGg5Ii8+Cjwvc3ZnPgo=',
+  warsztat: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJXYXJzenRhdCI+CiAgPGNpcmNsZSBjeD0iMjgiIGN5PSIzNCIgcj0iMTUiIGZpbGw9IiNiOWMwYzIiIHN0cm9rZT0iIzRhMzQyOCIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPHBhdGggZmlsbD0iI2VmZTBiZCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0yOCAyNWE5IDkgMCAxIDAgMCAxOCA5IDkgMCAwIDAgMC0xOHoiLz4KICA8cGF0aCBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iNSIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSIgZD0iTTI4IDE1djZtMCAyNnY2TTkgMzRoNm0yNiAwaDZNMTUgMjFsNSA1bTE2IDE2IDUgNW0wLTI2LTUgNU0yMCA0MmwtNSA1Ii8+CiAgPHBhdGggZmlsbD0iIzhkNjAzOCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Im0zOSAxMiAxMiAxMi01IDUtMTItMTIgMi02eiIvPgo8L3N2Zz4K',
+  wieza: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJXaWXFvGEgc3RyYcW8bmljemEiPgogIDxwYXRoIGZpbGw9IiNjNWE5NzUiIHN0cm9rZT0iIzRhMzQyOCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNMTkgNTVoMjZsLTMtMjlIMjJ6Ii8+CiAgPHBhdGggZmlsbD0iIzhkNjAzOCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Ik0xNSAyN2gzNHYtOUgxNXpNMTIgMThoNDBsLTYtOUgxOHoiLz4KICA8cGF0aCBmaWxsPSIjMmY0NTUwIiBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTMyIDM0YzggMCAxMyA3IDEzIDdzLTUgNy0xMyA3LTEzLTctMTMtNyA1LTcgMTMtN3oiLz4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjQxIiByPSIzIiBmaWxsPSIjZDdiZDc5Ii8+Cjwvc3ZnPgo=',
+  palac: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJQYcWCYWMiPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzIiIHI9IjI3IiBmaWxsPSIjZWZlMGJkIiBzdHJva2U9IiM1YjNhMjIiIHN0cm9rZS13aWR0aD0iMyIvPgogIDxwYXRoIGZpbGw9IiNkN2E5MjgiIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJtMTMgMjEgMTEgMTAgOC0xNyA4IDE3IDExLTEwLTQgMjVIMTd6Ii8+CiAgPHBhdGggZmlsbD0iIzliM2YzNyIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0xNyA0NmgzMHY3SDE3eiIvPgogIDxjaXJjbGUgY3g9IjEzIiBjeT0iMjAiIHI9IjMiIGZpbGw9IiNiNzViMzUiLz48Y2lyY2xlIGN4PSIzMiIgY3k9IjEzIiByPSIzIiBmaWxsPSIjYjc1YjM1Ii8+PGNpcmNsZSBjeD0iNTEiIGN5PSIyMCIgcj0iMyIgZmlsbD0iI2I3NWIzNSIvPgo8L3N2Zz4K',
+  kuznia: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJLdcW6bmlhIj4KICA8cGF0aCBmaWxsPSIjNTk2NTZhIiBzdHJva2U9IiMzNTJhMjUiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTkgMzdoMzFjNyAwIDEwLTQgMTMtMTBsNCAzYy0zIDEwLTkgMTYtMTkgMTZoLTR2OEgxN3YtOEg5eiIvPgogIDxwYXRoIGZpbGw9IiM4ZDYwMzgiIHN0cm9rZT0iIzM1MmEyNSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJtMTggMTAgNy0zIDE0IDE0LTYgNnoiLz4KICA8cGF0aCBzdHJva2U9IiMzNTJhMjUiIHN0cm9rZS13aWR0aD0iNyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBkPSJtMzUgMjMgMTUgMTUiLz4KICA8cGF0aCBzdHJva2U9IiNkM2Q5ZDkiIHN0cm9rZS13aWR0aD0iMiIgZD0iTTEzIDQwaDI3Ii8+Cjwvc3ZnPgo=',
+  plac: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJQbGFjIj4KICA8Y2lyY2xlIGN4PSIzMiIgY3k9IjM0IiByPSIyNCIgZmlsbD0iI2M2YWU4MiIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiLz4KICA8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiM4Zjc2NTUiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTEwIDM0aDQ0TTMyIDEwdjQ4TTE1IDIwYzEwIDcgMjQgNyAzNCAwTTE1IDQ4YzEwLTcgMjQtNyAzNCAwIi8+CiAgPHBhdGggc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjQiIGQ9Ik0yMiA0N1YxNCIvPgogIDxwYXRoIGZpbGw9IiM5YjNmMzciIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNMjQgMTZoMjJsLTYgOCA2IDhIMjR6Ii8+Cjwvc3ZnPgo=',
+  piedestal: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJQaWVkZXN0YcWCIj4KICA8cGF0aCBmaWxsPSIjYjdhYThkIiBzdHJva2U9IiM0YTQyMzgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTE4IDUzaDI4di03SDE4ek0yMiA0NmgyMGwtMy0yMkgyNXpNMjAgMjRoMjR2LTZIMjB6Ii8+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIxMSIgcj0iNyIgZmlsbD0iI2M5YmRhMiIgc3Ryb2tlPSIjNGE0MjM4IiBzdHJva2Utd2lkdGg9IjMiLz4KICA8cGF0aCBmaWxsPSIjYzliZGEyIiBzdHJva2U9IiM0YTQyMzgiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTI1IDE4aDE0bDQgN0gyMXoiLz4KPC9zdmc+Cg==',
+  rynek: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJSeW5layI+CiAgPHBhdGggZmlsbD0iIzhkNjAzOCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0xMyAyOWgzOHYyNEgxM3oiLz4KICA8cGF0aCBmaWxsPSIjZWZlMGJkIiBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTkgMjggMTUgMTNoMzRsNiAxNXoiLz4KICA8cGF0aCBmaWxsPSIjYjc1YjM1IiBkPSJNMTkgMTNoOGwtMiAxNWgtOXptMTggMGg4bDMgMTVoLTl6Ii8+CiAgPHBhdGggc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0zMiAxNXYzMG0tMTAtOGgyMCIvPgogIDxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Q3YTkyOCIgc3Ryb2tlLXdpZHRoPSIzIiBkPSJtMjMgMzktNSA4bTIzLTggNSA4Ii8+CiAgPHBhdGggZmlsbD0iI2Q3YTkyOCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xNCA0N2g4bC0yIDRoLTR6bTI4IDBoOGwtMiA0aC00eiIvPgo8L3N2Zz4K',
+  tartak: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJUYXJ0YWsiPgogIDxwYXRoIGZpbGw9IiM4ZDYwMzgiIHN0cm9rZT0iIzRhMzQyOCIgc3Ryb2tlLXdpZHRoPSIzIiBkPSJNMTAgMzloMzVhOCA4IDAgMCAxIDAgMTZIMTB6Ii8+CiAgPGNpcmNsZSBjeD0iNDUiIGN5PSI0NyIgcj0iOCIgZmlsbD0iI2QyYTU2MyIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjMiLz4KICA8Y2lyY2xlIGN4PSI0NSIgY3k9IjQ3IiByPSIzIiBmaWxsPSJub25lIiBzdHJva2U9IiM4ZDYwMzgiIHN0cm9rZS13aWR0aD0iMiIvPgogIDxwYXRoIGZpbGw9IiNiOWMwYzIiIHN0cm9rZT0iIzRhMzQyOCIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJtMTQgMTEgMTEgNy0zIDUgMjggMTctNCA3LTI4LTE3LTMgNS04LTExeiIvPgo8L3N2Zz4K',
+  cegielnia: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJDZWdpZWxuaWEiPgogIDxwYXRoIGZpbGw9IiNiNzViMzUiIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNOCAzNWgyMnYxN0g4em0yNC0xMmgyNHYxN0gzMnptMCAxOWgyNHYxMEgzMnpNMTAgMTZoMjB2MTdIMTB6Ii8+CiAgPHBhdGggc3Ryb2tlPSIjZWFkN2EyIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xOSAxNnYxN20yNC0xMHYxN00xOSAzNXYxN20yNS0xMHYxMCIvPgogIDxwYXRoIGZpbGw9IiM1OTY1NmEiIHN0cm9rZT0iIzM1MmEyNSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJtMTYgOCA4IDQgMjIgMzEtNiA0LTIyLTMwLTYtMXoiLz4KPC9zdmc+Cg==',
+  huta: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJIdXRhIMW8ZWxhemEiPgogIDxwYXRoIGZpbGw9IiM1OTY1NmEiIHN0cm9rZT0iIzM1MmEyNSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNMTIgNTFoNDBsLTUtMThIMTd6Ii8+CiAgPHBhdGggZmlsbD0iIzM0M2EzZCIgc3Ryb2tlPSIjMzUyYTI1IiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0yMCAxMmgyNHYyM0gyMHoiLz4KICA8cGF0aCBmaWxsPSIjZjE5YTM4IiBzdHJva2U9IiM2ZTMzMjgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTMyIDQwYy05LTYtNy0xNCAwLTIyIDggOSA4IDE2IDAgMjJ6Ii8+CiAgPHBhdGggZmlsbD0iI2Q3ZDlkOCIgc3Ryb2tlPSIjMzUyYTI1IiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Im0xMyA1MCA4LTloMjJsOCA5eiIvPgo8L3N2Zz4K',
+  zagroda: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJaYWdyb2RhIj4KICA8cGF0aCBmaWxsPSIjYjc1YjM1IiBzdHJva2U9IiM1YjNhMjIiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTEyIDI5IDMyIDEybDIwIDE3djI0SDEyeiIvPgogIDxwYXRoIGZpbGw9IiM4ZDYwMzgiIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBkPSJNMjQgNTNWMzRoMTZ2MTkiLz4KICA8cGF0aCBzdHJva2U9IiNlYWQ3YTIiIHN0cm9rZS13aWR0aD0iMyIgZD0ibTI1IDM1IDE0IDE3bTAtMTdMMjUgNTIiLz4KICA8cGF0aCBmaWxsPSJub25lIiBzdHJva2U9IiNkN2E5MjgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBkPSJNOSA1MmM3LTUgNy0xNCA3LTI0bS03IDEyIDcgNG0tNi0xMSA2IDRtMzkgMTVjLTctNS03LTE0LTctMjRtNyAxMi03IDRtNi0xMS02IDQiLz4KPC9zdmc+Cg==',
+  spichlerz: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTcGljaGxlcnoiPgogIDxwYXRoIGZpbGw9IiNkN2JkNzkiIHN0cm9rZT0iIzViM2EyMiIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBkPSJNMTMgMjQgMzIgMTBsMTkgMTR2MjlIMTN6Ii8+CiAgPHBhdGggZmlsbD0iIzhkNjAzOCIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik0yMSAyOWgyMnYyNEgyMXoiLz4KICA8cGF0aCBzdHJva2U9IiNkN2JkNzkiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTIxIDM2aDIybS0yMiA4aDIyIi8+CiAgPHBhdGggZmlsbD0iI2M5OWE1NSIgc3Ryb2tlPSIjNWIzYTIyIiBzdHJva2Utd2lkdGg9IjMiIGQ9Ik03IDQ3YzAtOCA0LTEzIDktMTNzOSA1IDkgMTN2N0g3em0zMiAwYzAtOCA0LTEzIDktMTNzOSA1IDkgMTN2N0gzOXoiLz4KPC9zdmc+Cg==',
+  schowek: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJTY2hvd2VrIj4KICA8cGF0aCBmaWxsPSIjOGY3NjU1IiBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZD0iTTggMjRoNDh2MzJIOHoiLz4KICA8cGF0aCBmaWxsPSIjYzZhZTgyIiBzdHJva2U9IiM0YTM0MjgiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTEyIDI4aDQwdjI0SDEyeiIvPgogIDxwYXRoIGZpbGw9IiM4ZDYwMzgiIHN0cm9rZT0iIzRhMzQyOCIgc3Ryb2tlLXdpZHRoPSIzIiBkPSJNMjAgMzZoMjR2MTZIMjB6Ii8+CiAgPHBhdGggZmlsbD0iI2Q3YTkyOCIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0yOSA0MGg2djdoLTZ6Ii8+CiAgPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGEzNDI4IiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZD0iTTEyIDE2YzEyLTEwIDI4LTEwIDQwIDBNMTYgMjBjOS03IDIzLTcgMzIgMCIvPgogIDxwYXRoIHN0cm9rZT0iIzliM2YzNyIgc3Ryb2tlLXdpZHRoPSI0IiBzdHJva2UtbGluZWNhcD0icm91bmQiIGQ9Im0xMSA5IDQyIDQ2Ii8+Cjwvc3ZnPgo=',
+  mur: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJNdXIgb2Jyb25ueSI+CiAgPHBhdGggZmlsbD0iI2FhYTI4ZSIgc3Ryb2tlPSIjNDk0NDNiIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGQ9Ik04IDE0aDEwdjhoOXYtOGgxMHY4aDl2LThoMTB2NDJIOHoiLz4KICA8cGF0aCBmaWxsPSIjNjI1OTRjIiBzdHJva2U9IiM0OTQ0M2IiIHN0cm9rZS13aWR0aD0iMyIgZD0iTTI1IDU2VjM5YzAtMTAgMTQtMTAgMTQgMHYxNyIvPgogIDxwYXRoIHN0cm9rZT0iI2Q3Y2RiNyIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTAgMjloNDRNMTAgMzloMTVtMTQgMGgxNU0xMCA0OGgxNW0xNCAwaDE1TTE4IDIydjdtMTgtN3Y3bTEwIDEwdjltLTI4LTl2OSIvPgo8L3N2Zz4K',
 });
 
 // src/wioska/swiat.js
@@ -410,6 +414,18 @@ function opisWymagan(brakujace, nazwy) {
   return `Wymaga: ${czesci.join(', ')}`;
 }
 
+// src/wioska/kolejnosc-budynkow.js
+// Jawna kolejnosc wyswietlania, wspolna dla tabeli budynkow i rzedu ikon
+// w pasku stanu. Budynki jednorazowe sa na koncu listy.
+
+const NA_KONIEC = ['plac', 'piedestal', 'palac'];
+function kolejnoscBudynkow(s) {
+  const wszystkie = budynkiSwiata(s);
+  return [
+    ...wszystkie.filter(b => !NA_KONIEC.includes(b)),
+    ...NA_KONIEC.filter(b => wszystkie.includes(b)),
+  ];
+}
 // src/wioska/plan.js
 // Plan to czysty obiekt bez stanu interfejsu — ten sam ksztalt jedzie
 // do CLI, do schowka i do localStorage.
@@ -426,38 +442,65 @@ function zamroz(obiekt) {
 }
 const SUROWCE_STARTOWE = zamroz({ drewno: 1000, glina: 1000, zelazo: 1000 });
 const PLAN_PUSTY = zamroz(normalizujPlan({ swiat: 'pl231' }));
+
+// Os migracyjna nie moze zalezec od dochodu, ktory jest wlasnie migrowany.
+// Dlatego odtwarza tylko kolejne czasy budowy, bez przestojow i magazynu.
+function osBezPrzestojowDoMigracji(s, poziomyStart, kroki) {
+  const poziomy = { ...poziomyStart };
+  let czas = 0;
+  return kroki.map(k => {
+    const startS = czas;
+    const { sekundy } = czasBudowy(s, k.budynek, k.doPoziomu, poziomy.ratusz ?? 1);
+    czas += sekundy;
+    poziomy[k.budynek] = k.doPoziomu;
+    return { budynek: k.budynek, doPoziomu: k.doPoziomu, startS };
+  });
+}
+
+function kotwicaZCzasu(os, czasS) {
+  if (os.length === 0 || czasS <= os[0].startS) return null;
+  const trafiony = os.find(k => k.startS >= czasS);
+  const krok = trafiony ?? os[os.length - 1];
+  return { budynek: krok.budynek, doPoziomu: krok.doPoziomu };
+}
 function normalizujPlan(surowy) {
   const kod = surowy?.swiat ?? 'pl231';
   const s = SWIATY[kod];
   const poziomy = s ? poziomyStartowe(s) : {};
+  const kroki = (surowy?.kroki ?? []).map(k => ({
+    budynek: k.budynek,
+    doPoziomu: Number(k.doPoziomu),
+  }));
+  const startPoziomy = { ...poziomy, ...(surowy?.start?.poziomy ?? {}) };
+  const potrzebnaOs = (surowy?.dochody ?? []).some(d => d.czasS !== undefined && d.kotwica === undefined)
+    || (surowy?.zastrzyki ?? []).some(z => z.czasS !== undefined && z.kotwica === undefined);
+  const os = s && potrzebnaOs ? osBezPrzestojowDoMigracji(s, startPoziomy, kroki) : [];
+  const kluczeKrokow = new Set(kroki.map(k => `${k.budynek}|${k.doPoziomu}`));
+  const kotwicaZ = (wpis) => {
+    if (wpis.kotwica === undefined) return kotwicaZCzasu(os, Number(wpis.czasS ?? 0));
+    if (wpis.kotwica === null) return null;
+    const kotwica = { budynek: wpis.kotwica.budynek, doPoziomu: Number(wpis.kotwica.doPoziomu) };
+    return kluczeKrokow.has(`${kotwica.budynek}|${kotwica.doPoziomu}`) ? kotwica : null;
+  };
+  const dobowa = (d, surowiec) => Number(d[`${surowiec}D`] ?? (d[`${surowiec}H`] ?? 0) * 24);
   return {
     swiat: kod,
     start: {
-      poziomy: { ...poziomy, ...(surowy?.start?.poziomy ?? {}) },
+      poziomy: startPoziomy,
       surowce: { ...SUROWCE_STARTOWE, ...(surowy?.start?.surowce ?? {}) },
     },
-    kroki: (surowy?.kroki ?? []).map(k => ({
-      budynek: k.budynek,
-      doPoziomu: Number(k.doPoziomu),
+    kroki,
+    dochody: (surowy?.dochody ?? []).map(d => ({
+      kotwica: kotwicaZ(d),
+      sumaD: Number(d.sumaD ?? (dobowa(d, 'drewno') + dobowa(d, 'glina') + dobowa(d, 'zelazo'))),
+      zrodlo: d.zrodlo === 'zbieractwo' ? 'zbieractwo' : 'farma',
     })),
-    dochody: [...(surowy?.dochody ?? [])]
-      .map(d => ({
-        czasS: Number(d.czasS ?? 0),
-        // Plany zapisane przed przejsciem na dobe maja pola godzinowe.
-        // Operator ?? zostawia jawne zero, wiec 0 na dobe nie wraca do wersji godzinowej.
-        drewnoD: Number(d.drewnoD ?? (d.drewnoH ?? 0) * 24),
-        glinaD: Number(d.glinaD ?? (d.glinaH ?? 0) * 24),
-        zelazoD: Number(d.zelazoD ?? (d.zelazoH ?? 0) * 24),
-      }))
-      .sort((a, b) => a.czasS - b.czasS),
-    zastrzyki: [...(surowy?.zastrzyki ?? [])]
-      .map(z => ({
-        czasS: Number(z.czasS ?? 0),
-        drewno: Number(z.drewno ?? 0),
-        glina: Number(z.glina ?? 0),
-        zelazo: Number(z.zelazo ?? 0),
-      }))
-      .sort((a, b) => a.czasS - b.czasS),
+    zastrzyki: (surowy?.zastrzyki ?? []).map(z => ({
+      kotwica: kotwicaZ(z),
+      drewno: Number(z.drewno ?? 0),
+      glina: Number(z.glina ?? 0),
+      zelazo: Number(z.zelazo ?? 0),
+    })),
   };
 }
 function bledyPlanu(plan) {
@@ -494,39 +537,45 @@ function bledyPlanu(plan) {
 // src/wioska/symulacja.js
 // Przebieg osi czasu. W wiosce buduje sie jeden budynek naraz, wiec kroki
 // ida sekwencyjnie — liczba slotow kolejki nie zmienia laczonego czasu.
+// Dochod i dosylki sa przypiete do krokow (kotwica), nie do czasu — dochod
+// obowiazujacy w trakcie kroku i to ostatni wpis o indeksie <= i, a wtracenia
+// przypiete do kroku i staja sie aktywne dopiero PO jego ukonczeniu.
 
 const SUROWCE = ['drewno', 'glina', 'zelazo'];
 // Tolerancja na blad zaokraglenia zmiennoprzecinkowego. Bez niej "starczy na
-// koszt" potrafi zostac tuz ponizej progu (np. 59,999999999999986 zamiast 60)
-// o kwote mniejsza niz precyzja dodawania do zegara — dt liczony wprost z tej
-// reszty wtedy nie przesuwa juz czasu i petla nigdy sie nie konczy.
+// koszt" potrafi zostac tuz ponizej progu o kwote mniejsza niz precyzja
+// dodawania do zegara, i petla nigdy sie nie konczy.
 const EPS = 1e-6;
 
 const zeroSurowce = () => ({ drewno: 0, glina: 0, zelazo: 0 });
 
-function produkcjaNaSekunde(s, poziomy, dochod) {
-  return {
-    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) / 3600 + dochod.drewnoD / 86400,
-    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) / 3600 + dochod.glinaD / 86400,
-    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) / 3600 + dochod.zelazoD / 86400,
-  };
+// Kotwica -> indeks kroku w plan.kroki. null = przed pierwszym krokiem (-1).
+// Kotwica wskazujaca krok nieobecny w planie (mozliwe tylko przy recznie
+// edytowanym JSON) rozwiazuje sie do -1 — to siatka bezpieczenstwa, nie
+// sciezka uzywana przez interfejs.
+function indeksKotwicy(kotwica, kroki) {
+  if (kotwica === null) return -1;
+  const i = kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+  return i;
 }
 
-// Dochod obowiazuje od swojego czasu do nastepnego wpisu. Przed pierwszym
-// wpisem gracz nie ma zadnego dodatkowego zrodla.
-function dochodWChwili(dochody, czas) {
-  let biezacy = { czasS: 0, drewnoD: 0, glinaD: 0, zelazoD: 0 };
-  for (const d of dochody) {
-    if (d.czasS <= czas) biezacy = d; else break;
+// Farma i zbieractwo sa niezaleznymi strumieniami. W kazdym z nich ostatni
+// aktywny wpis wygrywa, a oba aktywne strumienie sumuja sie w produkcji.
+function sumaAktywnychDochodow(posortowane, indeksBiezacy) {
+  const aktywne = { farma: 0, zbieractwo: 0 };
+  for (const w of posortowane) {
+    if (w.indeksKotwicy > indeksBiezacy) break;
+    aktywne[w.zrodlo === 'zbieractwo' ? 'zbieractwo' : 'farma'] = w.sumaD;
   }
-  return biezacy;
+  return aktywne.farma + aktywne.zbieractwo;
 }
 
-function nastepneZdarzenie(plan, czas) {
-  let naj = Infinity;
-  for (const d of plan.dochody) if (d.czasS > czas && d.czasS < naj) naj = d.czasS;
-  for (const z of plan.zastrzyki) if (z.czasS > czas && z.czasS < naj) naj = z.czasS;
-  return naj;
+function produkcjaNaSekunde(s, poziomy, sumaD) {
+  return {
+    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) / 3600 + sumaD / 3 / 86400,
+    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) / 3600 + sumaD / 3 / 86400,
+    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) / 3600 + sumaD / 3 / 86400,
+  };
 }
 
 function dolej(stan, ile, sufit) {
@@ -548,25 +597,31 @@ function symuluj(plan) {
     zmarnowane: zeroSurowce(),
   };
   const zZastrzykow = zeroSurowce();
-  const zastosowaneZastrzyki = new Set();
-  let czas = 0;
   const kroki = [];
   const ostrzezenia = [];
   const koszt = zeroSurowce();
   let czasNiepewnyS = 0;
+  let czas = 0;
+
+  const dochody = plan.dochody
+    .map(d => ({ ...d, indeksKotwicy: indeksKotwicy(d.kotwica, plan.kroki) }))
+    .sort((a, b) => a.indeksKotwicy - b.indeksKotwicy);
+  const zastrzyki = plan.zastrzyki
+    .map(z => ({ ...z, indeksKotwicy: indeksKotwicy(z.kotwica, plan.kroki) }))
+    .sort((a, b) => a.indeksKotwicy - b.indeksKotwicy);
+  const zastosowaneZastrzyki = new Set();
 
   const ludnoscZajeta = () => budynkiSwiata(s)
     .reduce((suma, b) => suma + ludnoscPoziomu(s, b, poziomy[b] ?? 0), 0);
 
-  // Zastrzyki wpadaja dokladnie w swoim czasie; kazdy tylko raz.
-  const wpuscZastrzyki = (doCzasu, sufit) => {
-    for (let i = 0; i < plan.zastrzyki.length; i++) {
-      const z = plan.zastrzyki[i];
-      if (zastosowaneZastrzyki.has(i) || z.czasS > doCzasu) continue;
-      zastosowaneZastrzyki.add(i);
+  // Dosylki przypiete do indeksu <= indeksBiezacy wpadaja dokladnie raz.
+  const wpuscZastrzyki = (indeksBiezacy, sufit) => {
+    zastrzyki.forEach((z, idx) => {
+      if (zastosowaneZastrzyki.has(idx) || z.indeksKotwicy > indeksBiezacy) return;
+      zastosowaneZastrzyki.add(idx);
       dolej(stan, { drewno: z.drewno, glina: z.glina, zelazo: z.zelazo }, sufit);
       for (const r of SUROWCE) zZastrzykow[r] += z[r];
-    }
+    });
   };
 
   plan.kroki.forEach((krok, i) => {
@@ -586,6 +641,12 @@ function symuluj(plan) {
       poziomyPo: { ...poziomy },
       blad: null,
     };
+
+    // Dochod i dosylki przypiete do kroku i-1 lub wczesniej dzialaja juz
+    // podczas kroku i (czyli PO ukonczeniu poprzedniego kroku); przypiete
+    // do kroku i same jeszcze nie dzialaja w jego trakcie.
+    const indeksAktywny = i - 1;
+    wpuscZastrzyki(indeksAktywny, sufit);
 
     const brak = brakujaceWymagania(krok.budynek, poziomy);
     if (brak.length) {
@@ -622,17 +683,17 @@ function symuluj(plan) {
       return;
     }
 
-    // Przesuwaj zegar skokami miedzy zdarzeniami, az stac na krok.
+    // Przesuwaj zegar w krokach czasowych, az stac na koszt. Stawka jest
+    // stala w trakcie oczekiwania na dany krok (dochod nie zmienia sie
+    // wewnatrz trwania jednego kroku), wiec nie trzeba juz dzielic petli
+    // na segmenty wedlug zdarzen czasowych.
     const poczatek = czas;
     let czekanieNa = null;
-    // Zapamietane przed czekaniem: przelanie magazynu potrafi zdarzyc sie
-    // zarowno w tej fazie, jak i pozniej w trakcie budowy — porownanie na
-    // koncu kroku ma objac obie.
     const zmarnowanePrzed = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
-    wpuscZastrzyki(czas, sufit);
+    const sumaD = sumaAktywnychDochodow(dochody, indeksAktywny);
+    const stawka = produkcjaNaSekunde(s, poziomy, sumaD);
     for (;;) {
       if (SUROWCE.every(r => stan.zasoby[r] >= c[r] - EPS)) break;
-      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, czas));
       let potrzebaS = 0;
       for (const r of SUROWCE) {
         const brakuje = c[r] - stan.zasoby[r];
@@ -640,8 +701,7 @@ function symuluj(plan) {
         const dt = stawka[r] > 0 ? brakuje / stawka[r] : Infinity;
         if (dt > potrzebaS) { potrzebaS = dt; czekanieNa = r; }
       }
-      const zdarzenie = nastepneZdarzenie(plan, czas);
-      if (potrzebaS === Infinity && zdarzenie === Infinity) {
+      if (potrzebaS === Infinity) {
         wpis.blad = 'brak-dochodu';
         ostrzezenia.push({
           typ: 'przestoj', krok: i,
@@ -649,13 +709,10 @@ function symuluj(plan) {
         });
         break;
       }
-      const doCzasu = Math.min(czas + potrzebaS, zdarzenie);
-      const dt = doCzasu - czas;
       dolej(stan, {
-        drewno: stawka.drewno * dt, glina: stawka.glina * dt, zelazo: stawka.zelazo * dt,
+        drewno: stawka.drewno * potrzebaS, glina: stawka.glina * potrzebaS, zelazo: stawka.zelazo * potrzebaS,
       }, sufit);
-      czas = doCzasu;
-      wpuscZastrzyki(czas, sufit);
+      czas += potrzebaS;
     }
 
     if (wpis.blad) { kroki.push(wpis); return; }
@@ -670,28 +727,16 @@ function symuluj(plan) {
     wpis.pewny = pewny;
     if (!pewny) czasNiepewnyS += sekundy;
 
-    // Produkcja plynie takze w trakcie budowy. Stawka liczona osobno w kazdym
-    // segmencie miedzy zdarzeniami — dochod gracza potrafi zmienic sie w
-    // srodku okna budowy, wiec jednorazowe przeliczenie na starcie kroku
-    // pomijaloby te zmiane.
-    const koniec = czas + sekundy;
-    let biezacy = czas;
-    for (;;) {
-      const stawka = produkcjaNaSekunde(s, poziomy, dochodWChwili(plan.dochody, biezacy));
-      const zdarzenie = Math.min(nastepneZdarzenie(plan, biezacy), koniec);
-      const dt = zdarzenie - biezacy;
-      dolej(stan, {
-        drewno: stawka.drewno * dt, glina: stawka.glina * dt, zelazo: stawka.zelazo * dt,
-      }, sufit);
-      biezacy = zdarzenie;
-      wpuscZastrzyki(biezacy, sufit);
-      if (biezacy >= koniec) break;
-    }
-    czas = koniec;
+    // Produkcja plynie takze w trakcie budowy, ta sama stawka co w oczekiwaniu
+    // — dochod przypiety do tego kroku zacznie dzialac dopiero po jego koncu.
+    dolej(stan, {
+      drewno: stawka.drewno * sekundy, glina: stawka.glina * sekundy, zelazo: stawka.zelazo * sekundy,
+    }, sufit);
+    czas += sekundy;
 
     // Ostrzegamy raz, ale dopiero po fazie budowy — magazyn potrafi przelac
     // sie wylacznie w jej trakcie, gdy na krok stac od reki i nie bylo
-    // oczekiwania, wiec sprawdzenie sprzed fazy budowy by to przegapilo.
+    // oczekiwania.
     const zmarnowanePo = SUROWCE.reduce((sum, r) => sum + stan.zmarnowane[r], 0);
     if (zmarnowanePo > zmarnowanePrzed && !ostrzezenia.some(o => o.typ === 'przepelnienie')) {
       ostrzezenia.push({
@@ -706,6 +751,10 @@ function symuluj(plan) {
     wpis.ludnoscPo = ludnoscZajeta();
     wpis.poziomyPo = { ...poziomy };
     kroki.push(wpis);
+
+    // Dosylki przypiete do tego kroku wpadaja teraz, po jego ukonczeniu —
+    // zanim ruszy oczekiwanie na krok nastepny.
+    wpuscZastrzyki(i, pojemnosc(poziomy.spichlerz ?? 1));
   });
 
   return {
@@ -726,56 +775,72 @@ function symuluj(plan) {
 }
 
 // src/wioska/zapotrzebowanie.js
-// Dwie liczby odporne na wahania farmienia: ile plan trwa, gdy nic go nie
-// zatrzymuje, i ile surowcow trzeba dowozic, zeby tej granicy dotrzymac.
-// Przebieg pomocniczy ignoruje magazyn — interesuje nas dolna granica, a nie
-// przebieg przy konkretnym dochodzie, ktory liczy symulacja.
+// Dwie rodziny liczb odporne na wahania farmienia, obie liczone na osi bez
+// przestojow (magazyn i dochod sa ignorowane — to jest tempo, w jakim plan
+// CHCIALBY isc, nie przebieg przy konkretnym zaopatrzeniu):
+//   - czas netto i wymagany dochod dla calego planu (zapotrzebowanie),
+//   - zuzycie w oknie doby od wskazanego momentu (zuzycieNaDobe) — pokazuje
+//     zmiane tempa na kolejnych etapach, czego jedna liczba dla calego planu
+//     nie widzi.
+// Podstawa musi byc harmonogram BEZ przestojow: liczony po realnym (z
+// symulacji) bilans zawsze wyszedlby zerowy przy braku surowcow, bo wtedy
+// plan zuzywa dokladnie tyle, ile wplywa — miara mierzylaby sama siebie.
 
 const SUROWCE_Z = ['drewno', 'glina', 'zelazo'];
 const KOPALNIA_SUROWCA = { drewno: 'tartak', glina: 'cegielnia', zelazo: 'huta' };
 const DOBA_S = 86400;
-function zapotrzebowanie(plan) {
+function osBezPrzestojow(plan) {
   const s = swiat(plan.swiat);
   const poziomy = { ...plan.start.poziomy };
+  let czas = 0;
+  return plan.kroki.map(krok => {
+    const koszt = kosztPoziomu(s, krok.budynek, krok.doPoziomu);
+    const { sekundy } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
+    const wiersz = { budynek: krok.budynek, doPoziomu: krok.doPoziomu, startS: czas, trwanieS: sekundy, koszt };
+    czas += sekundy;
+    poziomy[krok.budynek] = krok.doPoziomu;
+    return wiersz;
+  });
+}
+function zapotrzebowanie(plan) {
+  const s = swiat(plan.swiat);
+  const os = osBezPrzestojow(plan);
   const skumulowany = { drewno: 0, glina: 0, zelazo: 0 };
   const wyprodukowane = { drewno: 0, glina: 0, zelazo: 0 };
   const wymagany = { drewno: 0, glina: 0, zelazo: 0 };
-  let czas = 0;
   let waskieGardlo = null;
   let szczyt = 0;
   let brakNaStart = false;
+  const poziomy = { ...plan.start.poziomy };
 
-  plan.kroki.forEach((krok, indeks) => {
-    const koszt = kosztPoziomu(s, krok.budynek, krok.doPoziomu);
-    for (const r of SUROWCE_Z) skumulowany[r] += koszt[r];
+  os.forEach((wiersz, indeks) => {
+    for (const r of SUROWCE_Z) skumulowany[r] += wiersz.koszt[r];
 
     for (const r of SUROWCE_Z) {
       const deficyt = skumulowany[r] - plan.start.surowce[r] - wyprodukowane[r];
       if (deficyt <= 0) continue;
-      if (czas <= 0) {
-        // Krok o zerowym czasie startu nie ma jak "zdazyc" — dzielenie
-        // dalo by nieskonczonosc i zepsulo cala liczbe.
+      if (wiersz.startS <= 0) {
         brakNaStart = true;
         continue;
       }
-      const naDobe = deficyt / (czas / DOBA_S);
+      const naDobe = deficyt / (wiersz.startS / DOBA_S);
       if (naDobe > wymagany[r]) wymagany[r] = naDobe;
       if (naDobe > szczyt) {
         szczyt = naDobe;
-        waskieGardlo = { indeks, budynek: krok.budynek, doPoziomu: krok.doPoziomu, surowiec: r, czasS: Math.round(czas) };
+        waskieGardlo = { indeks, budynek: wiersz.budynek, doPoziomu: wiersz.doPoziomu, surowiec: r, czasS: Math.round(wiersz.startS) };
       }
     }
 
-    const { sekundy } = czasBudowy(s, krok.budynek, krok.doPoziomu, poziomy.ratusz ?? 1);
     for (const r of SUROWCE_Z) {
-      wyprodukowane[r] += produkcjaGodzinowa(s, poziomy[KOPALNIA_SUROWCA[r]] ?? 0) * sekundy / 3600;
+      wyprodukowane[r] += produkcjaGodzinowa(s, poziomy[KOPALNIA_SUROWCA[r]] ?? 0) * wiersz.trwanieS / 3600;
     }
-    czas += sekundy;
-    poziomy[krok.budynek] = krok.doPoziomu;
+    poziomy[wiersz.budynek] = wiersz.doPoziomu;
   });
 
+  const czasNettoS = os.length ? os[os.length - 1].startS + os[os.length - 1].trwanieS : 0;
+
   return {
-    czasNettoS: Math.round(czas),
+    czasNettoS: Math.round(czasNettoS),
     wymaganyDobowo: {
       drewno: Math.ceil(wymagany.drewno),
       glina: Math.ceil(wymagany.glina),
@@ -784,6 +849,27 @@ function zapotrzebowanie(plan) {
     waskieGardlo,
     brakNaStart,
   };
+}
+function zuzycieNaDobe(plan, indeksKrokuLubNull) {
+  const os = osBezPrzestojow(plan);
+  const suma = { drewno: 0, glina: 0, zelazo: 0 };
+  if (os.length === 0) return { suma, doKonca: true };
+
+  const indeksBazowy = indeksKrokuLubNull === null ? os.length - 1 : indeksKrokuLubNull;
+  const wiersz = os[indeksBazowy];
+  if (!wiersz) return { suma, doKonca: true };
+
+  const T = wiersz.startS;
+  const koniecOsi = os[os.length - 1].startS + os[os.length - 1].trwanieS;
+  const doKonca = T + DOBA_S >= koniecOsi;
+  const gorna = doKonca ? koniecOsi : T + DOBA_S;
+
+  for (const w of os) {
+    if (w.startS >= T && w.startS < gorna) {
+      for (const r of SUROWCE_Z) suma[r] += w.koszt[r];
+    }
+  }
+  return { suma, doKonca };
 }
 
 // src/wioska/format.js
@@ -876,7 +962,7 @@ function osCzasuTekst(wynik) {
   const brak = brakujaceWymagania(budynek, poziomy);
   const zablokowany = brak.length > 0;
   const przycisk = zablokowany
-    ? `<button disabled>Poziom ${docelowy}</button><div class="powod">${esc(opisWymagan(brak, NAZWY))}</div>`
+    ? `<button disabled title="${esc(opisWymagan(brak, NAZWY))}">Poziom ${docelowy}</button>`
     : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
   return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
     + `<td>${ikonaHTML(budynek, nazwa)}${esc(nazwa)}<br><small>${obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`}</small></td>`
@@ -906,41 +992,114 @@ function osCzasuTekst(wynik) {
 // sie je w kolumnie zaopatrzenia, ale dzialaja tutaj.
 // Wtracenie stojace przed jakims krokiem niesie jego indeks, zeby upuszczenie
 // przeciaganego kafelka na ten wiersz trafilo w to miejsce kolejki, a nie
-// zostalo pomylone z upuszczeniem pod cala lista.function wtracenieHTML(rodzaj, wpis, przedKrokiem = null) {
-  const kiedy = czasCzytelny(wpis.czasS);
+// zostalo pomylone z upuszczeniem pod cala lista.function wtracenieHTML(rodzaj, wpis, przedKrokiem = null, indeksWTablicy = null) {
   const cel = przedKrokiem === null ? '' : ` data-przed-krokiem="${przedKrokiem}"`;
+  const wt = indeksWTablicy === null ? '' : ` draggable="true" data-wtracenie="${indeksWTablicy}" data-wtracenie-rodzaj="${rodzaj}"`;
   if (rodzaj === 'dochod') {
-    return `<li class="wtracenie dochod"${cel}>`
-      + `<span class="kiedy">od ${esc(kiedy)}</span>`
-      + `<span class="opis">dochód ${wpis.drewnoD} / ${wpis.glinaD} / ${wpis.zelazoD} na dobę</span></li>`;
+    const zrodlo = wpis.zrodlo === 'zbieractwo' ? 'zbieractwo' : 'farma';
+    return `<li class="wtracenie dochod"${cel}${wt}>`
+      + `<span class="opis">dochód (${esc(zrodlo)}) ${wpis.sumaD} na dobę</span></li>`;
   }
-  return `<li class="wtracenie dosylka"${cel}>`
-    + `<span class="kiedy">po ${esc(kiedy)}</span>`
+  return `<li class="wtracenie dosylka"${cel}${wt}>`
     + `<span class="opis">dosyłka ${wpis.drewno} / ${wpis.glina} / ${wpis.zelazo}</span></li>`;
+}
+// src/wioska/widok-bilans.js
+// Bilans zaopatrzenia dla wskazanego momentu: trzy strumienie dochodu
+// (eko, farma, zbieractwo), ich suma, zuzycie na dobe liczone po osi bez
+// przestojow, i roznica — ile na dobe brakuje albo zostaje.
+
+const SUROWCE_B = ['drewno', 'glina', 'zelazo'];
+
+// Kopia rozwiazywania kotwicy na indeks, analogiczna do symulacji, ale
+// swiadomie osobna: widoki maja byc cienkie i nie ciagnac wewnetrznej,
+// nieeksportowanej logiki silnika.
+function indeksKotwicyWidoku(kotwica, kroki) {
+  if (kotwica === null) return -1;
+  return kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+}
+
+function sumaZrodla(plan, indeksAktywny, zrodlo) {
+  const trafione = plan.dochody
+    .map(d => ({ ...d, i: indeksKotwicyWidoku(d.kotwica, plan.kroki) }))
+    .filter(d => d.zrodlo === zrodlo && d.i <= indeksAktywny)
+    .sort((a, b) => a.i - b.i);
+  // Tak jak w symulacji: kazde zrodlo ma jeden aktywny wpis naraz, ostatni
+  // w kolejnosci indeksu kotwicy wygrywa.
+  return trafione.length ? trafione[trafione.length - 1].sumaD : 0;
+}
+
+function dosylkiDoIndeksu(plan, indeks) {
+  const suma = { drewno: 0, glina: 0, zelazo: 0 };
+  for (const z of plan.zastrzyki) {
+    const i = indeksKotwicyWidoku(z.kotwica, plan.kroki);
+    if (i <= indeks) for (const r of SUROWCE_B) suma[r] += z[r];
+  }
+  return suma;
+}
+function bilansHTML(s, plan, wynik, zap, indeks) {
+  const indeksAktywny = indeks === null ? plan.kroki.length - 1 : indeks;
+  const poziomy = indeks === null
+    ? (wynik.kroki[wynik.kroki.length - 1]?.poziomyPo ?? { ...plan.start.poziomy })
+    : (wynik.kroki[indeks]?.poziomyPo ?? { ...plan.start.poziomy });
+
+  const eko = {
+    drewno: produkcjaGodzinowa(s, poziomy.tartak ?? 0) * 24,
+    glina: produkcjaGodzinowa(s, poziomy.cegielnia ?? 0) * 24,
+    zelazo: produkcjaGodzinowa(s, poziomy.huta ?? 0) * 24,
+  };
+  const farmaD = sumaZrodla(plan, indeksAktywny, 'farma');
+  const zbieractwoD = sumaZrodla(plan, indeksAktywny, 'zbieractwo');
+  const farma = { drewno: farmaD / 3, glina: farmaD / 3, zelazo: farmaD / 3 };
+  const zbieractwo = { drewno: zbieractwoD / 3, glina: zbieractwoD / 3, zelazo: zbieractwoD / 3 };
+  const razem = {};
+  for (const r of SUROWCE_B) razem[r] = eko[r] + farma[r] + zbieractwo[r];
+
+  const zuzycie = zuzycieNaDobe(plan, indeks);
+  const etykietaZuzycia = zuzycie.doKonca ? 'Zużycie do końca planu' : 'Zużycie / dobę';
+
+  const bilans = {};
+  for (const r of SUROWCE_B) bilans[r] = razem[r] - zuzycie.suma[r];
+
+  const dos = dosylkiDoIndeksu(plan, indeksAktywny);
+
+  const wiersz = (etykieta, w) => `<div><b>${esc(etykieta)}</b> ${Math.round(w.drewno)} / ${Math.round(w.glina)} / ${Math.round(w.zelazo)}</div>`;
+  const klasaBilansu = SUROWCE_B.some(r => bilans[r] < 0) ? 'bilans-ujemny' : '';
+
+  return [
+    '<div class="bilans">',
+    wiersz('EKO / dobę', eko),
+    wiersz('Farma / dobę', farma),
+    wiersz('Zbieractwo / dobę', zbieractwo),
+    '<hr>',
+    wiersz('Razem', razem),
+    wiersz(etykietaZuzycia, zuzycie.suma),
+    `<div class="${klasaBilansu}"><b>Bilans</b> ${Math.round(bilans.drewno)} / ${Math.round(bilans.glina)} / ${Math.round(bilans.zelazo)}</div>`,
+    `<div><b>Dosyłki razem</b> ${dos.drewno} / ${dos.glina} / ${dos.zelazo}</div>`,
+    '</div>',
+  ].join('');
 }
 
 // src/wioska/widok-status.js
-// Stan wioski na wskazany moment osi. Gorna czesc to rzad ikon z poziomami,
-// wzorowany na "Podsumowaniu" w Menedzerze Konta — z ta roznica, ze pokazuje
-// wioske w wybranej chwili, a nie stan koncowy.
+// Stan wioski na wskazany moment osi, w dwoch kolumnach: stan wioski (lewa)
+// i bilans zaopatrzenia (prawa). Rzad ikon budynkow wzorowany na
+// "Podsumowaniu" w Menedzerze Konta, z poziomem pod ikona.
 
 const SUROWCE_S = ['drewno', 'glina', 'zelazo'];
 
-function stanNaKrok(plan, wynik, indeks) {
+function stanNaKrok(s, plan, wynik, indeks) {
   if (indeks === null || !wynik.kroki[indeks]) {
     const ostatni = wynik.kroki[wynik.kroki.length - 1];
     return {
       poziomy: ostatni ? ostatni.poziomyPo : { ...plan.start.poziomy },
       czasS: wynik.podsumowanie.czasS,
-      ludnosc: ostatni ? ostatni.ludnoscPo : 0,
+      ludnosc: ostatni ? ostatni.ludnoscPo : kolejnoscBudynkow(s)
+        .reduce((suma, b) => suma + ludnoscPoziomu(s, b, plan.start.poziomy[b] ?? 0), 0),
       wydano: wynik.podsumowanie.koszt,
       indeks: null,
     };
   }
   const k = wynik.kroki[indeks];
   const wydano = { drewno: 0, glina: 0, zelazo: 0 };
-  // Krok zatrzymany bledem ma w polu koszt wartosc zamierzona, ale surowce
-  // nigdy nie zeszly z magazynu — podsumowanie planu tez go pomija.
   for (let i = 0; i <= indeks; i++) {
     if (wynik.kroki[i].blad) continue;
     for (const r of SUROWCE_S) wydano[r] += wynik.kroki[i].koszt[r];
@@ -948,50 +1107,40 @@ function stanNaKrok(plan, wynik, indeks) {
   return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc: k.ludnoscPo, wydano, indeks };
 }
 
-function dosylkiDo(plan, czasS) {
-  const suma = { drewno: 0, glina: 0, zelazo: 0 };
-  for (const z of plan.zastrzyki) {
-    if (z.czasS <= czasS) for (const r of SUROWCE_S) suma[r] += z[r];
-  }
-  return suma;
-}
-
-function dochodWChwiliS(plan, czasS) {
-  let biezacy = { drewnoD: 0, glinaD: 0, zelazoD: 0 };
-  for (const d of plan.dochody) { if (d.czasS <= czasS) biezacy = d; else break; }
-  return biezacy;
-}
-function pasekStanuHTML(s, plan, wynik, zap, indeks) {
-  const st = stanNaKrok(plan, wynik, indeks);
-  const ikony = budynkiSwiata(s)
+function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
+  const ikony = kolejnoscBudynkow(s)
     .map(b => `<span class="poziom-budynku" data-poziom-${esc(b)}="${st.poziomy[b] ?? 0}">`
       + `${ikonaHTML(b, NAZWY[b] ?? b)}<b>${st.poziomy[b] ?? 0}</b></span>`)
     .join('');
-
   const prodH = {
     drewno: produkcjaGodzinowa(s, st.poziomy.tartak ?? 0),
     glina: produkcjaGodzinowa(s, st.poziomy.cegielnia ?? 0),
     zelazo: produkcjaGodzinowa(s, st.poziomy.huta ?? 0),
   };
   const limit = maksLudnosc(st.poziomy.zagroda ?? 1);
-  const dos = dosylkiDo(plan, st.czasS);
-  const doch = dochodWChwiliS(plan, st.czasS);
-  const w = zap.wymaganyDobowo;
   const etykieta = indeks === null
     ? 'stan końcowy'
     : `krok ${indeks + 1} — ${czasCzytelny(st.czasS)}`;
 
-  const wiersze = [
+  return [
     `<div class="stan-moment">● ${esc(etykieta)}</div>`,
     `<div class="stan-ikony">${ikony}</div>`,
     `<div class="stan-liczby">`,
-    `<span><b>Czas netto</b> ${czasCzytelny(zap.czasNettoS)} · <b>realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</span>`,
+    `<span title="Czas budowy przy założeniu, że surowców nigdy nie brakuje"><b>Czas budowy bez przerw</b> ${czasCzytelny(zap.czasNettoS)}</span>`,
+    `<span title="Czas obejmujący produkcję i zaopatrzenie"><b>Czas budowy realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</span>`,
+    `<span><b>Aktualne eko</b> ${Math.round(prodH.drewno)} / ${Math.round(prodH.glina)} / ${Math.round(prodH.zelazo)} na h</span>`,
     `<span><b>Populacja</b> ${st.ludnosc} / ${limit}</span>`,
     `<span><b>Wydano</b> ${st.wydano.drewno} / ${st.wydano.glina} / ${st.wydano.zelazo}</span>`,
-    `<span><b>Produkcja</b> ${prodH.drewno} / ${prodH.glina} / ${prodH.zelazo} na h · ${prodH.drewno * 24} / ${prodH.glina * 24} / ${prodH.zelazo * 24} na dobę</span>`,
-    `<span><b>Dochód</b> ${doch.drewnoD} / ${doch.glinaD} / ${doch.zelazoD} na dobę · <b>wymagany</b> ${w.drewno} / ${w.glina} / ${w.zelazo} na dobę</span>`,
-    `<span><b>Dosłano</b> ${dos.drewno} / ${dos.glina} / ${dos.zelazo}</span>`,
     `</div>`,
+  ].join('');
+}
+function pasekStanuHTML(s, plan, wynik, zap, indeks) {
+  const st = stanNaKrok(s, plan, wynik, indeks);
+  const lewa = stanWioskiHTML(s, plan, wynik, zap, st, indeks);
+  const prawa = bilansHTML(s, plan, wynik, zap, indeks);
+  const wiersze = [
+    `<div class="stan-lewa">${lewa}</div>`,
+    `<div class="stan-prawa">${prawa}</div>`,
   ];
   if (zap.waskieGardlo) {
     const g = zap.waskieGardlo;
@@ -1046,43 +1195,67 @@ function uruchom() {
     }
   }
 
-  // Wtracenia wchodza w kolejke tam, gdzie wypadaja na osi.
+  // Kotwica identyfikuje krok przez budynek i poziom. Gdy przelicz zmieni
+  // poziomy po przeciaganiu lub usunieciu, odtwarzamy kotwice z tozsamosci
+  // obiektu kroku, zeby wtracenie nie przeskoczylo na inny krok.
+  function zapamietajKrokiKotwic() {
+    return [...plan.dochody, ...plan.zastrzyki].map(wpis => ({
+      wpis,
+      krok: wpis.kotwica === null ? null : plan.kroki.find(k =>
+        k.budynek === wpis.kotwica.budynek && k.doPoziomu === wpis.kotwica.doPoziomu) ?? null,
+    }));
+  }
+
+  function odtworzKotwice(powiazania, usuwany = null, poprzedni = null) {
+    for (const p of powiazania) {
+      const krok = p.krok === usuwany ? poprzedni : p.krok;
+      p.wpis.kotwica = krok && plan.kroki.includes(krok)
+        ? { budynek: krok.budynek, doPoziomu: krok.doPoziomu }
+        : null;
+    }
+  }
+
+  // Wtracenia stoja zaraz po kroku wskazanym kotwica.
+  function indeksKotwicyStrony(kotwica) {
+    if (kotwica === null) return -1;
+    return plan.kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+  }
+
   function kolejkaHTML(wynik) {
     const wtracenia = [
-      ...plan.dochody.map(d => ({ czasS: d.czasS, rodzaj: 'dochod', wpis: d })),
-      ...plan.zastrzyki.map(z => ({ czasS: z.czasS, rodzaj: 'dosylka', wpis: z })),
-    ].sort((a, b) => a.czasS - b.czasS);
+      ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyStrony(d.kotwica), rodzaj: 'dochod', wpis: d, idx })),
+      ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyStrony(z.kotwica), rodzaj: 'dosylka', wpis: z, idx })),
+    ].sort((a, b) => a.i - b.i);
     let w = 0;
     const out = [];
     wynik.kroki.forEach((k, i) => {
-      while (w < wtracenia.length && wtracenia[w].czasS <= k.startS) {
-        out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis, i));
+      while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
+        const wpis = wtracenia[w];
+        out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
         w += 1;
       }
       out.push(krokHTML(k, i, i === zaznaczony));
     });
     while (w < wtracenia.length) {
-      out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis));
+      const wpis = wtracenia[w];
+      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
       w += 1;
     }
     return out.join('');
   }
-
   function zaopatrzenieHTML() {
     $('lista-dochodow').innerHTML = plan.dochody.map((d, i) =>
-      `<li><span class="kiedy">od ${esc(czasCzytelny(d.czasS))}</span>`
-      + `<span class="opis">${d.drewnoD} / ${d.glinaD} / ${d.zelazoD} na dobę</span>`
+      `<li><span class="opis">${d.sumaD} na dobę (${esc(d.zrodlo)})</span>`
       + `<button data-usun-dochod="${i}" title="Usuń">×</button></li>`).join('');
     $('lista-dosylek').innerHTML = plan.zastrzyki.map((z, i) =>
-      `<li><span class="kiedy">po ${esc(czasCzytelny(z.czasS))}</span>`
-      + `<span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
+      `<li><span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
       + `<button data-usun-dosylke="${i}" title="Usuń">×</button></li>`).join('');
   }
 
   function rysuj() {
     const s = swiat(plan.swiat);
     const poziomy = poziomyPoKolejce();
-    $('tabela-budynkow').tBodies[0].innerHTML = budynkiSwiata(s)
+    $('tabela-budynkow').tBodies[0].innerHTML = kolejnoscBudynkow(s)
       .map(b => wierszBudynkuHTML(s, b, poziomy, poziomy.ratusz ?? 1)).join('');
 
     const bledy = bledyPlanu(plan);
@@ -1141,9 +1314,14 @@ function uruchom() {
     }
     const usun = e.target.closest('[data-usun]');
     if (usun) {
-      plan.kroki.splice(Number(usun.dataset.usun), 1);
+      const indeksUsuwany = Number(usun.dataset.usun);
+      const usuwanyKrok = plan.kroki[indeksUsuwany];
+      const poprzedniKrok = indeksUsuwany > 0 ? plan.kroki[indeksUsuwany - 1] : null;
+      const powiazania = zapamietajKrokiKotwic();
+      plan.kroki.splice(indeksUsuwany, 1);
       zaznaczony = null;
       przelicz();
+      odtworzKotwice(powiazania, usuwanyKrok, poprzedniKrok);
       rysuj();
       return;
     }
@@ -1162,10 +1340,16 @@ function uruchom() {
   const lista = $('lista-krokow');
 
   lista.addEventListener('dragstart', (e) => {
-    const li = e.target.closest('[data-krok]');
-    if (!li) return;
-    ciagniony = Number(li.dataset.krok);
-    li.classList.add('ciagniony');
+    const krokEl = e.target.closest('[data-krok]');
+    const wtracenieEl = !krokEl ? e.target.closest('[data-wtracenie]') : null;
+    if (!krokEl && !wtracenieEl) return;
+    if (krokEl) {
+      ciagniony = { typ: 'krok', indeks: Number(krokEl.dataset.krok) };
+      krokEl.classList.add('ciagniony');
+    } else {
+      ciagniony = { typ: wtracenieEl.dataset.wtracenieRodzaj, indeks: Number(wtracenieEl.dataset.wtracenie) };
+      wtracenieEl.classList.add('ciagniony');
+    }
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
   });
 
@@ -1190,7 +1374,8 @@ function uruchom() {
     const el = elementCelu(e);
     const cel = indeksZElementu(el);
     if (cel === null) { lista.classList.add('cel-koniec'); return; }
-    el.classList.add(cel < ciagniony ? 'cel-gora' : 'cel-dol');
+    const referencyjny = ciagniony.typ === 'krok' ? ciagniony.indeks : cel;
+    el.classList.add(cel < referencyjny ? 'cel-gora' : 'cel-dol');
   });
 
   function posprzatajPodswietlenie() {
@@ -1203,14 +1388,26 @@ function uruchom() {
   lista.addEventListener('drop', (e) => {
     if (ciagniony === null) return;
     e.preventDefault();
-    const indeks = indeksZElementu(elementCelu(e));
-    // Upuszczenie pod ostatnim kafelkiem albo pod koncowym wtraceniem dokłada krok na koniec.
-    const cel = indeks === null ? plan.kroki.length - 1 : indeks;
-    if (cel !== ciagniony) {
-      const [krok] = plan.kroki.splice(ciagniony, 1);
-      plan.kroki.splice(cel, 0, krok);
-      przelicz();
-      zaznaczony = null;
+    const indeksCelu = indeksZElementu(elementCelu(e));
+    if (ciagniony.typ === 'krok') {
+      const cel = indeksCelu === null ? plan.kroki.length - 1 : indeksCelu;
+      if (cel !== ciagniony.indeks) {
+        const powiazania = zapamietajKrokiKotwic();
+        const [krok] = plan.kroki.splice(ciagniony.indeks, 1);
+        plan.kroki.splice(cel, 0, krok);
+        przelicz();
+        odtworzKotwice(powiazania);
+        zaznaczony = null;
+      }
+    } else {
+      const listaWtracen = ciagniony.typ === 'dochod' ? plan.dochody : plan.zastrzyki;
+      const wpis = listaWtracen[ciagniony.indeks];
+      if (wpis) {
+        const poprzedni = indeksCelu === null
+          ? plan.kroki[plan.kroki.length - 1]
+          : (indeksCelu > 0 ? plan.kroki[indeksCelu - 1] : null);
+        wpis.kotwica = poprzedni ? { budynek: poprzedni.budynek, doPoziomu: poprzedni.doPoziomu } : null;
+      }
     }
     ciagniony = null;
     posprzatajPodswietlenie();
@@ -1219,28 +1416,31 @@ function uruchom() {
 
   lista.addEventListener('dragend', () => { ciagniony = null; posprzatajPodswietlenie(); });
 
+  function kotwicaOdZaznaczenia() {
+    if (zaznaczony === null || !plan.kroki[zaznaczony]) return null;
+    const k = plan.kroki[zaznaczony];
+    return { budynek: k.budynek, doPoziomu: k.doPoziomu };
+  }
+
   $('dodaj-dochod').addEventListener('click', () => {
+    const zrodlo = confirm('OK = zbieractwo, Anuluj = farma') ? 'zbieractwo' : 'farma';
     plan.dochody.push({
-      czasS: pytajOLiczbe('Od której godziny od startu obowiązuje?') * 3600,
-      drewnoD: pytajOLiczbe('Drewno na dobę'),
-      glinaD: pytajOLiczbe('Glina na dobę'),
-      zelazoD: pytajOLiczbe('Żelazo na dobę'),
+      kotwica: kotwicaOdZaznaczenia(),
+      sumaD: pytajOLiczbe('Suma na dobę (dzielona równo na drewno/glinę/żelazo)'),
+      zrodlo,
     });
-    plan.dochody.sort((a, b) => a.czasS - b.czasS);
     rysuj();
   });
 
   $('dodaj-zastrzyk').addEventListener('click', () => {
     plan.zastrzyki.push({
-      czasS: pytajOLiczbe('W której godzinie od startu przychodzi dosyłka?') * 3600,
+      kotwica: kotwicaOdZaznaczenia(),
       drewno: pytajOLiczbe('Drewno'),
       glina: pytajOLiczbe('Glina'),
       zelazo: pytajOLiczbe('Żelazo'),
     });
-    plan.zastrzyki.sort((a, b) => a.czasS - b.czasS);
     rysuj();
   });
-
   $('zapisz').addEventListener('click', () => { zapisz(); });
   $('wczytaj').addEventListener('click', () => { plan = wczytajPlan(); zaznaczony = null; rysuj(); });
   $('kopiuj-json').addEventListener('click', () => doSchowka(planJSON(plan), 'Plan w formacie JSON'));

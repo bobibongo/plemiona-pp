@@ -46,7 +46,7 @@ test('osCzasuTekst pokazuje przestoj i surowiec, na ktory czekano', () => {
     swiat: 'pl231',
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoD: 1440, glinaD: 1440, zelazoD: 1440 }],
+    dochody: [{ kotwica: null, sumaD: 4320, zrodlo: 'farma' }],
   }));
   assert.match(osCzasuTekst(wolny), /czeka/);
 });

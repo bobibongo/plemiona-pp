@@ -3,11 +3,11 @@
 // siedzi w modulach widok-*.js i jest testowane bez przegladarki.
 
 import { SWIATY, swiat } from './swiaty.js';
-import { budynkiSwiata } from './swiat.js';
+import { kolejnoscBudynkow } from './kolejnosc-budynkow.js';
 import { normalizujPlan, bledyPlanu } from './plan.js';
 import { symuluj } from './symulacja.js';
 import { zapotrzebowanie } from './zapotrzebowanie.js';
-import { planJSON, planTekst, czasCzytelny } from './format.js';
+import { planJSON, planTekst } from './format.js';
 import { esc, wierszBudynkuHTML } from './widok-budynki.js';
 import { krokHTML, wtracenieHTML } from './widok-kolejka.js';
 import { pasekStanuHTML } from './widok-status.js';
@@ -53,43 +53,67 @@ export function uruchom() {
     }
   }
 
-  // Wtracenia wchodza w kolejke tam, gdzie wypadaja na osi.
+  // Kotwica identyfikuje krok przez budynek i poziom. Gdy przelicz zmieni
+  // poziomy po przeciaganiu lub usunieciu, odtwarzamy kotwice z tozsamosci
+  // obiektu kroku, zeby wtracenie nie przeskoczylo na inny krok.
+  function zapamietajKrokiKotwic() {
+    return [...plan.dochody, ...plan.zastrzyki].map(wpis => ({
+      wpis,
+      krok: wpis.kotwica === null ? null : plan.kroki.find(k =>
+        k.budynek === wpis.kotwica.budynek && k.doPoziomu === wpis.kotwica.doPoziomu) ?? null,
+    }));
+  }
+
+  function odtworzKotwice(powiazania, usuwany = null, poprzedni = null) {
+    for (const p of powiazania) {
+      const krok = p.krok === usuwany ? poprzedni : p.krok;
+      p.wpis.kotwica = krok && plan.kroki.includes(krok)
+        ? { budynek: krok.budynek, doPoziomu: krok.doPoziomu }
+        : null;
+    }
+  }
+
+  // Wtracenia stoja zaraz po kroku wskazanym kotwica.
+  function indeksKotwicyStrony(kotwica) {
+    if (kotwica === null) return -1;
+    return plan.kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+  }
+
   function kolejkaHTML(wynik) {
     const wtracenia = [
-      ...plan.dochody.map(d => ({ czasS: d.czasS, rodzaj: 'dochod', wpis: d })),
-      ...plan.zastrzyki.map(z => ({ czasS: z.czasS, rodzaj: 'dosylka', wpis: z })),
-    ].sort((a, b) => a.czasS - b.czasS);
+      ...plan.dochody.map((d, idx) => ({ i: indeksKotwicyStrony(d.kotwica), rodzaj: 'dochod', wpis: d, idx })),
+      ...plan.zastrzyki.map((z, idx) => ({ i: indeksKotwicyStrony(z.kotwica), rodzaj: 'dosylka', wpis: z, idx })),
+    ].sort((a, b) => a.i - b.i);
     let w = 0;
     const out = [];
     wynik.kroki.forEach((k, i) => {
-      while (w < wtracenia.length && wtracenia[w].czasS <= k.startS) {
-        out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis, i));
+      while (w < wtracenia.length && wtracenia[w].i <= i - 1) {
+        const wpis = wtracenia[w];
+        out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, i, wpis.idx));
         w += 1;
       }
       out.push(krokHTML(k, i, i === zaznaczony));
     });
     while (w < wtracenia.length) {
-      out.push(wtracenieHTML(wtracenia[w].rodzaj, wtracenia[w].wpis));
+      const wpis = wtracenia[w];
+      out.push(wtracenieHTML(wpis.rodzaj, wpis.wpis, null, wpis.idx));
       w += 1;
     }
     return out.join('');
   }
-
   function zaopatrzenieHTML() {
     $('lista-dochodow').innerHTML = plan.dochody.map((d, i) =>
-      `<li><span class="kiedy">od ${esc(czasCzytelny(d.czasS))}</span>`
-      + `<span class="opis">${d.drewnoD} / ${d.glinaD} / ${d.zelazoD} na dobę</span>`
+      `<li><span class="opis">${d.sumaD} na dobę (${esc(d.zrodlo)})</span>`
       + `<button data-usun-dochod="${i}" title="Usuń">×</button></li>`).join('');
     $('lista-dosylek').innerHTML = plan.zastrzyki.map((z, i) =>
-      `<li><span class="kiedy">po ${esc(czasCzytelny(z.czasS))}</span>`
-      + `<span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
+      `<li><span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
       + `<button data-usun-dosylke="${i}" title="Usuń">×</button></li>`).join('');
   }
 
   function rysuj() {
     const s = swiat(plan.swiat);
     const poziomy = poziomyPoKolejce();
-    $('tabela-budynkow').tBodies[0].innerHTML = budynkiSwiata(s)
+    $('tabela-budynkow').tBodies[0].innerHTML = kolejnoscBudynkow(s)
       .map(b => wierszBudynkuHTML(s, b, poziomy, poziomy.ratusz ?? 1)).join('');
 
     const bledy = bledyPlanu(plan);
@@ -148,9 +172,14 @@ export function uruchom() {
     }
     const usun = e.target.closest('[data-usun]');
     if (usun) {
-      plan.kroki.splice(Number(usun.dataset.usun), 1);
+      const indeksUsuwany = Number(usun.dataset.usun);
+      const usuwanyKrok = plan.kroki[indeksUsuwany];
+      const poprzedniKrok = indeksUsuwany > 0 ? plan.kroki[indeksUsuwany - 1] : null;
+      const powiazania = zapamietajKrokiKotwic();
+      plan.kroki.splice(indeksUsuwany, 1);
       zaznaczony = null;
       przelicz();
+      odtworzKotwice(powiazania, usuwanyKrok, poprzedniKrok);
       rysuj();
       return;
     }
@@ -169,10 +198,16 @@ export function uruchom() {
   const lista = $('lista-krokow');
 
   lista.addEventListener('dragstart', (e) => {
-    const li = e.target.closest('[data-krok]');
-    if (!li) return;
-    ciagniony = Number(li.dataset.krok);
-    li.classList.add('ciagniony');
+    const krokEl = e.target.closest('[data-krok]');
+    const wtracenieEl = !krokEl ? e.target.closest('[data-wtracenie]') : null;
+    if (!krokEl && !wtracenieEl) return;
+    if (krokEl) {
+      ciagniony = { typ: 'krok', indeks: Number(krokEl.dataset.krok) };
+      krokEl.classList.add('ciagniony');
+    } else {
+      ciagniony = { typ: wtracenieEl.dataset.wtracenieRodzaj, indeks: Number(wtracenieEl.dataset.wtracenie) };
+      wtracenieEl.classList.add('ciagniony');
+    }
     if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
   });
 
@@ -197,7 +232,8 @@ export function uruchom() {
     const el = elementCelu(e);
     const cel = indeksZElementu(el);
     if (cel === null) { lista.classList.add('cel-koniec'); return; }
-    el.classList.add(cel < ciagniony ? 'cel-gora' : 'cel-dol');
+    const referencyjny = ciagniony.typ === 'krok' ? ciagniony.indeks : cel;
+    el.classList.add(cel < referencyjny ? 'cel-gora' : 'cel-dol');
   });
 
   function posprzatajPodswietlenie() {
@@ -210,14 +246,26 @@ export function uruchom() {
   lista.addEventListener('drop', (e) => {
     if (ciagniony === null) return;
     e.preventDefault();
-    const indeks = indeksZElementu(elementCelu(e));
-    // Upuszczenie pod ostatnim kafelkiem albo pod koncowym wtraceniem dokłada krok na koniec.
-    const cel = indeks === null ? plan.kroki.length - 1 : indeks;
-    if (cel !== ciagniony) {
-      const [krok] = plan.kroki.splice(ciagniony, 1);
-      plan.kroki.splice(cel, 0, krok);
-      przelicz();
-      zaznaczony = null;
+    const indeksCelu = indeksZElementu(elementCelu(e));
+    if (ciagniony.typ === 'krok') {
+      const cel = indeksCelu === null ? plan.kroki.length - 1 : indeksCelu;
+      if (cel !== ciagniony.indeks) {
+        const powiazania = zapamietajKrokiKotwic();
+        const [krok] = plan.kroki.splice(ciagniony.indeks, 1);
+        plan.kroki.splice(cel, 0, krok);
+        przelicz();
+        odtworzKotwice(powiazania);
+        zaznaczony = null;
+      }
+    } else {
+      const listaWtracen = ciagniony.typ === 'dochod' ? plan.dochody : plan.zastrzyki;
+      const wpis = listaWtracen[ciagniony.indeks];
+      if (wpis) {
+        const poprzedni = indeksCelu === null
+          ? plan.kroki[plan.kroki.length - 1]
+          : (indeksCelu > 0 ? plan.kroki[indeksCelu - 1] : null);
+        wpis.kotwica = poprzedni ? { budynek: poprzedni.budynek, doPoziomu: poprzedni.doPoziomu } : null;
+      }
     }
     ciagniony = null;
     posprzatajPodswietlenie();
@@ -226,28 +274,31 @@ export function uruchom() {
 
   lista.addEventListener('dragend', () => { ciagniony = null; posprzatajPodswietlenie(); });
 
+  function kotwicaOdZaznaczenia() {
+    if (zaznaczony === null || !plan.kroki[zaznaczony]) return null;
+    const k = plan.kroki[zaznaczony];
+    return { budynek: k.budynek, doPoziomu: k.doPoziomu };
+  }
+
   $('dodaj-dochod').addEventListener('click', () => {
+    const zrodlo = confirm('OK = zbieractwo, Anuluj = farma') ? 'zbieractwo' : 'farma';
     plan.dochody.push({
-      czasS: pytajOLiczbe('Od której godziny od startu obowiązuje?') * 3600,
-      drewnoD: pytajOLiczbe('Drewno na dobę'),
-      glinaD: pytajOLiczbe('Glina na dobę'),
-      zelazoD: pytajOLiczbe('Żelazo na dobę'),
+      kotwica: kotwicaOdZaznaczenia(),
+      sumaD: pytajOLiczbe('Suma na dobę (dzielona równo na drewno/glinę/żelazo)'),
+      zrodlo,
     });
-    plan.dochody.sort((a, b) => a.czasS - b.czasS);
     rysuj();
   });
 
   $('dodaj-zastrzyk').addEventListener('click', () => {
     plan.zastrzyki.push({
-      czasS: pytajOLiczbe('W której godzinie od startu przychodzi dosyłka?') * 3600,
+      kotwica: kotwicaOdZaznaczenia(),
       drewno: pytajOLiczbe('Drewno'),
       glina: pytajOLiczbe('Glina'),
       zelazo: pytajOLiczbe('Żelazo'),
     });
-    plan.zastrzyki.sort((a, b) => a.czasS - b.czasS);
     rysuj();
   });
-
   $('zapisz').addEventListener('click', () => { zapisz(); });
   $('wczytaj').addEventListener('click', () => { plan = wczytajPlan(); zaznaczony = null; rysuj(); });
   $('kopiuj-json').addEventListener('click', () => doSchowka(planJSON(plan), 'Plan w formacie JSON'));

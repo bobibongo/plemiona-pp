@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Stajnia">
+  <circle cx="32" cy="32" r="27" fill="#efe0bd" stroke="#5b3a22" stroke-width="3"/>
+  <path fill="none" stroke="#8d6038" stroke-width="9" stroke-linecap="round" d="M17 18v15c0 20 30 20 30 0V18"/>
+  <path fill="none" stroke="#f3d58d" stroke-width="3" stroke-dasharray="1 8" stroke-linecap="round" d="M17 18v15c0 20 30 20 30 0V18"/>
+  <path stroke="#5b3a22" stroke-width="3" stroke-linecap="round" d="M13 18h9m20 0h9"/>
+</svg>

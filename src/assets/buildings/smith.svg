@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kuźnia">
+  <path fill="#59656a" stroke="#352a25" stroke-width="3" stroke-linejoin="round" d="M9 37h31c7 0 10-4 13-10l4 3c-3 10-9 16-19 16h-4v8H17v-8H9z"/>
+  <path fill="#8d6038" stroke="#352a25" stroke-width="3" stroke-linejoin="round" d="m18 10 7-3 14 14-6 6z"/>
+  <path stroke="#352a25" stroke-width="7" stroke-linecap="round" d="m35 23 15 15"/>
+  <path stroke="#d3d9d9" stroke-width="2" d="M13 40h27"/>
+</svg>

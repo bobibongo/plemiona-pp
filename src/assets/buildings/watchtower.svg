@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Wieża strażnicza">
+  <path fill="#c5a975" stroke="#4a3428" stroke-width="3" stroke-linejoin="round" d="M19 55h26l-3-29H22z"/>
+  <path fill="#8d6038" stroke="#4a3428" stroke-width="3" stroke-linejoin="round" d="M15 27h34v-9H15zM12 18h40l-6-9H18z"/>
+  <path fill="#2f4550" stroke="#4a3428" stroke-width="3" d="M32 34c8 0 13 7 13 7s-5 7-13 7-13-7-13-7 5-7 13-7z"/>
+  <circle cx="32" cy="41" r="3" fill="#d7bd79"/>
+</svg>

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
-import { zapotrzebowanie } from '../src/wioska/zapotrzebowanie.js';
+import { zapotrzebowanie, osBezPrzestojow, zuzycieNaDobe } from '../src/wioska/zapotrzebowanie.js';
 import { czasBudowy } from '../src/wioska/czas.js';
 import { swiat } from '../src/wioska/swiaty.js';
 
@@ -17,13 +17,14 @@ test('czas netto to suma samych czasow budowy', () => {
 
 test('czas netto nie zalezy od dochodu ani od dosylek', () => {
   const kroki = [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }];
-  const bez = zapotrzebowanie(plan({ kroki })).czasNettoS;
+  const bez = zapotrzebowanie(plan({ kroki }));
   const z = zapotrzebowanie(plan({
     kroki,
-    dochody: [{ czasS: 0, drewnoD: 99999 }],
-    zastrzyki: [{ czasS: 10, drewno: 99999 }],
-  })).czasNettoS;
-  assert.equal(z, bez);
+    dochody: [{ kotwica: null, sumaD: 99999, zrodlo: 'farma' }],
+    zastrzyki: [{ kotwica: null, drewno: 99999, glina: 99999, zelazo: 99999 }],
+  }));
+  assert.equal(z.czasNettoS, bez.czasNettoS);
+  assert.deepEqual(z.wymaganyDobowo, bez.wymaganyDobowo);
 });
 
 test('czas netto uwzglednia przyspieszenie od Ratusza w trakcie planu', () => {
@@ -53,8 +54,6 @@ test('plan ponad surowce startowe wymaga dochodu i wskazuje waskie gardlo', () =
   assert.ok(z.waskieGardlo.indeks > 0 && z.waskieGardlo.indeks < kroki.length);
 });
 
-// Pierwszy krok zaczyna sie w chwili zero, wiec iloraz nie istnieje —
-// taki przypadek ma byc zglaszany osobno, nie jako nieskonczony dochod.
 test('pierwszy krok drozszy niz surowce startowe jest zglaszany osobno', () => {
   const z = zapotrzebowanie(plan({
     start: { poziomy: { ratusz: 5, zagroda: 5 }, surowce: { drewno: 10, glina: 10, zelazo: 10 } },
@@ -77,4 +76,61 @@ test('pusty plan nie wymaga niczego', () => {
   assert.equal(z.czasNettoS, 0);
   assert.deepEqual(z.wymaganyDobowo, { drewno: 0, glina: 0, zelazo: 0 });
   assert.equal(z.waskieGardlo, null);
+});
+
+test('osBezPrzestojow ma jeden wiersz na krok, w kolejnosci planu', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }] });
+  const os = osBezPrzestojow(p);
+  assert.equal(os.length, 2);
+  assert.equal(os[0].budynek, 'tartak');
+  assert.equal(os[1].budynek, 'cegielnia');
+  assert.equal(os[1].startS, os[0].startS + os[0].trwanieS);
+});
+
+test('osBezPrzestojow niesie koszt kazdego kroku', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const os = osBezPrzestojow(p);
+  assert.deepEqual(os[0].koszt, { drewno: 50, glina: 60, zelazo: 40 });
+});
+
+test('zuzycie na dobe sumuje koszty krokow w oknie doby od wskazanego', () => {
+  const kroki = [];
+  for (let i = 1; i <= 10; i++) kroki.push({ budynek: 'tartak', doPoziomu: i });
+  const p = plan({ kroki });
+  const z = zuzycieNaDobe(p, 0);
+  assert.ok(z.suma.drewno > 0);
+  assert.equal(typeof z.doKonca, 'boolean');
+});
+
+test('zuzycie na dobe blisko konca planu ustawia doKonca i nie ekstrapoluje', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const os = osBezPrzestojow(p);
+  const z = zuzycieNaDobe(p, 0);
+  assert.equal(z.doKonca, true);
+  assert.equal(z.suma.drewno, os[0].koszt.drewno);
+});
+
+test('zuzycie na dobe rosnie na etapie z drozszymi krokami', () => {
+  const kroki = [];
+  for (let i = 1; i <= 15; i++) kroki.push({ budynek: 'ratusz', doPoziomu: i });
+  const p = plan({ kroki });
+  const wczesnie = zuzycieNaDobe(p, 0);
+  const pozno = zuzycieNaDobe(p, 10);
+  // Nie zakladamy z gory kierunku (koszty rosna geometrycznie, wiec pozniej
+  // wieksze), ale wartosci maja byc rozne — inaczej test nic nie sprawdza.
+  assert.notEqual(wczesnie.suma.drewno, pozno.suma.drewno);
+});
+
+test('null jako indeks liczy zuzycie od ostatniego kroku (stan koncowy)', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }] });
+  const naOstatnim = zuzycieNaDobe(p, 1);
+  const naNull = zuzycieNaDobe(p, null);
+  assert.deepEqual(naNull, naOstatnim);
+});
+
+test('zuzycie na dobe dla pustego planu nie wywraca sie', () => {
+  const p = plan({});
+  const z = zuzycieNaDobe(p, null);
+  assert.deepEqual(z.suma, { drewno: 0, glina: 0, zelazo: 0 });
+  assert.equal(z.doKonca, true);
 });

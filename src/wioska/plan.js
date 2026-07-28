@@ -4,6 +4,7 @@
 
 import { SWIATY, swiat } from './swiaty.js';
 import { poziomyStartowe, maksPoziom, budynkiSwiata } from './swiat.js';
+import { czasBudowy } from './czas.js';
 
 // Obie stale sa wspoldzielone przez caly proces. Zamrazamy je, zeby
 // przypadkowa mutacja wywalila sie od razu, zamiast po cichu zmienic
@@ -20,38 +21,65 @@ export const SUROWCE_STARTOWE = zamroz({ drewno: 1000, glina: 1000, zelazo: 1000
 
 export const PLAN_PUSTY = zamroz(normalizujPlan({ swiat: 'pl231' }));
 
+// Os migracyjna nie moze zalezec od dochodu, ktory jest wlasnie migrowany.
+// Dlatego odtwarza tylko kolejne czasy budowy, bez przestojow i magazynu.
+function osBezPrzestojowDoMigracji(s, poziomyStart, kroki) {
+  const poziomy = { ...poziomyStart };
+  let czas = 0;
+  return kroki.map(k => {
+    const startS = czas;
+    const { sekundy } = czasBudowy(s, k.budynek, k.doPoziomu, poziomy.ratusz ?? 1);
+    czas += sekundy;
+    poziomy[k.budynek] = k.doPoziomu;
+    return { budynek: k.budynek, doPoziomu: k.doPoziomu, startS };
+  });
+}
+
+function kotwicaZCzasu(os, czasS) {
+  if (os.length === 0 || czasS <= os[0].startS) return null;
+  const trafiony = os.find(k => k.startS >= czasS);
+  const krok = trafiony ?? os[os.length - 1];
+  return { budynek: krok.budynek, doPoziomu: krok.doPoziomu };
+}
+
 export function normalizujPlan(surowy) {
   const kod = surowy?.swiat ?? 'pl231';
   const s = SWIATY[kod];
   const poziomy = s ? poziomyStartowe(s) : {};
+  const kroki = (surowy?.kroki ?? []).map(k => ({
+    budynek: k.budynek,
+    doPoziomu: Number(k.doPoziomu),
+  }));
+  const startPoziomy = { ...poziomy, ...(surowy?.start?.poziomy ?? {}) };
+  const potrzebnaOs = (surowy?.dochody ?? []).some(d => d.czasS !== undefined && d.kotwica === undefined)
+    || (surowy?.zastrzyki ?? []).some(z => z.czasS !== undefined && z.kotwica === undefined);
+  const os = s && potrzebnaOs ? osBezPrzestojowDoMigracji(s, startPoziomy, kroki) : [];
+  const kluczeKrokow = new Set(kroki.map(k => `${k.budynek}|${k.doPoziomu}`));
+  const kotwicaZ = (wpis) => {
+    if (wpis.kotwica === undefined) return kotwicaZCzasu(os, Number(wpis.czasS ?? 0));
+    if (wpis.kotwica === null) return null;
+    const kotwica = { budynek: wpis.kotwica.budynek, doPoziomu: Number(wpis.kotwica.doPoziomu) };
+    return kluczeKrokow.has(`${kotwica.budynek}|${kotwica.doPoziomu}`) ? kotwica : null;
+  };
+  const dobowa = (d, surowiec) => Number(d[`${surowiec}D`] ?? (d[`${surowiec}H`] ?? 0) * 24);
   return {
     swiat: kod,
     start: {
-      poziomy: { ...poziomy, ...(surowy?.start?.poziomy ?? {}) },
+      poziomy: startPoziomy,
       surowce: { ...SUROWCE_STARTOWE, ...(surowy?.start?.surowce ?? {}) },
     },
-    kroki: (surowy?.kroki ?? []).map(k => ({
-      budynek: k.budynek,
-      doPoziomu: Number(k.doPoziomu),
+    kroki,
+    dochody: (surowy?.dochody ?? []).map(d => ({
+      kotwica: kotwicaZ(d),
+      sumaD: Number(d.sumaD ?? (dobowa(d, 'drewno') + dobowa(d, 'glina') + dobowa(d, 'zelazo'))),
+      zrodlo: d.zrodlo === 'zbieractwo' ? 'zbieractwo' : 'farma',
     })),
-    dochody: [...(surowy?.dochody ?? [])]
-      .map(d => ({
-        czasS: Number(d.czasS ?? 0),
-        // Plany zapisane przed przejsciem na dobe maja pola godzinowe.
-        // Operator ?? zostawia jawne zero, wiec 0 na dobe nie wraca do wersji godzinowej.
-        drewnoD: Number(d.drewnoD ?? (d.drewnoH ?? 0) * 24),
-        glinaD: Number(d.glinaD ?? (d.glinaH ?? 0) * 24),
-        zelazoD: Number(d.zelazoD ?? (d.zelazoH ?? 0) * 24),
-      }))
-      .sort((a, b) => a.czasS - b.czasS),
-    zastrzyki: [...(surowy?.zastrzyki ?? [])]
-      .map(z => ({
-        czasS: Number(z.czasS ?? 0),
-        drewno: Number(z.drewno ?? 0),
-        glina: Number(z.glina ?? 0),
-        zelazo: Number(z.zelazo ?? 0),
-      }))
-      .sort((a, b) => a.czasS - b.czasS),
+    zastrzyki: (surowy?.zastrzyki ?? []).map(z => ({
+      kotwica: kotwicaZ(z),
+      drewno: Number(z.drewno ?? 0),
+      glina: Number(z.glina ?? 0),
+      zelazo: Number(z.zelazo ?? 0),
+    })),
   };
 }
 

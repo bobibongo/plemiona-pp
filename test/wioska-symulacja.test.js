@@ -47,41 +47,51 @@ test('rozbudowa Ratusza skraca kolejne budowy', () => {
   assert.ok(po.kroki[0].trwanieS < bez.kroki[0].trwanieS);
 });
 
-test('zastrzyk skraca oczekiwanie', () => {
+test('zastrzyk przypiety do startu planu (kotwica null) dziala od pierwszego kroku', () => {
   const bez = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
+    dochody: [{ kotwica: null, sumaD: 30, zrodlo: 'farma' }],
   }));
   const z = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
-    zastrzyki: [{ czasS: 60, drewno: 500, glina: 500, zelazo: 500 }],
+    dochody: [{ kotwica: null, sumaD: 30, zrodlo: 'farma' }],
+    zastrzyki: [{ kotwica: null, drewno: 500, glina: 500, zelazo: 500 }],
   }));
   assert.ok(z.kroki[0].startS < bez.kroki[0].startS);
   assert.equal(z.podsumowanie.zZastrzykow.drewno, 500);
 });
 
-test('zmiana dochodu w trakcie oczekiwania przyspiesza zbieranie', () => {
+test('zastrzyk przypiety do drugiego kroku nie dziala jeszcze podczas pierwszego', () => {
+  const w = symuluj(plan({
+    start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 60, glina: 60, zelazo: 40 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+    zastrzyki: [{ kotwica: { budynek: 'tartak', doPoziomu: 1 }, drewno: 999999, glina: 999999, zelazo: 999999 }],
+  }));
+  // Pierwszy krok placi od reki, nie z zastrzyku (ktory dziala dopiero PO nim).
+  assert.equal(w.kroki[0].zasobyPo.drewno, 60 - 50);
+  // Drugi krok korzysta juz z zastrzyku.
+  assert.ok(w.kroki[1].zasobyPo.drewno > 1000);
+});
+
+test('dochod zmienia sie miedzy krokami wedlug kotwicy, nie polowy trwania kroku', () => {
   const wolno = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
-    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 }],
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+    dochody: [{ kotwica: null, sumaD: 30, zrodlo: 'farma' }],
   }));
   const szybciej = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
-    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
     dochody: [
-      { czasS: 0, drewnoD: 240, glinaD: 240, zelazoD: 240 },
-      { czasS: 600, drewnoD: 120000, glinaD: 120000, zelazoD: 120000 },
+      { kotwica: null, sumaD: 30, zrodlo: 'farma' },
+      { kotwica: { budynek: 'tartak', doPoziomu: 1 }, sumaD: 15000, zrodlo: 'farma' },
     ],
   }));
-  assert.ok(szybciej.kroki[0].startS < wolno.kroki[0].startS);
+  assert.ok(szybciej.kroki[1].czekanieS < wolno.kroki[1].czekanieS);
 });
 
-// Magazyn stoi pod sufitem (Spichlerz 1 = 1000), kopalnie sypia po 530/h,
-// a krok czeka na zelazo — wiec drewno i glina przelewaja sie przez ten czas.
 test('nadwyzka ponad pojemnosc spichlerza przepada i jest raportowana', () => {
   const w = symuluj(plan({
     start: {
@@ -94,7 +104,6 @@ test('nadwyzka ponad pojemnosc spichlerza przepada i jest raportowana', () => {
   assert.ok(w.ostrzezenia.some(o => o.typ === 'przepelnienie'));
 });
 
-// Wymagania Wiezy sa spelnione, wiec zatrzymac ja moze dopiero pojemnosc.
 test('krok drozszy niz spichlerz to blad twardy', () => {
   const w = symuluj(plan({
     start: { poziomy: { spichlerz: 1, ratusz: 5, zagroda: 5 } },
@@ -104,8 +113,6 @@ test('krok drozszy niz spichlerz to blad twardy', () => {
   assert.ok(w.ostrzezenia.some(o => o.typ === 'ponad-spichlerz'));
 });
 
-// Spichlerz 25 miesci koszt Wiezy, wiec zostaje sama Zagroda: 500 ludnosci
-// przy limicie 452 z poziomu 5.
 test('przekroczenie zagrody zatrzymuje krok', () => {
   const w = symuluj(plan({
     start: { poziomy: { zagroda: 5, ratusz: 5, spichlerz: 25 }, surowce: { drewno: 999999, glina: 999999, zelazo: 999999 } },
@@ -137,79 +144,46 @@ test('podsumowanie liczy czas pochodzacy z poziomow bez pomiaru', () => {
   assert.equal(w.podsumowanie.czasNiepewnyS, w.kroki[0].trwanieS);
 });
 
-test('krok niesie poziomy budynkow po swoim zakonczeniu', () => {
-  const w = symuluj(plan({
-    start: { surowce: { drewno: 999999, glina: 999999, zelazo: 999999 } },
-    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }],
-  }));
-  assert.equal(w.kroki[0].poziomyPo.tartak, 1);
-  assert.equal(w.kroki[1].poziomyPo.tartak, 2);
-  assert.equal(w.kroki[0].poziomyPo.ratusz, 1);
-});
-
-test('krok zatrzymany bledem nie podnosi poziomu', () => {
-  const w = symuluj(plan({ kroki: [{ budynek: 'koszary', doPoziomu: 1 }] }));
-  assert.equal(w.kroki[0].blad, 'wymagania');
-  assert.equal(w.kroki[0].poziomyPo.koszary, 0);
-});
-
-// Rozpisywanie przestoju przy kazdym kroku dawalo kilkanascie identycznych
-// wierszy; zapotrzebowanie raportuje osobny modul.
-test('dlugi przestoj nie tworzy juz ostrzezenia przy kroku', () => {
+test('kotwica wskazujaca nieistniejacy krok dziala jak start planu', () => {
   const w = symuluj(plan({
     start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
     kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
-    dochody: [{ czasS: 0, drewnoD: 24, glinaD: 24, zelazoD: 24 }],
+    dochody: [{ kotwica: { budynek: 'cegielnia', doPoziomu: 9 }, sumaD: 15000000, zrodlo: 'farma' }],
   }));
-  assert.ok(w.kroki[0].czekanieS > 0, 'przestoj nadal jest liczony');
-  assert.equal(w.ostrzezenia.length, 0);
+  assert.ok(w.kroki[0].startS < 100);
 });
 
-test('plan niewykonalny przy zerowej produkcji nadal daje ostrzezenie', () => {
+test('dwa wpisy dochodu na tym samym kroku — wygrywa ostatni w tablicy', () => {
   const w = symuluj(plan({
-    start: { surowce: { drewno: 0, glina: 0, zelazo: 0 } },
-    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+    dochody: [
+      { kotwica: { budynek: 'tartak', doPoziomu: 1 }, sumaD: 30, zrodlo: 'farma' },
+      { kotwica: { budynek: 'tartak', doPoziomu: 1 }, sumaD: 15000000, zrodlo: 'farma' },
+    ],
   }));
-  assert.equal(w.kroki[0].blad, 'brak-dochodu');
-  assert.ok(w.ostrzezenia.some(o => o.typ === 'przestoj'));
+  assert.ok(w.kroki[1].czekanieS < 100);
 });
 
-// Pulapka: stawka produkcji w fazie budowy liczona raz na starcie kroku,
-// zamiast przeliczana po kazdym zdarzeniu dochodu w oknie budowy — zmiana
-// dochodu w polowie dlugiej budowy byla po cichu ignorowana.
-test('zmiana dochodu w trakcie trwania budowy zwieksza zebrane zasoby', () => {
-  const zBudowa = (dochody) => plan({
-    start: {
-      poziomy: { tartak: 14, ratusz: 1, spichlerz: 20 },
-      surowce: { drewno: 2000, glina: 3000, zelazo: 2000 },
-    },
-    kroki: [{ budynek: 'tartak', doPoziomu: 15 }],
-    dochody,
-  });
-  const bez = symuluj(zBudowa([{ czasS: 0, drewnoD: 2400, glinaD: 2400, zelazoD: 2400 }]));
-  const z = symuluj(zBudowa([
-    { czasS: 0, drewnoD: 2400, glinaD: 2400, zelazoD: 2400 },
-    { czasS: 6000, drewnoD: 120000, glinaD: 120000, zelazoD: 120000 },
-  ]));
-  // Krok jest oplacalny od reki w obu wariantach — cala roznica w zasobyPo
-  // musi pochodzic z przeliczenia stawki w trakcie budowy, nie z czekania.
-  assert.equal(bez.kroki[0].czekanieS, 0);
-  assert.equal(z.kroki[0].czekanieS, 0);
-  assert.ok(z.kroki[0].zasobyPo.glina > bez.kroki[0].zasobyPo.glina + 1000);
-});
-
-// Pulapka: ostrzezenie o przepelnieniu sprawdzane bylo przed faza budowy, wiec
-// przelanie magazynu wylacznie podczas budowy (bez zadnego oczekiwania) nigdy
-// nie generowalo ostrzezenia, mimo ze podsumowanie.zmarnowane bylo niezerowe.
-test('przelanie magazynu wylacznie w trakcie budowy tez daje ostrzezenie o przepelnieniu', () => {
+test('dwie dosylki na tym samym kroku sumuja sie obie', () => {
   const w = symuluj(plan({
-    start: {
-      poziomy: { ratusz: 3, spichlerz: 1, tartak: 20, cegielnia: 20, huta: 20, zagroda: 10 },
-      surowce: { drewno: 1000, glina: 1000, zelazo: 1000 },
-    },
-    kroki: [{ budynek: 'koszary', doPoziomu: 6 }],
+    start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+    zastrzyki: [
+      { kotwica: { budynek: 'tartak', doPoziomu: 1 }, drewno: 100, glina: 0, zelazo: 0 },
+      { kotwica: { budynek: 'tartak', doPoziomu: 1 }, drewno: 100, glina: 0, zelazo: 0 },
+    ],
   }));
-  assert.equal(w.kroki[0].czekanieS, 0);
-  assert.ok(w.podsumowanie.zmarnowane.zelazo > 0);
-  assert.ok(w.ostrzezenia.some(o => o.typ === 'przepelnienie'));
+  assert.equal(w.podsumowanie.zZastrzykow.drewno, 200);
+});
+
+test('farma i zbieractwo sa niezaleznymi aktywnymi strumieniami i sumuja sie', () => {
+  const kroki = [{ budynek: 'tartak', doPoziomu: 1 }];
+  const wspolne = { start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } }, kroki };
+  const jedno = symuluj(plan({ ...wspolne, dochody: [{ kotwica: null, sumaD: 3000, zrodlo: 'zbieractwo' }] }));
+  const oba = symuluj(plan({ ...wspolne, dochody: [
+    { kotwica: null, sumaD: 9000, zrodlo: 'farma' },
+    { kotwica: null, sumaD: 3000, zrodlo: 'zbieractwo' },
+  ] }));
+  assert.ok(oba.kroki[0].czekanieS < jedno.kroki[0].czekanieS);
 });

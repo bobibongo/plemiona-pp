@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Huta żelaza">
+  <path fill="#59656a" stroke="#352a25" stroke-width="3" stroke-linejoin="round" d="M12 51h40l-5-18H17z"/>
+  <path fill="#343a3d" stroke="#352a25" stroke-width="3" d="M20 12h24v23H20z"/>
+  <path fill="#f19a38" stroke="#6e3328" stroke-width="3" stroke-linejoin="round" d="M32 40c-9-6-7-14 0-22 8 9 8 16 0 22z"/>
+  <path fill="#d7d9d8" stroke="#352a25" stroke-width="3" stroke-linejoin="round" d="m13 50 8-9h22l8 9z"/>
+</svg>

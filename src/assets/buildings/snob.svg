@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pałac">
+  <circle cx="32" cy="32" r="27" fill="#efe0bd" stroke="#5b3a22" stroke-width="3"/>
+  <path fill="#d7a928" stroke="#5b3a22" stroke-width="3" stroke-linejoin="round" d="m13 21 11 10 8-17 8 17 11-10-4 25H17z"/>
+  <path fill="#9b3f37" stroke="#5b3a22" stroke-width="3" d="M17 46h30v7H17z"/>
+  <circle cx="13" cy="20" r="3" fill="#b75b35"/><circle cx="32" cy="13" r="3" fill="#b75b35"/><circle cx="51" cy="20" r="3" fill="#b75b35"/>
+</svg>

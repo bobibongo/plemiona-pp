@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Piedestał">
+  <path fill="#b7aa8d" stroke="#4a4238" stroke-width="3" stroke-linejoin="round" d="M18 53h28v-7H18zM22 46h20l-3-22H25zM20 24h24v-6H20z"/>
+  <circle cx="32" cy="11" r="7" fill="#c9bda2" stroke="#4a4238" stroke-width="3"/>
+  <path fill="#c9bda2" stroke="#4a4238" stroke-width="3" d="M25 18h14l4 7H21z"/>
+</svg>

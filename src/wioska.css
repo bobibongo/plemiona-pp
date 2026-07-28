@@ -13,7 +13,6 @@ td{padding:5px 6px;border-bottom:1px solid #e0d2b4}
 .budynek-opis{display:flex;align-items:center;gap:7px;min-width:125px}
 .ikona-budynku{width:28px;height:28px;object-fit:contain;image-rendering:auto;flex:0 0 28px}
 tr.zablokowany td{color:var(--ink2);background:#efe4c8}
-tr.zablokowany .powod{font-size:.76rem;color:var(--acc)}
 button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;
   background:#e3d4b0;cursor:pointer}
 button:hover{background:#eddfbe}
@@ -43,14 +42,13 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #pasek-narzedzi .marka{font-weight:600;letter-spacing:.04em}
 #pasek-narzedzi label{font-size:.8rem;color:var(--line)}
 .rozpychacz{flex:1}
-#stan-wioski{width:94%;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
-  border-radius:4px;padding:10px 12px;font-size:.84rem}
+#stan-wioski{width:94%;max-width:1600px;margin:10px auto 0;background:var(--pg);border:1px solid var(--line);
+  border-radius:4px;padding:10px 12px;font-size:.84rem;display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start}
 .stan-moment{font-weight:600;color:var(--acc);margin-bottom:6px}
-.stan-ikony{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;
-  padding-bottom:8px;border-bottom:1px solid var(--line)}
-.poziom-budynku{display:flex;align-items:center;gap:3px}
+.stan-ikony{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;padding-bottom:8px}
+.poziom-budynku{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.78rem}
 .poziom-budynku img.ikona{width:20px;height:20px}
-.poziom-budynku b{min-width:1.2em;text-align:right}
+.poziom-budynku b{min-width:1.2em;text-align:center}
 .stan-liczby{display:flex;flex-wrap:wrap;gap:6px 22px}
 .stan-gardlo{margin-top:6px;color:var(--acc);font-weight:600}
 .kolumny{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.75fr);
@@ -68,3 +66,10 @@ li.krok.zaznaczony{outline:2px solid var(--acc);outline-offset:-2px;background:#
 #lista-krokow li.cel-gora{box-shadow:inset 0 3px 0 var(--acc)}
 #lista-krokow li.cel-dol{box-shadow:inset 0 -3px 0 var(--acc)}
 #lista-krokow.cel-koniec{box-shadow:inset 0 -4px 0 var(--acc)}
+@media (max-width:900px){#stan-wioski{grid-template-columns:1fr}}
+.stan-lewa,.stan-prawa{min-width:0}
+.bilans{display:flex;flex-direction:column;gap:3px;font-size:.86rem}
+.bilans hr{border:none;border-top:1px solid var(--line);margin:4px 0}
+.bilans-ujemny{color:var(--acc);font-weight:600}
+.stan-gardlo{grid-column:1/-1}
+li.wtracenie[draggable=true]{cursor:grab}

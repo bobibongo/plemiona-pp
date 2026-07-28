@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mur obronny">
+  <path fill="#aaa28e" stroke="#49443b" stroke-width="3" stroke-linejoin="round" d="M8 14h10v8h9v-8h10v8h9v-8h10v42H8z"/>
+  <path fill="#62594c" stroke="#49443b" stroke-width="3" d="M25 56V39c0-10 14-10 14 0v17"/>
+  <path stroke="#d7cdb7" stroke-width="2" d="M10 29h44M10 39h15m14 0h15M10 48h15m14 0h15M18 22v7m18-7v7m10 10v9m-28-9v9"/>
+</svg>

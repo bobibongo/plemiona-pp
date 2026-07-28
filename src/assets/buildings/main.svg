@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Ratusz">
+  <path fill="#ead7a2" stroke="#5b3a22" stroke-width="3" stroke-linejoin="round" d="M10 53h44V29L32 14 10 29z"/>
+  <path fill="#b75b35" stroke="#5b3a22" stroke-width="3" stroke-linejoin="round" d="m7 30 25-18 25 18-4 5-21-15L11 35z"/>
+  <path fill="#8f5634" stroke="#5b3a22" stroke-width="3" d="M27 53V39h10v14"/>
+  <path fill="#d7bd79" stroke="#5b3a22" stroke-width="3" d="M25 18V7h14v11M22 7h20"/>
+  <circle cx="32" cy="12" r="2.5" fill="#5b3a22"/>
+</svg>

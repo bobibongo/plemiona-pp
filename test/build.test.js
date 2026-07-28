@@ -151,3 +151,13 @@ test('strona kolektora wskazuje na dashboard pod nowym adresem', () => {
   const html = buildLanding('javascript:void 0');
   assert.match(html, /href="\.\.\/pp\/"/);
 });
+
+test('strona wioski zawiera bilans i kolejnosc budynkow', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /function bilansHTML/);
+  assert.match(html, /function kolejnoscBudynkow/);
+});
+
+test('strona wioski nie zawiera osobnego wiersza powodu blokady', () => {
+  assert.doesNotMatch(buildWioskaPage(), /class="powod"/);
+});

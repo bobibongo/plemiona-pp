@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Spichlerz">
+  <path fill="#d7bd79" stroke="#5b3a22" stroke-width="3" stroke-linejoin="round" d="M13 24 32 10l19 14v29H13z"/>
+  <path fill="#8d6038" stroke="#5b3a22" stroke-width="3" d="M21 29h22v24H21z"/>
+  <path stroke="#d7bd79" stroke-width="3" d="M21 36h22m-22 8h22"/>
+  <path fill="#c99a55" stroke="#5b3a22" stroke-width="3" d="M7 47c0-8 4-13 9-13s9 5 9 13v7H7zm32 0c0-8 4-13 9-13s9 5 9 13v7H39z"/>
+</svg>
