@@ -6,7 +6,8 @@ import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { esc, wierszBudynkuHTML } from '../src/wioska/widok-budynki.js';
 import { krokHTML, wtracenieHTML, naglowekDniaHTML, kolejkaHTML } from '../src/wioska/widok-kolejka.js';
-import { osBezPrzestojow, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
+import { osBezPrzestojow, osRekrutacjiBezPrzestojow, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
+import { punktyWioski } from '../src/wioska/punkty.js';
 
 const s = swiat('pl231');
 
@@ -46,6 +47,14 @@ test('kafelek kroku nie pokazuje juz czasu', () => {
   const html = krokHTML(w.kroki[0], 0, false);
   assert.match(html, /Tartak/);
   assert.doesNotMatch(html, /\d+\s*(s|min|h)\b/);
+});
+
+test('kafelek kroku pokazuje laczne punkty wioski po tym kroku zamiast numeru', () => {
+  const plan = normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const w = symuluj(plan);
+  const oczekiwane = punktyWioski(w.kroki[0].poziomyPo);
+  const html = krokHTML(w.kroki[0], 0, false);
+  assert.match(html, new RegExp(`class="nr"[^>]*>${oczekiwane}<`));
 });
 
 test('kafelek kroku niesie indeks, na ktorym opiera sie przeciaganie', () => {
@@ -190,4 +199,138 @@ test('kolejka pustego planu nie ma zadnego naglowka dnia', () => {
   const p = normalizujPlan({ swiat: 'pl231' });
   const w = symuluj(p);
   assert.equal(kolejkaHTML(p, w, null), '');
+});
+
+test('kolejka laczy sasiadujace kroki tego samego budynku w jeden kafelek z przyrostem', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [
+      { budynek: 'tartak', doPoziomu: 1 },
+      { budynek: 'tartak', doPoziomu: 2 },
+      { budynek: 'tartak', doPoziomu: 3 },
+    ],
+  });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/class="krok/g) ?? [];
+  assert.equal(dopasowania.length, 1);
+  assert.match(html, /Tartak → 3 \(\+3\)/);
+  assert.match(html, /data-krok="0"/);
+  assert.match(html, /data-krok-do="2"/);
+  assert.match(html, /data-usun="0"/);
+  assert.match(html, /data-usun-do="2"/);
+});
+
+test('kolejka nie laczy krokow z roznych budynkow', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+  });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/class="krok/g) ?? [];
+  assert.equal(dopasowania.length, 2);
+});
+
+test('zaznaczenie kroku w srodku pasma rozbija grupe, zeby dalo sie go zaznaczyc osobno', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [
+      { budynek: 'tartak', doPoziomu: 1 },
+      { budynek: 'tartak', doPoziomu: 2 },
+      { budynek: 'tartak', doPoziomu: 3 },
+    ],
+  });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, 1);
+  const dopasowania = html.match(/class="krok/g) ?? [];
+  assert.equal(dopasowania.length, 3, 'zaznaczony krok w srodku pasma ma stac osobno od sasiadow');
+  assert.match(html, /data-krok="1"[^>]*data-krok-do="1"[^>]*class="krok zaznaczony"|class="krok zaznaczony"[^>]*data-krok="1"/);
+});
+
+test('wtracenie zakotwiczone w srodku pasma przerywa grupowanie w tym miejscu', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [
+      { budynek: 'tartak', doPoziomu: 1 },
+      { budynek: 'tartak', doPoziomu: 2 },
+      { budynek: 'tartak', doPoziomu: 3 },
+    ],
+    zastrzyki: [{ kotwica: { budynek: 'tartak', doPoziomu: 1 }, drewno: 100, glina: 0, zelazo: 0 }],
+  });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/class="krok/g) ?? [];
+  assert.equal(dopasowania.length, 2, 'wtracenie musi wypasc miedzy krokiem 0 a 1, wiec nie moga byc w jednej grupie');
+  const pozycjaWtracenia = html.indexOf('wtracenie');
+  const pozycjaDrugiegoKroku = html.indexOf('data-krok="1"');
+  assert.ok(pozycjaWtracenia !== -1 && pozycjaWtracenia < pozycjaDrugiegoKroku);
+});
+
+test('grupa dziedziczy stan czekania, jesli ktorykolwiek krok w niej czekal', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    start: { poziomy: { spichlerz: 10 }, surowce: { drewno: 0, glina: 0, zelazo: 0 } },
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }],
+    dochody: [{ kotwica: null, sumaD: 4320, zrodlo: 'farma' }],
+  });
+  const w = symuluj(p);
+  assert.ok(w.kroki.some(k => k.czekanieS > 0), 'test zaklada przynajmniej jeden krok z czekaniem');
+  const html = kolejkaHTML(p, w, null);
+  assert.match(html, /czekanie/);
+});
+
+test('wtracenie rekrutacji pokazuje ilosc, jednostke, budynek i czas trwania', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 50 }],
+  });
+  const os = osRekrutacjiBezPrzestojow(p);
+  const html = wtracenieHTML('rekrutacja', { ...p.rekrutacje[0], ...os[0] }, null, 0);
+  assert.match(html, /50×/);
+  assert.match(html, /Topornik/);
+  assert.match(html, /Koszary/);
+});
+
+test('kolejka pokazuje rekrutacje jako wtracenie w miejscu jej kotwicy', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'koszary', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: { budynek: 'koszary', doPoziomu: 1 }, jednostka: 'topornik', ilosc: 10 }],
+  });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  assert.match(html, /class="wtracenie rekrutacja"/);
+  const pozycjaRekrutacji = html.indexOf('rekrutacja');
+  const pozycjaTartaku = html.indexOf('Tartak');
+  assert.ok(pozycjaRekrutacji !== -1 && pozycjaRekrutacji < pozycjaTartaku,
+    'rekrutacja zakotwiczona do koszar ma stac przed kolejnym krokiem (tartak)');
+});
+
+test('kolejka planu z sama dluga rekrutacja (bez zadnej budowy) nadal pokazuje naglowki dni', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 300 }],
+  });
+  const w = symuluj(p);
+  const dni = zapotrzebowanieDzienne(p);
+  assert.ok(dni.length >= 3, 'test zaklada partie rozciagnieta na wiele dni');
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/naglowek-dnia/g) ?? [];
+  assert.equal(dopasowania.length, dni.length);
+  assert.match(html, new RegExp(`Dzień ${dni.length}\\b`));
+});
+
+test('kolejka z rekrutacja dluzsza niz budowa dorenderowuje naglowki po ostatnim kroku', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 300 }],
+  });
+  const w = symuluj(p);
+  const dni = zapotrzebowanieDzienne(p);
+  assert.ok(dni.length >= 3, 'test zaklada rekrutacje rozciagnieta poza dzien budowy');
+  const html = kolejkaHTML(p, w, null);
+  const dopasowania = html.match(/naglowek-dnia/g) ?? [];
+  assert.equal(dopasowania.length, dni.length);
 });

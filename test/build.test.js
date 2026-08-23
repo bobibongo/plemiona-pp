@@ -1,7 +1,8 @@
 // test/build.test.js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding } from '../build.js';
+import { readdirSync } from 'node:fs';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, WIOSKA_LOGIC } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -110,6 +111,15 @@ test('strona wioski zawiera silnik symulacji i dane świata', () => {
   assert.match(html, /TABELA_G/);
 });
 
+// Regresja: kazdy nowy plik src/wioska/*.js musi trafic do WIOSKA_LOGIC w
+// build.js, inaczej strona uzywa funkcji, ktorych bundel nigdy nie zdefiniuje
+// — blad ReferenceError wywraca caly skrypt i strona wychodzi pusta.
+test('strona wioski definiuje punkty wioski i wykres, nie tylko je wywoluje', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /function punktyWioski/);
+  assert.match(html, /function wykresHTML/);
+});
+
 // Strona ma dzialac otwarta z dysku, wiec nie wolno jej siegac po nic z sieci.
 test('strona wioski jest samowystarczalna — zero odwołań na zewnątrz', () => {
   const html = buildWioskaPage();
@@ -140,11 +150,34 @@ test('strona wioski zawiera moduł zapotrzebowania i widoki', () => {
   assert.match(html, /function wtracenieHTML/);
 });
 
-test('rozdzielnik linkuje do wszystkich trzech narzędzi', () => {
+test('rozdzielnik publiczny linkuje do narzędzi bezpiecznych, bez zbieractwa', () => {
   const html = buildRozdzielnik();
   assert.match(html, /href="\.\/pp\/"/);
   assert.match(html, /href="\.\/kursy\/"/);
   assert.match(html, /href="\.\/wioska\/"/);
+  assert.match(html, /href="\.\/kolektor\/"/);
+  assert.doesNotMatch(html, /zbieractwo/);
+});
+
+test('rozdzielnik rozszerzony dolacza karte zbieractwa z poprawnym base', () => {
+  const html = buildRozdzielnik({ base: '../', rozszerzony: true });
+  assert.match(html, /href="\.\.\/pp\/"/);
+  assert.match(html, /href="\.\.\/zbieractwo\/"/);
+});
+
+test('bookmarklet zbieractwa jest jedną linią javascript: bez importów/komentarzy', () => {
+  const bm = buildScavBookmarklet();
+  assert.match(bm, /^javascript:/);
+  assert.doesNotMatch(bm, /\bimport\b/);
+  assert.doesNotMatch(bm, /\n/);
+  assert.doesNotMatch(bm, /\/\//);
+  assert.match(bm, /czasZbieractwaSekundy/);
+});
+
+test('strona zbieractwa zawiera bookmarklet i instrukcję', () => {
+  const html = buildScavLanding('javascript:void 0');
+  assert.match(html, /javascript:void 0/);
+  assert.match(html, /Zbieractwo masowe/);
 });
 
 test('strona kolektora wskazuje na dashboard pod nowym adresem', () => {
@@ -160,4 +193,27 @@ test('strona wioski zawiera bilans i kolejnosc budynkow', () => {
 
 test('strona wioski nie zawiera osobnego wiersza powodu blokady', () => {
   assert.doesNotMatch(buildWioskaPage(), /class="powod"/);
+});
+
+// Regresja konkretna: kazdy plik src/wioska/*.js musi byc wymieniony w
+// WIOSKA_LOGIC (build.js), inaczej strona po sklejeniu uzywa funkcji, ktorych
+// bundel nigdy nie zdefiniowal — a testy jednostkowe tego nie widza, bo
+// importuja moduly bezposrednio z node, nie ze sklejonego bundla.
+test('strona wioski zawiera silnik rekrutacji', () => {
+  const html = buildWioskaPage();
+  assert.match(html, /function czasRekrutacji/);
+  assert.match(html, /function osRekrutacjiBezPrzestojow/);
+  assert.match(html, /id="lista-rekrutacji"/);
+});
+
+test('kazdy plik src/wioska/*.js jest wymieniony w WIOSKA_LOGIC', () => {
+  // odczyt-ratusza.js sluzy wylacznie kalibracji tabeli G i testom (patrz
+  // naglowek pliku) — strona symulatora swiadomie go nie uzywa.
+  const SWIADOMIE_POZA_BUNDLEM = new Set(['odczyt-ratusza.js']);
+  const naDysku = readdirSync(new URL('../src/wioska/', import.meta.url))
+    .filter(f => f.endsWith('.js') && !SWIADOMIE_POZA_BUNDLEM.has(f))
+    .map(f => `src/wioska/${f}`)
+    .sort();
+  const wBundlu = [...WIOSKA_LOGIC].sort();
+  assert.deepEqual(wBundlu, naDysku);
 });

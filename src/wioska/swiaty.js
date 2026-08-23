@@ -30,6 +30,21 @@ export const SWIATY = {
       mur:       { kod: 'wall',       maks: 20, min: 0, drewno: 50,    glina: 100,   zelazo: 20,    pop: 5,   fDrewno: 1.26,  fGlina: 1.275, fZelazo: 1.26,  fPop: 1.17,  czas: 3600 },
       wieza:     { kod: 'watchtower', maks: 20, min: 0, drewno: 12000, glina: 14000, zelazo: 10000, pop: 500, fDrewno: 1.17,  fGlina: 1.17,  fZelazo: 1.18,  fPop: 1.18,  czas: 13200 },
     },
+    // Koszty i czasy sa standardem TW (identyczne na wiekszosci swiatow);
+    // budynek = ten, ktorego kolejka rekrutuje dana jednostke i ktorego
+    // poziom przyspiesza rekrutacje wg wzoru w jednostki.js.
+    jednostki: {
+      pikinier:         { budynek: 'koszary', drewno: 50,    glina: 30,    zelazo: 10,    pop: 1,   czas: 1020 },
+      miecznik:         { budynek: 'koszary', drewno: 30,    glina: 30,    zelazo: 70,    pop: 1,   czas: 1500 },
+      topornik:         { budynek: 'koszary', drewno: 60,    glina: 30,    zelazo: 40,    pop: 1,   czas: 1320 },
+      lucznik:          { budynek: 'koszary', drewno: 100,   glina: 30,    zelazo: 60,    pop: 1,   czas: 1800 },
+      zwiadowca:        { budynek: 'stajnia', drewno: 50,    glina: 50,    zelazo: 20,    pop: 2,   czas: 900 },
+      lekka:            { budynek: 'stajnia', drewno: 125,   glina: 100,   zelazo: 250,   pop: 4,   czas: 1800 },
+      lucznikNaKoniu:   { budynek: 'stajnia', drewno: 250,   glina: 100,   zelazo: 150,   pop: 5,   czas: 2700 },
+      ciezka:           { budynek: 'stajnia', drewno: 200,   glina: 150,   zelazo: 600,   pop: 6,   czas: 3600 },
+      taran:            { budynek: 'warsztat', drewno: 300,  glina: 200,   zelazo: 200,   pop: 5,   czas: 4800 },
+      katapulta:        { budynek: 'warsztat', drewno: 320,  glina: 400,   zelazo: 100,   pop: 8,   czas: 7200 },
+    },
   },
 };
 

@@ -74,3 +74,17 @@ test('podsumowanie podaje czas netto i wymagany dochod, gdy je przekazano', () =
 test('podsumowanie bez zapotrzebowania nadal dziala', () => {
   assert.match(planTekst(p, w), /Łączny czas/);
 });
+
+test('planTekst wymienia rekrutacje z nazwa jednostki i iloscia, gdy jest w planie', () => {
+  const zR = normalizujPlan({
+    swiat: 'pl231',
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 1300 }],
+  });
+  const t = planTekst(zR, symuluj(zR));
+  assert.match(t, /Rekrutacja/);
+  assert.match(t, /1300× Topornik/);
+});
+
+test('planTekst pomija sekcje rekrutacji, gdy plan jej nie ma', () => {
+  assert.doesNotMatch(planTekst(p, w), /Rekrutacja/);
+});

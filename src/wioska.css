@@ -16,6 +16,9 @@ tr.zablokowany td{color:var(--ink2);background:#efe4c8}
 button{font:inherit;padding:4px 10px;border:1px solid var(--line);border-radius:3px;
   background:#e3d4b0;cursor:pointer}
 button:hover{background:#eddfbe}
+button{transition:transform .08s ease,background-color .08s ease}
+button:active{transform:scale(.93);background:#d8c299}
+.btn-dodaj:active{background:var(--gold);color:#f6ecd4}
 button.primary{background:var(--acc);color:#f6ecd4;border-color:#5d2020}
 button:disabled{opacity:.45;cursor:not-allowed}
 .kolejka-gora{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -23,9 +26,16 @@ button:disabled{opacity:.45;cursor:not-allowed}
 #lista-krokow{list-style:none;margin:0;padding:0;max-height:60vh;overflow:auto}
 #lista-krokow li{display:grid;grid-template-columns:auto 1fr auto auto;gap:8px;align-items:center;
   padding:6px;border-bottom:1px solid #e0d2b4;font-size:.86rem}
+#lista-krokow li.naglowek-dnia{display:block;grid-template-columns:none;
+  background:var(--acc);color:#f6ecd4;font-weight:700;letter-spacing:.02em;
+  padding:5px 10px;margin:6px 0 2px;border-radius:3px;border-bottom:none}
+#lista-krokow li.naglowek-dnia:first-child{margin-top:0}
 #lista-krokow li.wtracenie{background:#e8f0e2}
+#lista-krokow li.wtracenie.rekrutacja{background:#e5dff0}
 #lista-krokow li.blad{background:#f3dede}
 #lista-krokow li[draggable=true]{cursor:grab}
+#lista-krokow .nr{min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums;
+  color:var(--ink2);font-size:.8rem}
 .czekanie{font-size:.76rem;color:var(--acc)}
 .niepewny{color:var(--ink2)}
 #podsumowanie{margin-top:10px;padding-top:10px;border-top:2px solid var(--line);font-size:.9rem}
@@ -49,15 +59,16 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .poziom-budynku{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.78rem}
 .poziom-budynku img.ikona{width:20px;height:20px}
 .poziom-budynku b{min-width:1.2em;text-align:center}
-.stan-liczby{display:flex;flex-wrap:wrap;gap:6px 22px}
+.stan-liczby{display:flex;flex-direction:column;gap:3px;font-size:.86rem}
+.stan-liczby hr{border:none;border-top:1px solid var(--line);margin:4px 0}
 .stan-gardlo{margin-top:6px;color:var(--acc);font-weight:600}
 .kolumny{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,.75fr);
   gap:14px;width:94%;max-width:1600px;margin:12px auto;padding-bottom:60px}
 @media (max-width:1200px){.kolumny{grid-template-columns:1fr}}
 img.ikona{width:22px;height:22px;vertical-align:middle;margin-right:5px}
 #zaopatrzenie h3{margin:12px 0 4px;font-size:.9rem}
-#lista-dochodow,#lista-dosylek{list-style:none;margin:0;padding:0;font-size:.82rem}
-#lista-dochodow li,#lista-dosylek li{display:flex;gap:6px;align-items:center;
+#lista-dochodow,#lista-dosylek,#lista-rekrutacji{list-style:none;margin:0;padding:0;font-size:.82rem}
+#lista-dochodow li,#lista-dosylek li,#lista-rekrutacji li{display:flex;gap:6px;align-items:center;
   padding:4px 0;border-bottom:1px solid #e0d2b4}
 li.wtracenie{background:#e8f0e2;font-size:.8rem;font-style:italic}
 li.wtracenie .kiedy{font-weight:600;font-style:normal}
@@ -73,3 +84,15 @@ li.krok.zaznaczony{outline:2px solid var(--acc);outline-offset:-2px;background:#
 .bilans-ujemny{color:var(--acc);font-weight:600}
 .stan-gardlo{grid-column:1/-1}
 li.wtracenie[draggable=true]{cursor:grab}
+
+#wykres-wioski{width:94%;max-width:1600px;margin:10px auto 0;padding:10px 12px 4px}
+#wykres-uchwyt{overflow-x:auto}
+.wykres-punkty{height:160px;display:block}
+.wykres-punkty .wykres-slupek rect{fill:var(--gold);cursor:pointer;transition:fill .1s ease}
+.wykres-punkty .wykres-slupek:hover rect{fill:var(--acc)}
+.wykres-punkty .wykres-slupek.aktywna rect{fill:var(--acc)}
+.wykres-punkty .wykres-slupek text{fill:var(--ink2);font-size:9px;font-variant-numeric:tabular-nums}
+.wykres-punkty .wykres-slupek.aktywna text{fill:var(--acc);font-weight:700}
+.wykres-pusty{margin:0;color:var(--ink2);font-size:.86rem}
+#kolejka h2{display:flex;align-items:center;gap:10px}
+#kolejka h2 button{margin-left:auto;font-size:.78rem;padding:3px 9px}

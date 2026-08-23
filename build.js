@@ -32,6 +32,13 @@ export function buildBookmarklet() {
   return oneLine;
 }
 
+export function buildScavBookmarklet() {
+  const js = ['src/scav.js']
+    .map(p => stripComments(stripModule(read('./' + p)))).join('\n');
+  const oneLine = 'javascript:(()=>{' + js.replace(/\n\s*/g, ' ').trim() + '})()';
+  return oneLine;
+}
+
 const RATES_LOGIC = ['src/rates-history.js', 'src/rates-signals.js', 'src/rates-chart.js', 'src/rates-page.js'];
 
 // Strona analizy kursów (dist/kursy/index.html) — samowystarczalny plik,
@@ -46,7 +53,7 @@ export function buildRatesPage() {
 
 // Kolejnosc ma znaczenie: stripModule usuwa importy, wiec dane musza byc
 // zdefiniowane przed kodem, ktory z nich korzysta.
-const WIOSKA_LOGIC = [
+export const WIOSKA_LOGIC = [
   'src/wioska/swiaty.js',
   'src/wioska/czas-dane.js',
   'src/wioska/wymagania-dane.js',
@@ -54,9 +61,11 @@ const WIOSKA_LOGIC = [
   'src/wioska/ikony.js',
   'src/wioska/swiat.js',
   'src/wioska/tabele.js',
+  'src/wioska/punkty.js',
   'src/wioska/czas.js',
   'src/wioska/wymagania.js',
   'src/wioska/kolejnosc-budynkow.js',
+  'src/wioska/jednostki.js',
   'src/wioska/plan.js',
   'src/wioska/symulacja.js',
   'src/wioska/zapotrzebowanie.js',
@@ -65,6 +74,7 @@ const WIOSKA_LOGIC = [
   'src/wioska/widok-kolejka.js',
   'src/wioska/widok-bilans.js',
   'src/wioska/widok-status.js',
+  'src/wioska/widok-wykres.js',
   'src/wioska/strona.js',
 ];
 
@@ -177,15 +187,82 @@ export function buildLanding(bm) {
 </div></body></html>`;
 }
 
+// Strona kolektora zbieractwa — bookmarklet + instrukcja, osobna od buildLanding
+// (ten bookmarklet klika i wysyła wojska w grze, nie tylko czyta dane).
+export function buildScavLanding(bm) {
+  const href = bm.replace(/"/g, '&quot;');
+  return `<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zbieractwo — Plemiona</title>
+<style>
+  :root{--w:#2c2015;--w2:#170f08;--pg:#f4ead2;--ink:#38291a;--ink2:#6b543a;--acc:#7c2b2b;--gold:#a8842c;--line:#c4ac7c}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+    background:radial-gradient(ellipse at 50% -10%,#3a2c1c,var(--w) 45%,var(--w2)) fixed;min-height:100vh}
+  .wrap{width:90%;max-width:760px;margin:0 auto;padding:36px 0 60px}
+  header{text-align:center;color:#f6ecd4;margin-bottom:26px}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  h1{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:30px;margin:6px 0 8px}
+  header p{opacity:.85;margin:0}
+  .card{background:radial-gradient(120% 80% at 25% 0%,rgba(255,251,240,.55),transparent 55%),var(--pg);
+    border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin:16px 0;
+    box-shadow:0 8px 22px rgba(0,0,0,.38)}
+  .card h2{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+  .step{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.1em}
+  ol{margin:8px 0 0 18px}li{margin:4px 0}
+  .btn{display:inline-block;padding:11px 18px;border-radius:6px;text-decoration:none;font-weight:700}
+  .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
+  .muted{color:var(--ink2);font-size:13px}
+  code{background:#0002;padding:1px 5px;border-radius:4px}
+  footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
+</style></head>
+<body><div class="wrap">
+<header>
+  <div class="eyebrow">Plemiona · zbieractwo</div>
+  <h1>Zbieractwo masowe — własne serie</h1>
+  <p>Wysyła kolejno kilka grup zbieractwa (np. lekka albo pikinier) na wybrane poziomy, z losowym odstępem między kliknięciami.</p>
+</header>
+
+<div class="card">
+  <span class="step">Krok 1</span>
+  <h2>Zainstaluj bookmarklet</h2>
+  <p class="muted">Przeciągnij ten przycisk na <b>pasek zakładek</b> przeglądarki:</p>
+  <p><a class="btn bm" href="${href}">🐴 Zbieractwo — własne serie</a></p>
+</div>
+
+<div class="card">
+  <span class="step">Krok 2</span>
+  <h2>Otwórz zbieractwo masowe</h2>
+  <ol>
+    <li>Wejdź na <b>Plac → Zbieractwo masowe</b> (wymaga Konta Premium do wysyłki z wielu wiosek).</li>
+    <li>Kliknij zakładkę bookmarkletu — w prawym górnym rogu pojawi się panel.</li>
+    <li>Wybierz typ jednostki i liczby dla poziomów 4/3/2/1, kliknij Start.</li>
+  </ol>
+</div>
+
+<footer>Panel działa tylko na aktualnie otwartej stronie zbieractwa masowego. Nic nie jest zapisywane ani wysyłane poza samą grę.</footer>
+</div></body></html>`;
+}
+
 // Strona glowna narzedziownika — rozdzielnik do poszczegolnych narzedzi.
-export function buildRozdzielnik() {
-  return read('./src/rozdzielnik.template.html');
+// base: prefiks wzgledny do katalogu dist/ (pusty dla /, '../' dla podkatalogu jak /bagajaja/).
+// rozszerzony: dolacza karty narzedzi nieobecne w publicznej wersji (np. zbieractwo).
+export function buildRozdzielnik({ base = './', rozszerzony = false } = {}) {
+  const dodatkoweKarty = rozszerzony
+    ? `<a class="karta" href="${base}zbieractwo/">
+    <h2>Zbieractwo — własne serie</h2>
+    <p>Bookmarklet do zbieractwa masowego: własne liczby jednostek per poziom, wysyłane z losowym odstępem.</p>
+  </a>`
+    : '';
+  return read('./src/rozdzielnik.template.html')
+    .replace(/\/\*BASE\*\//g, base)
+    .replace('<!--DODATKOWE_KARTY-->', dodatkoweKarty);
 }
 
 if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   mkdirSync(new URL('./dist/kolektor/', import.meta.url), { recursive: true });
   mkdirSync(new URL('./dist/pp/', import.meta.url), { recursive: true });
-  writeFileSync(new URL('./dist/index.html', import.meta.url), buildRozdzielnik());          // rozdzielnik = strona główna
+  writeFileSync(new URL('./dist/index.html', import.meta.url), buildRozdzielnik({ base: './', rozszerzony: false })); // rozdzielnik publiczny = strona główna
   writeFileSync(new URL('./dist/pp/index.html', import.meta.url), buildDashboard());          // dashboard pod /pp/
   writeFileSync(new URL('./dist/kolektor/index.html', import.meta.url), buildLanding(buildBookmarklet())); // kolektor pod /kolektor/
   writeFileSync(new URL('./dist/kursy.user.js', import.meta.url), buildUserscript());
@@ -193,5 +270,9 @@ if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   writeFileSync(new URL('./dist/kursy/index.html', import.meta.url), buildRatesPage());
   mkdirSync(new URL('./dist/wioska/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/wioska/index.html', import.meta.url), buildWioskaPage());
-  console.log('Zbudowano dist/: index.html (rozdzielnik), pp/index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów), wioska/index.html (symulator budowy)');
+  mkdirSync(new URL('./dist/zbieractwo/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/zbieractwo/index.html', import.meta.url), buildScavLanding(buildScavBookmarklet()));
+  mkdirSync(new URL('./dist/bagajaja/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/bagajaja/index.html', import.meta.url), buildRozdzielnik({ base: '../', rozszerzony: true })); // rozdzielnik rozszerzony, adres nigdzie nie linkowany
+  console.log('Zbudowano dist/: index.html (rozdzielnik), pp/index.html (dashboard), kolektor/index.html (kolektor), kursy.user.js (userscript), kursy/index.html (analiza kursów), wioska/index.html (symulator budowy), zbieractwo/index.html (bookmarklet zbieractwa), bagajaja/index.html (rozdzielnik rozszerzony)');
 }

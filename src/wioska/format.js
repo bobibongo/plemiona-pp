@@ -2,7 +2,8 @@
 // Dwie postacie eksportu: tekst do przepisania do Menedzera Konta
 // i JSON, ktory jest kanalem wymiany planu z Claude.
 
-import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
+import { NAZWY, NAZWY_SUROWCOW, NAZWY_JEDNOSTEK } from './nazwy.js';
+import { osRekrutacjiBezPrzestojow } from './zapotrzebowanie.js';
 
 export function czasCzytelny(sekundy) {
   const s = Math.max(0, Math.round(sekundy));
@@ -30,6 +31,14 @@ export function planTekst(plan, wynik, zap = null) {
   plan.kroki.forEach((k, i) => {
     linie.push(`${String(i + 1).padStart(3)}. ${NAZWY[k.budynek] ?? k.budynek} → ${k.doPoziomu}`);
   });
+  if (plan.rekrutacje.length) {
+    linie.push('', 'Rekrutacja');
+    const os = osRekrutacjiBezPrzestojow(plan);
+    plan.rekrutacje.forEach((r, i) => {
+      const nazwa = NAZWY_JEDNOSTEK[r.jednostka] ?? r.jednostka;
+      linie.push(`  ${r.ilosc}× ${nazwa} (${czasCzytelny(os[i].trwanieS)})`);
+    });
+  }
   const { koszt, czasS, zmarnowane, zZastrzykow } = wynik.podsumowanie;
   linie.push('', 'Podsumowanie');
   if (zap) {

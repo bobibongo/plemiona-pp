@@ -83,3 +83,29 @@ test('pusty plan nie wywraca paska', () => {
   assert.ok(html.length > 0);
   assert.match(html, /Populacja<\/b> 5 \/ 240/);
 });
+
+test('rekrutacja dolicza sie do zajetej populacji w stanie koncowym', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    rekrutacje: [{ kotwica: null, jednostka: 'lekka', ilosc: 3 }],
+  });
+  const html = pasekStanuHTML(s, p, symuluj(p), zapotrzebowanie(p), null);
+  // Poziomy startowe daja 5 ludnosci zajetej przez budynki; lekka kawaleria
+  // kosztuje 4 populacji/szt, 3 szt = 12 — razem 17.
+  assert.match(html, /Populacja<\/b> 17 \/ 240/);
+});
+
+test('rekrutacja w trakcie nie liczy sie w calosci przed zakonczeniem', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'lekka', ilosc: 1000 }],
+  });
+  const w = symuluj(p);
+  const z = zapotrzebowanie(p);
+  const html = pasekStanuHTML(s, p, w, z, 0);
+  // Partia 1000 lekkiej kawalerii trwa dlugo — po pierwszym (szybkim) kroku
+  // budowy zdazyla wyrekrutowac sie tylko niewielka czesc, wiec populacja
+  // ma byc dużo mniejsza niz pelne 4000 + 5 startowych.
+  assert.doesNotMatch(html, /Populacja<\/b> 4005 \//);
+});

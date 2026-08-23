@@ -12,3 +12,9 @@ export const NAZWY = {
 
 // Formy uzywane wylacznie po przyimku "na", stad biernik.
 export const NAZWY_SUROWCOW = { drewno: 'drewno', glina: 'glinę', zelazo: 'żelazo' };
+
+export const NAZWY_JEDNOSTEK = {
+  pikinier: 'Pikinier', miecznik: 'Miecznik', topornik: 'Topornik', lucznik: 'Łucznik',
+  zwiadowca: 'Zwiadowca', lekka: 'Lekka kawaleria', lucznikNaKoniu: 'Łucznik na koniu',
+  ciezka: 'Ciężka kawaleria', taran: 'Taran', katapulta: 'Katapulta',
+};

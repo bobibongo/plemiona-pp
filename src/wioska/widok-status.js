@@ -3,24 +3,32 @@
 // i bilans zaopatrzenia (prawa). Rzad ikon budynkow wzorowany na
 // "Podsumowaniu" w Menedzerze Konta, z poziomem pod ikona.
 
-import { produkcjaGodzinowa, maksLudnosc } from './tabele.js';
+import { produkcjaGodzinowa, maksLudnosc, pojemnosc } from './tabele.js';
 import { ludnoscPoziomu } from './swiat.js';
 import { czasCzytelny } from './format.js';
 import { NAZWY } from './nazwy.js';
 import { esc, ikonaHTML } from './widok-budynki.js';
 import { kolejnoscBudynkow } from './kolejnosc-budynkow.js';
 import { bilansHTML } from './widok-bilans.js';
+import { punktyWioski } from './punkty.js';
+import { ludnoscRekrutacjiDoCzasu } from './zapotrzebowanie.js';
 
 const SUROWCE_S = ['drewno', 'glina', 'zelazo'];
 
+// Ludnosc rekrutacji jest liczona na osi budowy BEZ przestojow (patrz
+// osRekrutacjiBezPrzestojow) nawet gdy krok budowy niesie czas Z przestojami
+// (koniecS z symulacji) — to swiadome uproszczenie: rekrutacja ma pokazywac
+// zapotrzebowanie w czasie, nie byc zsynchronizowana co do sekundy z
+// realnymi przestojami budowy na innej osi.
 function stanNaKrok(s, plan, wynik, indeks) {
   if (indeks === null || !wynik.kroki[indeks]) {
     const ostatni = wynik.kroki[wynik.kroki.length - 1];
+    const ludnoscBudynkow = ostatni ? ostatni.ludnoscPo : kolejnoscBudynkow(s)
+      .reduce((suma, b) => suma + ludnoscPoziomu(s, b, plan.start.poziomy[b] ?? 0), 0);
     return {
       poziomy: ostatni ? ostatni.poziomyPo : { ...plan.start.poziomy },
       czasS: wynik.podsumowanie.czasS,
-      ludnosc: ostatni ? ostatni.ludnoscPo : kolejnoscBudynkow(s)
-        .reduce((suma, b) => suma + ludnoscPoziomu(s, b, plan.start.poziomy[b] ?? 0), 0),
+      ludnosc: ludnoscBudynkow + ludnoscRekrutacjiDoCzasu(plan, Infinity),
       wydano: wynik.podsumowanie.koszt,
       indeks: null,
     };
@@ -31,7 +39,8 @@ function stanNaKrok(s, plan, wynik, indeks) {
     if (wynik.kroki[i].blad) continue;
     for (const r of SUROWCE_S) wydano[r] += wynik.kroki[i].koszt[r];
   }
-  return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc: k.ludnoscPo, wydano, indeks };
+  const ludnosc = k.ludnoscPo + ludnoscRekrutacjiDoCzasu(plan, k.koniecS);
+  return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc, wydano, indeks };
 }
 
 function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
@@ -45,6 +54,8 @@ function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
     zelazo: produkcjaGodzinowa(s, st.poziomy.huta ?? 0),
   };
   const limit = maksLudnosc(st.poziomy.zagroda ?? 1);
+  const magazyn = pojemnosc(st.poziomy.spichlerz ?? 1);
+  const punkty = punktyWioski(st.poziomy);
   const etykieta = indeks === null
     ? 'stan końcowy'
     : `krok ${indeks + 1} — ${czasCzytelny(st.czasS)}`;
@@ -53,11 +64,14 @@ function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
     `<div class="stan-moment">● ${esc(etykieta)}</div>`,
     `<div class="stan-ikony">${ikony}</div>`,
     `<div class="stan-liczby">`,
-    `<span title="Czas budowy przy założeniu, że surowców nigdy nie brakuje"><b>Czas budowy bez przerw</b> ${czasCzytelny(zap.czasNettoS)}</span>`,
-    `<span title="Czas obejmujący produkcję i zaopatrzenie"><b>Czas budowy realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</span>`,
-    `<span><b>Aktualne eko</b> ${Math.round(prodH.drewno)} / ${Math.round(prodH.glina)} / ${Math.round(prodH.zelazo)} na h</span>`,
-    `<span><b>Populacja</b> ${st.ludnosc} / ${limit}</span>`,
-    `<span><b>Wydano</b> ${st.wydano.drewno} / ${st.wydano.glina} / ${st.wydano.zelazo}</span>`,
+    `<div title="Czas budowy przy założeniu, że surowców nigdy nie brakuje"><b>Czas budowy bez przerw</b> ${czasCzytelny(zap.czasNettoS)}</div>`,
+    `<div title="Czas obejmujący produkcję i zaopatrzenie"><b>Czas budowy realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</div>`,
+    '<hr>',
+    `<div><b>Punkty wioski</b> ${punkty}</div>`,
+    `<div><b>Aktualne eko</b> ${Math.round(prodH.drewno)} / ${Math.round(prodH.glina)} / ${Math.round(prodH.zelazo)} na h</div>`,
+    `<div><b>Populacja</b> ${st.ludnosc} / ${limit}</div>`,
+    `<div><b>Spichlerz</b> ${magazyn} na surowiec</div>`,
+    `<div><b>Wydano</b> ${st.wydano.drewno} / ${st.wydano.glina} / ${st.wydano.zelazo}</div>`,
     `</div>`,
   ].join('');
 }
@@ -70,10 +84,6 @@ export function pasekStanuHTML(s, plan, wynik, zap, indeks) {
     `<div class="stan-lewa">${lewa}</div>`,
     `<div class="stan-prawa">${prawa}</div>`,
   ];
-  if (zap.waskieGardlo) {
-    const g = zap.waskieGardlo;
-    wiersze.push(`<div class="stan-gardlo">Wąskie gardło: krok ${g.indeks + 1} — ${esc(NAZWY[g.budynek] ?? g.budynek)} → ${g.doPoziomu}</div>`);
-  }
   if (zap.brakNaStart) {
     wiersze.push('<div class="stan-gardlo">Na pierwszy krok nie starcza surowców startowych.</div>');
   }

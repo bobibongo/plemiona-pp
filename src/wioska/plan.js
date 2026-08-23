@@ -5,6 +5,7 @@
 import { SWIATY, swiat } from './swiaty.js';
 import { poziomyStartowe, maksPoziom, budynkiSwiata } from './swiat.js';
 import { czasBudowy } from './czas.js';
+import { jednostkiSwiata } from './jednostki.js';
 
 // Obie stale sa wspoldzielone przez caly proces. Zamrazamy je, zeby
 // przypadkowa mutacja wywalila sie od razu, zamiast po cichu zmienic
@@ -80,6 +81,11 @@ export function normalizujPlan(surowy) {
       glina: Number(z.glina ?? 0),
       zelazo: Number(z.zelazo ?? 0),
     })),
+    rekrutacje: (surowy?.rekrutacje ?? []).map(r => ({
+      kotwica: kotwicaZ(r),
+      jednostka: r.jednostka,
+      ilosc: Number(r.ilosc ?? 0),
+    })),
   };
 }
 
@@ -110,6 +116,14 @@ export function bledyPlanu(plan) {
       return;
     }
     poziomy[krok.budynek] = krok.doPoziomu;
+  });
+  const dostepneJednostki = new Set(jednostkiSwiata(s));
+  plan.rekrutacje.forEach((r, i) => {
+    if (!dostepneJednostki.has(r.jednostka)) {
+      bledy.push(`Rekrutacja ${i + 1}: jednostka ${r.jednostka} nie istnieje na świecie ${plan.swiat}`);
+    } else if (r.ilosc <= 0) {
+      bledy.push(`Rekrutacja ${i + 1}: liczba jednostek musi być większa od zera`);
+    }
   });
   return bledy;
 }

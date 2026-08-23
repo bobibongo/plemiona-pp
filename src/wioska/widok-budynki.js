@@ -31,7 +31,7 @@ export function wierszBudynkuHTML(s, budynek, poziomy, poziomRatusza) {
   const zablokowany = brak.length > 0;
   const przycisk = zablokowany
     ? `<button disabled title="${esc(opisWymagan(brak, NAZWY))}">Poziom ${docelowy}</button>`
-    : `<button data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
+    : `<button class="btn-dodaj" data-dodaj="${esc(budynek)}">Poziom ${docelowy}</button>`;
   return `<tr class="${zablokowany ? 'zablokowany' : ''}">`
     + `<td>${ikonaHTML(budynek, nazwa)}${esc(nazwa)}<br><small>${obecny === 0 ? 'nie istnieje' : `Poziom ${obecny}`}</small></td>`
     + `<td>${k.drewno}</td><td>${k.glina}</td><td>${k.zelazo}</td>`

@@ -2,8 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
-import { zapotrzebowanie, osBezPrzestojow, zuzycieNaDobe, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
+import { zapotrzebowanie, osBezPrzestojow, osRekrutacjiBezPrzestojow, zuzycieNaDobe, zapotrzebowanieDzienne, ostrzezeniaRekrutacji } from '../src/wioska/zapotrzebowanie.js';
 import { czasBudowy } from '../src/wioska/czas.js';
+import { czasRekrutacji } from '../src/wioska/jednostki.js';
 import { swiat } from '../src/wioska/swiaty.js';
 
 const s = swiat('pl231');
@@ -186,4 +187,123 @@ test('zapotrzebowanie dzienne: dzien bez startujacego kroku ma wiersz zerowy, ni
 test('zapotrzebowanie dzienne dla pustego planu jest pusta tablica', () => {
   const p = plan({});
   assert.deepEqual(zapotrzebowanieDzienne(p), []);
+});
+
+test('rekrutacja bez kotwicy startuje od poczatku planu', () => {
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 10 }] });
+  const os = osRekrutacjiBezPrzestojow(p);
+  assert.equal(os.length, 1);
+  assert.equal(os[0].startS, 0);
+  assert.equal(os[0].budynek, 'koszary');
+});
+
+test('rekrutacja zakotwiczona do kroku budowy startuje po jego zakonczeniu', () => {
+  const p = plan({
+    kroki: [{ budynek: 'koszary', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: { budynek: 'koszary', doPoziomu: 1 }, jednostka: 'topornik', ilosc: 5 }],
+  });
+  const os = osBezPrzestojow(p);
+  const rek = osRekrutacjiBezPrzestojow(p);
+  assert.equal(rek[0].startS, os[0].startS + os[0].trwanieS);
+});
+
+test('czas rekrutacji partii to iloczyn czasu jednej sztuki i ilosci, z poziomem budynku w momencie kotwicy', () => {
+  const p = plan({
+    start: { poziomy: { koszary: 5 } },
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 100 }],
+  });
+  const rek = osRekrutacjiBezPrzestojow(p);
+  const oczekiwanyCzasSztuki = czasRekrutacji(s, 'topornik', 5);
+  assert.equal(rek[0].trwanieS, oczekiwanyCzasSztuki * 100);
+  assert.equal(rek[0].poziomBudynku, 5);
+});
+
+test('wyzszy poziom koszar przyspiesza rekrutacje tej samej partii', () => {
+  const wolno = osRekrutacjiBezPrzestojow(plan({
+    start: { poziomy: { koszary: 1 } },
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 50 }],
+  }))[0].trwanieS;
+  const szybko = osRekrutacjiBezPrzestojow(plan({
+    start: { poziomy: { koszary: 20 } },
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 50 }],
+  }))[0].trwanieS;
+  assert.ok(szybko < wolno);
+});
+
+test('koszt calkowity rekrutacji to koszt jednostki razy ilosc', () => {
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 20 }] });
+  const rek = osRekrutacjiBezPrzestojow(p)[0];
+  assert.deepEqual(rek.kosztCalkowity, { drewno: 50 * 20, glina: 30 * 20, zelazo: 10 * 20 });
+});
+
+test('zapotrzebowanie dzienne dolicza koszt rekrutacji do dnia, w ktorym faktycznie splynal', () => {
+  // Topornik 1320s bez przyspieszenia (koszary poziom 0 = brak budynku, ale
+  // rekrutacja i tak liczy sie wg wzoru — test sprawdza tylko rozklad w czasie).
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 3 }] });
+  const rek = osRekrutacjiBezPrzestojow(p)[0];
+  assert.ok(rek.koniecS < 86400, 'test zaklada partie miesczaca sie w jednym dniu');
+  const dni = zapotrzebowanieDzienne(p);
+  assert.equal(dni.length, 1);
+  assert.equal(dni[0].drewno, rek.kosztCalkowity.drewno);
+  assert.equal(dni[0].glina, rek.kosztCalkowity.glina);
+  assert.equal(dni[0].zelazo, rek.kosztCalkowity.zelazo);
+});
+
+test('rekrutacja rozciagnieta na kilka dni dzieli koszt proporcjonalnie do czasu w kazdym dniu', () => {
+  // Duza partia bez przyspieszenia budynku, zeby rozciagnac na wiele dni.
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 300 }] });
+  const rek = osRekrutacjiBezPrzestojow(p)[0];
+  assert.ok(rek.koniecS > 86400 * 2, 'test zaklada partie rozciagnieta na wiele dni');
+  const dni = zapotrzebowanieDzienne(p);
+  assert.ok(dni.length >= 3);
+  const suma = dni.reduce((acc, d) => ({
+    drewno: acc.drewno + d.drewno, glina: acc.glina + d.glina, zelazo: acc.zelazo + d.zelazo,
+  }), { drewno: 0, glina: 0, zelazo: 0 });
+  assert.ok(Math.abs(suma.drewno - rek.kosztCalkowity.drewno) < 1);
+  assert.ok(Math.abs(suma.glina - rek.kosztCalkowity.glina) < 1);
+  assert.ok(Math.abs(suma.zelazo - rek.kosztCalkowity.zelazo) < 1);
+  for (const d of dni) assert.ok(d.drewno > 0, 'kazdy dzien w srodku partii ma dostac swoj udzial');
+});
+
+test('rekrutacja bez zadnej budowy nadal generuje dni zapotrzebowania', () => {
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 5 }] });
+  const dni = zapotrzebowanieDzienne(p);
+  assert.ok(dni.length >= 1);
+});
+
+test('zuzycie na dobe dolicza rekrutacje obok budowy', () => {
+  const kroki = [{ budynek: 'tartak', doPoziomu: 1 }];
+  const bez = zuzycieNaDobe(plan({ kroki }), 0);
+  const z = zuzycieNaDobe(plan({ kroki, rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 5 }] }), 0);
+  assert.ok(z.suma.drewno > bez.suma.drewno);
+});
+
+test('zuzycie na dobe dziala dla planu z sama rekrutacja, bez zadnego kroku budowy', () => {
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 5 }] });
+  const z = zuzycieNaDobe(p, null);
+  assert.equal(z.suma.drewno, 50 * 5);
+});
+
+test('rekrutacja mieszczaca sie pod limitem zagrody nie generuje ostrzezenia', () => {
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 10 }] });
+  assert.deepEqual(ostrzezeniaRekrutacji(p), []);
+});
+
+test('rekrutacja przekraczajaca limit zagrody generuje ostrzezenie z nazwa jednostki', () => {
+  // Zagroda startowa daje 240 miejsc, 5 juz zajete przez budynki startowe —
+  // 500 ciezkiej kawalerii (6 pop/szt = 3000) na pewno przekroczy limit.
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'ciezka', ilosc: 500 }] });
+  const ostrzezenia = ostrzezeniaRekrutacji(p);
+  assert.equal(ostrzezenia.length, 1);
+  assert.match(ostrzezenia[0].tekst, /Ciężka kawaleria/);
+  assert.match(ostrzezenia[0].tekst, /Zagroda/);
+});
+
+test('rekrutacja pod limit po rozbudowaniu zagrody w kolejce budowy nie ostrzega', () => {
+  const p = plan({
+    start: { poziomy: { zagroda: 1 } },
+    kroki: [{ budynek: 'zagroda', doPoziomu: 2 }],
+    rekrutacje: [{ kotwica: { budynek: 'zagroda', doPoziomu: 2 }, jednostka: 'pikinier', ilosc: 50 }],
+  });
+  assert.deepEqual(ostrzezeniaRekrutacji(p), []);
 });

@@ -6,11 +6,14 @@ import { SWIATY, swiat } from './swiaty.js';
 import { kolejnoscBudynkow } from './kolejnosc-budynkow.js';
 import { normalizujPlan, bledyPlanu } from './plan.js';
 import { symuluj } from './symulacja.js';
-import { zapotrzebowanie } from './zapotrzebowanie.js';
-import { planJSON, planTekst } from './format.js';
+import { zapotrzebowanie, osRekrutacjiBezPrzestojow, ostrzezeniaRekrutacji } from './zapotrzebowanie.js';
+import { jednostkiSwiata } from './jednostki.js';
+import { planJSON, planTekst, czasCzytelny } from './format.js';
 import { esc, wierszBudynkuHTML } from './widok-budynki.js';
 import { kolejkaHTML } from './widok-kolejka.js';
 import { pasekStanuHTML } from './widok-status.js';
+import { wykresHTML, punktyWDniach } from './widok-wykres.js';
+import { NAZWY_JEDNOSTEK } from './nazwy.js';
 
 export const KLUCZ_MAGAZYNU = 'plemiona-wioska';
 
@@ -57,16 +60,16 @@ export function uruchom() {
   // poziomy po przeciaganiu lub usunieciu, odtwarzamy kotwice z tozsamosci
   // obiektu kroku, zeby wtracenie nie przeskoczylo na inny krok.
   function zapamietajKrokiKotwic() {
-    return [...plan.dochody, ...plan.zastrzyki].map(wpis => ({
+    return [...plan.dochody, ...plan.zastrzyki, ...plan.rekrutacje].map(wpis => ({
       wpis,
       krok: wpis.kotwica === null ? null : plan.kroki.find(k =>
         k.budynek === wpis.kotwica.budynek && k.doPoziomu === wpis.kotwica.doPoziomu) ?? null,
     }));
   }
 
-  function odtworzKotwice(powiazania, usuwany = null, poprzedni = null) {
+  function odtworzKotwice(powiazania, usuwane = null, poprzedni = null) {
     for (const p of powiazania) {
-      const krok = p.krok === usuwany ? poprzedni : p.krok;
+      const krok = usuwane && usuwane.includes(p.krok) ? poprzedni : p.krok;
       p.wpis.kotwica = krok && plan.kroki.includes(krok)
         ? { budynek: krok.budynek, doPoziomu: krok.doPoziomu }
         : null;
@@ -80,6 +83,14 @@ export function uruchom() {
     $('lista-dosylek').innerHTML = plan.zastrzyki.map((z, i) =>
       `<li><span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
       + `<button data-usun-dosylke="${i}" title="Usuń">×</button></li>`).join('');
+    const rekrutacjeOs = osRekrutacjiBezPrzestojow(plan);
+    $('lista-rekrutacji').innerHTML = plan.rekrutacje.map((r, i) => {
+      const os = rekrutacjeOs[i];
+      const nazwa = NAZWY_JEDNOSTEK[r.jednostka] ?? r.jednostka;
+      const czas = os ? ` — ${czasCzytelny(os.trwanieS)}` : '';
+      return `<li><span class="opis">${r.ilosc}× ${esc(nazwa)}${czas}</span>`
+        + `<button data-usun-rekrutacje="${i}" title="Usuń">×</button></li>`;
+    }).join('');
   }
 
   function rysuj() {
@@ -102,7 +113,9 @@ export function uruchom() {
     if (zaznaczony !== null && !wynik.kroki[zaznaczony]) zaznaczony = null;
     $('lista-krokow').innerHTML = kolejkaHTML(plan, wynik, zaznaczony);
     $('stan-wioski').innerHTML = pasekStanuHTML(s, plan, wynik, zap, zaznaczony);
-    $('ostrzezenia').innerHTML = wynik.ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`).join('');
+    $('wykres-uchwyt').innerHTML = wykresHTML(plan, wynik, zaznaczony);
+    const ostrzezenia = [...wynik.ostrzezenia, ...ostrzezeniaRekrutacji(plan)];
+    $('ostrzezenia').innerHTML = ostrzezenia.map(o => `<li>${esc(o.tekst)}</li>`).join('');
     zaopatrzenieHTML();
     zapisz();
   }
@@ -131,6 +144,8 @@ export function uruchom() {
     }
   }
 
+  const lista = $('lista-krokow');
+
   document.addEventListener('click', (e) => {
     const dodaj = e.target.closest('[data-dodaj]');
     if (dodaj) {
@@ -144,14 +159,15 @@ export function uruchom() {
     }
     const usun = e.target.closest('[data-usun]');
     if (usun) {
-      const indeksUsuwany = Number(usun.dataset.usun);
-      const usuwanyKrok = plan.kroki[indeksUsuwany];
-      const poprzedniKrok = indeksUsuwany > 0 ? plan.kroki[indeksUsuwany - 1] : null;
+      const od = Number(usun.dataset.usun);
+      const do_ = Number(usun.dataset.usunDo ?? od);
+      const usuwaneKroki = plan.kroki.slice(od, do_ + 1);
+      const poprzedniKrok = od > 0 ? plan.kroki[od - 1] : null;
       const powiazania = zapamietajKrokiKotwic();
-      plan.kroki.splice(indeksUsuwany, 1);
+      plan.kroki.splice(od, do_ - od + 1);
       zaznaczony = null;
       przelicz();
-      odtworzKotwice(powiazania, usuwanyKrok, poprzedniKrok);
+      odtworzKotwice(powiazania, usuwaneKroki, poprzedniKrok);
       rysuj();
       return;
     }
@@ -159,22 +175,35 @@ export function uruchom() {
     if (usunD) { plan.dochody.splice(Number(usunD.dataset.usunDochod), 1); rysuj(); return; }
     const usunZ = e.target.closest('[data-usun-dosylke]');
     if (usunZ) { plan.zastrzyki.splice(Number(usunZ.dataset.usunDosylke), 1); rysuj(); return; }
+    const usunR = e.target.closest('[data-usun-rekrutacje]');
+    if (usunR) { plan.rekrutacje.splice(Number(usunR.dataset.usunRekrutacje), 1); rysuj(); return; }
     const krok = e.target.closest('[data-krok]');
     if (krok) {
       const i = Number(krok.dataset.krok);
       zaznaczony = zaznaczony === i ? null : i;
       rysuj();
+      return;
+    }
+    const kropka = e.target.closest('[data-dzien-krok]');
+    if (kropka && kropka.dataset.dzienKrok !== '') {
+      const i = Number(kropka.dataset.dzienKrok);
+      zaznaczony = zaznaczony === i ? null : i;
+      rysuj();
     }
   });
 
-  const lista = $('lista-krokow');
+  $('do-konca').addEventListener('click', () => {
+    lista.scrollTo({ top: lista.scrollHeight, behavior: 'smooth' });
+  });
 
   lista.addEventListener('dragstart', (e) => {
     const krokEl = e.target.closest('[data-krok]');
     const wtracenieEl = !krokEl ? e.target.closest('[data-wtracenie]') : null;
     if (!krokEl && !wtracenieEl) return;
     if (krokEl) {
-      ciagniony = { typ: 'krok', indeks: Number(krokEl.dataset.krok) };
+      const indeks = Number(krokEl.dataset.krok);
+      const indeksDo = Number(krokEl.dataset.krokDo ?? indeks);
+      ciagniony = { typ: 'krok', indeks, indeksDo };
       krokEl.classList.add('ciagniony');
     } else {
       ciagniony = { typ: wtracenieEl.dataset.wtracenieRodzaj, indeks: Number(wtracenieEl.dataset.wtracenie) };
@@ -221,16 +250,18 @@ export function uruchom() {
     const indeksCelu = indeksZElementu(elementCelu(e));
     if (ciagniony.typ === 'krok') {
       const cel = indeksCelu === null ? plan.kroki.length - 1 : indeksCelu;
-      if (cel !== ciagniony.indeks) {
+      // Cel wewnatrz przeciaganej grupy nie ma sensu — grupa juz tam jest.
+      if (cel < ciagniony.indeks || cel > ciagniony.indeksDo) {
         const powiazania = zapamietajKrokiKotwic();
-        const [krok] = plan.kroki.splice(ciagniony.indeks, 1);
-        plan.kroki.splice(cel, 0, krok);
+        const przenoszone = plan.kroki.splice(ciagniony.indeks, ciagniony.indeksDo - ciagniony.indeks + 1);
+        plan.kroki.splice(cel, 0, ...przenoszone);
         przelicz();
         odtworzKotwice(powiazania);
         zaznaczony = null;
       }
     } else {
-      const listaWtracen = ciagniony.typ === 'dochod' ? plan.dochody : plan.zastrzyki;
+      const listyWtracen = { dochod: plan.dochody, dosylka: plan.zastrzyki, rekrutacja: plan.rekrutacje };
+      const listaWtracen = listyWtracen[ciagniony.typ];
       const wpis = listaWtracen[ciagniony.indeks];
       if (wpis) {
         const poprzedni = indeksCelu === null
@@ -269,6 +300,19 @@ export function uruchom() {
       glina: pytajOLiczbe('Glina'),
       zelazo: pytajOLiczbe('Żelazo'),
     });
+    rysuj();
+  });
+
+  $('dodaj-rekrutacje').addEventListener('click', () => {
+    const jednostki = jednostkiSwiata(swiat(plan.swiat));
+    const lista = jednostki.map((j, i) => `${i + 1}. ${NAZWY_JEDNOSTEK[j] ?? j}`).join('\n');
+    const wybor = prompt(`Którą jednostkę rekrutujemy?\n${lista}`, '1');
+    const indeksJednostki = Number(wybor) - 1;
+    const jednostka = jednostki[indeksJednostki];
+    if (!jednostka) return;
+    const ilosc = pytajOLiczbe(`Ile sztuk: ${NAZWY_JEDNOSTEK[jednostka] ?? jednostka}`);
+    if (ilosc <= 0) return;
+    plan.rekrutacje.push({ kotwica: kotwicaOdZaznaczenia(), jednostka, ilosc });
     rysuj();
   });
   $('zapisz').addEventListener('click', () => { zapisz(); });
