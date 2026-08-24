@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, WIOSKA_LOGIC } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, buildHandlarzPPBookmarklet, buildHandlarzPPUserscript, buildHandlarzPPLanding, buildKalkulatorCofkiBookmarklet, buildKalkulatorCofkiLanding, WIOSKA_LOGIC } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -150,19 +150,44 @@ test('strona wioski zawiera moduł zapotrzebowania i widoki', () => {
   assert.match(html, /function wtracenieHTML/);
 });
 
-test('rozdzielnik publiczny linkuje do narzędzi bezpiecznych, bez zbieractwa', () => {
+test('rozdzielnik publiczny linkuje do narzędzi bezpiecznych, bez zbieractwa, handlarza PP ani cofki', () => {
   const html = buildRozdzielnik();
   assert.match(html, /href="\.\/pp\/"/);
   assert.match(html, /href="\.\/kursy\/"/);
   assert.match(html, /href="\.\/wioska\/"/);
   assert.match(html, /href="\.\/kolektor\/"/);
   assert.doesNotMatch(html, /zbieractwo/);
+  assert.doesNotMatch(html, /handlarz-pp/);
+  assert.doesNotMatch(html, /cofka/);
 });
 
-test('rozdzielnik rozszerzony dolacza karte zbieractwa z poprawnym base', () => {
+test('rozdzielnik rozszerzony dolacza karty zbieractwa, handlarza PP i cofki z poprawnym base', () => {
   const html = buildRozdzielnik({ base: '../', rozszerzony: true });
   assert.match(html, /href="\.\.\/pp\/"/);
   assert.match(html, /href="\.\.\/zbieractwo\/"/);
+  assert.match(html, /href="\.\.\/handlarz-pp\/"/);
+  assert.match(html, /href="\.\.\/cofka\/"/);
+});
+
+test('bookmarklet kalkulatora cofki jest jedną linią javascript: bez importów/komentarzy', () => {
+  const bm = buildKalkulatorCofkiBookmarklet();
+  assert.match(bm, /^javascript:/);
+  assert.doesNotMatch(bm, /\bimport\b/);
+  assert.doesNotMatch(bm, /\n/);
+  assert.doesNotMatch(bm, /\/\//);
+  assert.match(bm, /obliczPrzerwanie/);
+});
+
+test('bookmarklet kalkulatora cofki nie klika i nie wysyla nic — tylko liczy i wyswietla', () => {
+  const bm = buildKalkulatorCofkiBookmarklet();
+  assert.doesNotMatch(bm, /action=cancel/);
+  assert.doesNotMatch(bm, /\.submit\s*\(/);
+});
+
+test('strona kalkulatora cofki zawiera bookmarklet i instrukcję', () => {
+  const html = buildKalkulatorCofkiLanding('javascript:void 0');
+  assert.match(html, /javascript:void 0/);
+  assert.match(html, /Kalkulator cofki/);
 });
 
 test('bookmarklet zbieractwa jest jedną linią javascript: bez importów/komentarzy', () => {
@@ -178,6 +203,38 @@ test('strona zbieractwa zawiera bookmarklet i instrukcję', () => {
   const html = buildScavLanding('javascript:void 0');
   assert.match(html, /javascript:void 0/);
   assert.match(html, /Zbieractwo masowe/);
+});
+
+test('bookmarklet handlarza PP jest jedną linią javascript: bez importów/komentarzy', () => {
+  const bm = buildHandlarzPPBookmarklet();
+  assert.match(bm, /^javascript:/);
+  assert.doesNotMatch(bm, /\bimport\b/);
+  assert.doesNotMatch(bm, /\n/);
+  assert.doesNotMatch(bm, /\/\//);
+  assert.match(bm, /obliczIlosc/);
+});
+
+test('bookmarklet handlarza PP nie klika i nie wysyla nic — tylko odczyt i wypelnienie pola', () => {
+  const bm = buildHandlarzPPBookmarklet();
+  assert.doesNotMatch(bm, /\.submit\s*\(/);
+  assert.doesNotMatch(bm, /btn-premium-exchange-buy/);
+});
+
+test('userscript handlarza PP ma naglowek metadanych i pasuje tylko do strony gieldy premium', () => {
+  const us = buildHandlarzPPUserscript();
+  assert.match(us, /^\/\/ ==UserScript==/m);
+  assert.match(us, /\/\/ ==\/UserScript==/m);
+  assert.match(us, /@match\s+https:\/\/\*\.plemiona\.pl\/game\.php\?\*screen=market\*mode=exchange\*/);
+  assert.doesNotMatch(us, /^\s*import\s/m);
+  assert.doesNotMatch(us, /^\s*export\s/m);
+  assert.match(us, /obliczIlosc/);
+});
+
+test('strona handlarza PP zawiera bookmarklet, link do userscriptu i instrukcję', () => {
+  const html = buildHandlarzPPLanding('javascript:void 0');
+  assert.match(html, /javascript:void 0/);
+  assert.match(html, /handlarz-pp\.user\.js/);
+  assert.match(html, /Handlarz PP/);
 });
 
 test('strona kolektora wskazuje na dashboard pod nowym adresem', () => {

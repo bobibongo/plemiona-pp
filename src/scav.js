@@ -1,4 +1,5 @@
 // src/scav.js
+import { panelMotywCSS, usunIstniejacyPanel, wstrzyknijStylPanelu, wlaczPrzeciaganiePanelu } from './panel-theme.js';
 
 export const POZIOMY = [4, 3, 2, 1];
 
@@ -107,37 +108,25 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       light: 'Lekka kaw.', marcher: 'Łucznik konny', heavy: 'Ciężka kaw.', knight: 'Rycerz',
     };
 
-    const STYL = `
-    <style id="scavCustomStyle">
-    #scavCustomPanel { position: fixed; top: 80px; right: 20px; z-index: 500; width: 340px;
-      background: #36393f; color: #fff; border: 1px solid #3e4147; border-radius: 6px;
-      font-family: Verdana, sans-serif; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
-    #scavCustomPanel h3 { margin: 0; padding: 8px 10px; background: #202225; font-size: 13px;
-      border-radius: 6px 6px 0 0; display: flex; justify-content: space-between; align-items: center;
-      cursor: move; user-select: none; }
-    #scavCustomPanel .body { padding: 10px; }
+    const STYL_WLASNY = `
     #scavCustomPanel table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    #scavCustomPanel th, #scavCustomPanel td { padding: 3px 4px; text-align: center; font-size: 11px; }
-    #scavCustomPanel th { color: #cfd2d6; font-weight: normal; }
-    #scavCustomPanel tbody tr { background: #32353b; }
-    #scavCustomPanel select, #scavCustomPanel input[type=number] { width: 100%; box-sizing: border-box;
-      background: #202225; color: #fff; border: 1px solid #3e4147; border-radius: 3px; padding: 2px; }
-    #scavCustomPanel .czas-kol { color: #a8c98a; white-space: nowrap; }
-    #scavCustomPanel .usun { cursor: pointer; color: #e08080; font-weight: bold; }
-    #scavCustomPanel .dodaj-rzad { display: flex; gap: 4px; margin-bottom: 8px; }
+    #scavCustomPanel th, #scavCustomPanel td { padding: 5px 4px; text-align: center; font-size: 11px; }
+    #scavCustomPanel thead { border-bottom: 1px solid #2a3436; }
+    #scavCustomPanel th { background: #1a2224; color: #9fb0b0; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; }
+    #scavCustomPanel tbody tr { background: #0e1416; }
+    #scavCustomPanel tbody tr:nth-child(even) { background: #12181a; }
+    #scavCustomPanel select { width: 100%; box-sizing: border-box; font-family: inherit;
+      background: #0c1113; color: #d8e0e0; border: 1px solid #2a3436; border-radius: 2px; padding: 6px; }
+    #scavCustomPanel .czas-kol { color: #3ad6b8; white-space: nowrap; font-weight: 700; }
+    #scavCustomPanel .usun { cursor: pointer; color: #f0a294; font-weight: bold; }
+    #scavCustomPanel .dodaj-rzad { display: flex; gap: 4px; margin-bottom: 10px; }
     #scavCustomPanel .dodaj-rzad > * { flex: 1; }
-    #scavCustomPanel .przyciski { display: flex; gap: 6px; }
-    #scavCustomPanel button { flex: 1; padding: 6px; background: #7b7e85;
-      color: #fff; border: none; border-radius: 3px; cursor: pointer; }
-    #scavCustomPanel button:disabled { opacity: .5; cursor: default; }
-    #scavCustomPanel .status { margin-top: 8px; font-size: 11px; color: #cfd2d6; min-height: 14px; }
-    #scavCustomPanel .suma-czas { margin: 4px 0 8px; font-size: 11px; color: #cfd2d6; }
-    #scavCustomPanel .x { cursor: pointer; background: #a02020; border-radius: 3px; padding: 0 6px; }
-    </style>`;
+    #scavCustomPanel .pm-przyciski button:disabled { opacity: .4; cursor: default; }
+    #scavCustomPanel .suma-czas { margin: 2px 0 10px; font-size: 11px; color: #7f9494; }
+    `;
 
-    const istniejacy = document.getElementById('scavCustomPanel');
-    if (istniejacy) istniejacy.remove();
-    document.head.insertAdjacentHTML('beforeend', STYL);
+    usunIstniejacyPanel('scavCustomPanel');
+    wstrzyknijStylPanelu('scavCustomStyle', panelMotywCSS('scavCustomPanel') + STYL_WLASNY);
 
     function opcjeJednostek(wybrana) {
       return JEDNOSTKI_OK.map(function (j) {
@@ -153,8 +142,8 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 
     const html = `
     <div id="scavCustomPanel">
-      <h3>Zbieractwo — sekwencja <span class="x" id="scavCustomClose">x</span></h3>
-      <div class="body">
+      <h3>Zbieractwo — sekwencja <span class="pm-x" id="scavCustomClose">x</span></h3>
+      <div class="pm-body">
         <table id="scavCustomTabela">
           <thead><tr><th>Jednostka</th><th>Poz.</th><th>Ilość</th><th>Czas</th><th></th></tr></thead>
           <tbody id="scavCustomTbody"></tbody>
@@ -166,11 +155,11 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
           <button id="scavCustomDodaj">+ Dodaj</button>
         </div>
         <div class="suma-czas" id="scavCustomSuma"></div>
-        <div class="przyciski">
+        <div class="pm-grupa pm-przyciski">
           <button id="scavCustomZapisz">Zapisz domyślne</button>
-          <button id="scavCustomStart">Start</button>
+          <button id="scavCustomStart" class="pm-ok">Start</button>
         </div>
-        <div class="status" id="scavCustomStatus"></div>
+        <div class="pm-status" id="scavCustomStatus"></div>
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
@@ -179,52 +168,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       document.getElementById('scavCustomPanel').remove();
     });
 
-    (function wlaczPrzeciaganie() {
-      const KLUCZ_POZYCJI = 'scavCustomPozycja';
-      const panel = document.getElementById('scavCustomPanel');
-      const uchwyt = panel.querySelector('h3');
-
-      const zapisana = window.localStorage.getItem(KLUCZ_POZYCJI);
-      if (zapisana) {
-        try {
-          const pozycja = JSON.parse(zapisana);
-          panel.style.top = pozycja.top + 'px';
-          panel.style.left = pozycja.left + 'px';
-          panel.style.right = 'auto';
-        } catch (e) { /* ignorujemy uszkodzony zapis pozycji */ }
-      }
-
-      let przeciagane = false;
-      let offsetX = 0;
-      let offsetY = 0;
-
-      uchwyt.addEventListener('mousedown', function (event) {
-        if (event.target.id === 'scavCustomClose') return;
-        przeciagane = true;
-        const prostokat = panel.getBoundingClientRect();
-        offsetX = event.clientX - prostokat.left;
-        offsetY = event.clientY - prostokat.top;
-        panel.style.left = prostokat.left + 'px';
-        panel.style.top = prostokat.top + 'px';
-        panel.style.right = 'auto';
-        event.preventDefault();
-      });
-
-      document.addEventListener('mousemove', function (event) {
-        if (!przeciagane) return;
-        panel.style.left = (event.clientX - offsetX) + 'px';
-        panel.style.top = (event.clientY - offsetY) + 'px';
-      });
-
-      document.addEventListener('mouseup', function () {
-        if (!przeciagane) return;
-        przeciagane = false;
-        window.localStorage.setItem(KLUCZ_POZYCJI, JSON.stringify({
-          left: parseInt(panel.style.left, 10),
-          top: parseInt(panel.style.top, 10),
-        }));
-      });
-    })();
+    wlaczPrzeciaganiePanelu('scavCustomPanel', 'scavCustomClose', 'scavCustomPozycja', window.localStorage);
 
     function znajdzTekstScavengeMassScreen() {
       const skrypty = document.querySelectorAll('script');
