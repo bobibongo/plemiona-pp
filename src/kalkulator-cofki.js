@@ -24,6 +24,18 @@ export function koniecOknaPrzerwania(startSekundy, przybycieSekundy) {
   return Math.min(limit, przybycieSekundy);
 }
 
+// Jaka wartosc pokaze licznik "przerwij" w grze W CHWILI przerwania.
+//
+// Gra odlicza do konca okna i zaokragla w GORE: bedac gdziekolwiek w sekundzie
+// 16:40:10 przy oknie do 16:48:35 wyswietla 0:08:26, a nie 0:08:25 - bo zostalo
+// jej "8:25 i ulamek". Roznica pelnych sekund dawalaby wartosc o 1 s za niska,
+// czyli taka, ktora w grze pojawi sie dopiero sekunde po naszym momencie.
+export function licznikPrzerwaniaWChwili(przerwanieSekundy, koniecOkna) {
+  const pozostalo = koniecOkna - przerwanieSekundy;
+  if (pozostalo <= 0) return 0;
+  return pozostalo + 1;
+}
+
 // startSekundy/docelowySekundy: sekundy czasu gry. Zwraca moment przerwania
 // (srodek odcinka) oraz informacje o parzystosci - przy nieparzystym odstepie
 // idealne trafienie jest niemozliwe, bo przerwanie dziala na pelnych sekundach.
@@ -323,7 +335,8 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       // Gra przy linku "przerwij" odlicza czas do zamkniecia okna anulowania, a
       // nie czas od wyslania - pokazujemy dokladnie te wartosc, zeby dalo sie
       // kliknac na dopasowanie licznikow, bez przeliczania w glowie.
-      document.getElementById('cofkaTrwanie').textContent = 'przerwij (' + formatOdliczania(koniecOkna - przerwanieSekundy) + ')';
+      document.getElementById('cofkaTrwanie').textContent =
+        'przerwij (' + formatOdliczania(licznikPrzerwaniaWChwili(przerwanieSekundy, koniecOkna)) + ')';
       document.getElementById('cofkaWynikBlok').style.display = 'block';
       document.getElementById('cofkaPozostalo').style.display = 'flex';
 
