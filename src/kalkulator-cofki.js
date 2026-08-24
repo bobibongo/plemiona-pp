@@ -24,16 +24,15 @@ export function koniecOknaPrzerwania(startSekundy, przybycieSekundy) {
   return Math.min(limit, przybycieSekundy);
 }
 
-// Jaka wartosc pokaze licznik "przerwij" w grze W CHWILI przerwania.
+// Jaka wartosc pokaze licznik "przerwij" w grze W CHWILI przerwania: po prostu
+// ile zostaje do konca okna anulowania.
 //
-// Gra odlicza do konca okna i zaokragla w GORE: bedac gdziekolwiek w sekundzie
-// 16:40:10 przy oknie do 16:48:35 wyswietla 0:08:26, a nie 0:08:25 - bo zostalo
-// jej "8:25 i ulamek". Roznica pelnych sekund dawalaby wartosc o 1 s za niska,
-// czyli taka, ktora w grze pojawi sie dopiero sekunde po naszym momencie.
+// Rownowaznie (i tak liczy sie to na piechote): dlugosc okna minus polowa
+// odstepu miedzy wyslaniem a celem powrotu, bo tyle wlasnie trwa lot do
+// momentu zawrocenia.
 export function licznikPrzerwaniaWChwili(przerwanieSekundy, koniecOkna) {
   const pozostalo = koniecOkna - przerwanieSekundy;
-  if (pozostalo <= 0) return 0;
-  return pozostalo + 1;
+  return pozostalo > 0 ? pozostalo : 0;
 }
 
 // startSekundy/docelowySekundy: sekundy czasu gry. Zwraca moment przerwania

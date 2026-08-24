@@ -94,30 +94,35 @@ test('licznik "przerwij" pokazuje czas do zamkniecia okna, nie czas od wyslania'
   const start = gra(12, 0, 0);
   const przybycie = start + 30 * 60; // dlugi rozkaz, wiec okno to pelne 10 minut
   const koniecOkna = koniecOknaPrzerwania(start, przybycie);
-  const przerwanie = start + 150; // 2:30 po wyslaniu -> zostaje 7:30 (+1 s zaokraglenia gry)
-  assert.equal(formatOdliczania(licznikPrzerwaniaWChwili(przerwanie, koniecOkna)), '0:07:31');
+  const przerwanie = start + 150; // 2:30 po wyslaniu
+  assert.equal(formatOdliczania(licznikPrzerwaniaWChwili(przerwanie, koniecOkna)), '0:07:30');
 });
 
-// Regresja na zgloszony blad 2 sekund. Dane wprost ze zrzutu gracza: rozkaz
-// wyslany 16:38:35, przybycie 16:56:35 (18 min), a przy zegarze 16:40:10 gra
-// pokazywala "przerwij (0:08:26)". Roznica pelnych sekund dawalaby 0:08:25,
-// czyli wartosc, ktora w grze pojawia sie sekunde za pozno.
-test('licznik "przerwij" zgadza sie z gra co do sekundy (zrzut: 16:40:10 -> 0:08:26)', () => {
-  const start = gra(16, 38, 35);
-  const przybycie = gra(16, 56, 35);
+// Rachunek podany przez gracza, liczony na piechote:
+//   okno - (cel - wyslano) / 2 = 0:10:00 - 0:01:38 = 0:08:22
+// oraz godzina przerwania:
+//   wyslano + (cel - wyslano) / 2 = 17:32:11 + 0:01:38 = 17:33:49
+test('zgodnosc z rachunkiem gracza (wyslano 17:32:11, cel 17:35:27)', () => {
+  const start = gra(17, 32, 11);
+  const przybycie = gra(18, 8, 11); // rozkaz 36-minutowy, okno to pelne 10 minut
   const koniecOkna = koniecOknaPrzerwania(start, przybycie);
-  assert.equal(formatZegara(koniecOkna), '16:48:35');
-  const przerwanie = gra(16, 40, 10);
-  assert.equal(formatOdliczania(licznikPrzerwaniaWChwili(przerwanie, koniecOkna)), '0:08:26');
+  assert.equal(formatZegara(koniecOkna), '17:42:11');
+
+  const cel = ustalCelSekundy('17:35:27', start + 1);
+  const wynik = obliczPrzerwanie(start, cel);
+  assert.equal(formatZegara(wynik.przerwanieSekundy), '17:33:49');
+  assert.equal(
+    formatOdliczania(licznikPrzerwaniaWChwili(wynik.przerwanieSekundy, koniecOkna)),
+    '0:08:22'
+  );
 });
 
-// Drugi zrzut: rozkaz 9-minutowy, gdzie okno konczy sie na przybyciu, a gra
-// przy zegarze 23:30:40 pokazywala "przerwij (0:08:50)".
+// Rozkaz krotszy niz 10 minut: okno konczy sie na przybyciu, nie po 10 minutach.
 test('licznik "przerwij" dla krotkiego rozkazu liczy do przybycia', () => {
   const start = gra(23, 30, 30);
   const przybycie = start + 9 * 60;
   const koniecOkna = koniecOknaPrzerwania(start, przybycie);
-  const przerwanie = start + 11;
+  const przerwanie = start + 10;
   assert.equal(formatOdliczania(licznikPrzerwaniaWChwili(przerwanie, koniecOkna)), '0:08:50');
 });
 
