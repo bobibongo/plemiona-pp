@@ -141,15 +141,28 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     const startSekundy = czasZAtrybutu(pasek, 'data-starttime');
     const przybycieSekundy = czasZAtrybutu(pasek, 'data-endtime');
 
-    // Zegar systemowy potrafi odstawac od serwera o kilka sekund (Windows
-    // synchronizuje czas rzadko), a gra odlicza wzgledem serwera - stad staly
-    // blad przy trafianiu w sekunde.
+    // ZEGAR. Gra ma wlasny obiekt Timing, ktory liczy czas serwera jako
+    // "czas serwera z chwili zaladowania strony + performance.now()". Kluczowe
+    // jest to, ze performance.now() to zegar MONOTONICZNY - nie przestawia go
+    // synchronizacja NTP systemu. Date.now() takiej gwarancji nie daje: Windows
+    // potrafi w trakcie zycia karty skorygowac zegar scienny, przez co raz
+    // zmierzony dryf staje sie nieaktualny. Stad obserwacja, ze swieza karta
+    // trafia dobrze, a dlugo otwarta zaczyna sie rozjezdzac.
     //
-    // #serverTime pokazuje pelne sekundy, wiec sam odczyt nie mowi, w ktorym
-    // miejscu sekundy jestesmy - to daje +-1s niepewnosci. Zamiast zgadywac,
-    // obserwujemy MOMENT PRZESKOKU tego elementu: gdy gra zmieni tekst, wiemy,
-    // ze wlasnie zaczela sie ta sekunda serwera, i mozemy zgrac zegary co do
-    // milisekund. Do pierwszego przeskoku dzialamy na zgrubnym oszacowaniu.
+    // Pierwszym wyborem jest wiec Timing gry - to samo zrodlo, z ktorego odlicza
+    // licznik "przerwij", wiec zgodnosc jest z definicji.
+    function czasZTiming() {
+      const t = window.Timing;
+      if (!t || typeof t.getCurrentServerTime !== 'function') return null;
+      const ms = t.getCurrentServerTime();
+      return Number.isFinite(ms) ? ms / 1000 + przesuniecieStrefy : null;
+    }
+
+    const timingDostepny = czasZTiming() != null;
+
+    // Zapas na wypadek, gdyby Timing zniknal albo zmienil nazwe: odczytujemy
+    // #serverTime i kotwiczymy go do performance.now(), ktory tak samo jak
+    // Timing jest odporny na przestawienie zegara systemowego.
     function odczytajCzasSerwera() {
       const czasEl = document.getElementById('serverTime');
       const dataEl = document.getElementById('serverDate');
@@ -163,27 +176,38 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       ) / 1000;
     }
 
-    function ustawDryf(sekundySerwera, momentOdczytu) {
-      const lokalny = momentOdczytu / 1000 + przesuniecieStrefy;
-      const nowy = sekundySerwera - lokalny;
-      // Powyzej doby to nie dryf tylko zla data - wtedy lepiej nie korygowac nic.
-      if (Math.abs(nowy) >= 24 * 3600) return;
-      // Dryf zegara zmienia sie powoli, wiec nagly skok o sekundy to nie realna
-      // korekta tylko zly odczyt (gra potrafi chwilowo przerysowac #serverTime
-      // stara wartoscia). Pierwszy pomiar przyjmujemy bez zastrzezen.
-      if (dryfZgranyNaPrzeskoku && Math.abs(nowy - dryfZegara) > 2) return;
-      dryfZegara = nowy;
-    }
-
-    let dryfZegara = 0;
+    // Kotwica: ile wynosil czas gry w chwili, gdy performance.now() = kotwicaOd.
+    let kotwicaCzasGry = null;
+    let kotwicaOd = 0;
     let dryfZgranyNaPrzeskoku = false;
 
-    // Zgrubny start: zakladamy srodek biezacej sekundy (blad do +-0.5 s).
-    const czasPoczatkowy = odczytajCzasSerwera();
-    if (czasPoczatkowy != null) ustawDryf(czasPoczatkowy + 0.5, Date.now());
+    function ustawKotwice(sekundyGry, momentPerf) {
+      if (!Number.isFinite(sekundyGry)) return;
+      // Nagly skok o sekundy to zly odczyt (gra potrafi chwilowo przerysowac
+      // #serverTime stara wartoscia), a nie realna korekta - zegar monotoniczny
+      // nie skacze. Pierwszy pomiar przyjmujemy bez zastrzezen.
+      if (dryfZgranyNaPrzeskoku && kotwicaCzasGry != null) {
+        const oczekiwany = kotwicaCzasGry + (momentPerf - kotwicaOd) / 1000;
+        if (Math.abs(sekundyGry - oczekiwany) > 2) return;
+      }
+      kotwicaCzasGry = sekundyGry;
+      kotwicaOd = momentPerf;
+    }
+
+    if (!timingDostepny) {
+      // Zgrubny start: zakladamy srodek biezacej sekundy (blad do +-0.5 s),
+      // doprecyzowany przy pierwszym przeskoku #serverTime.
+      const czasPoczatkowy = odczytajCzasSerwera();
+      if (czasPoczatkowy != null) {
+        ustawKotwice(czasPoczatkowy + przesuniecieStrefy + 0.5, performance.now());
+      }
+    }
 
     function terazSekundyGry() {
-      return Date.now() / 1000 + przesuniecieStrefy + dryfZegara;
+      const zTiming = czasZTiming();
+      if (zTiming != null) return zTiming;
+      if (kotwicaCzasGry != null) return kotwicaCzasGry + (performance.now() - kotwicaOd) / 1000;
+      return Date.now() / 1000 + przesuniecieStrefy;
     }
 
     const html = `
@@ -261,15 +285,16 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       el.classList.toggle('teraz', pozostale <= 0);
     }
 
-    // Dokladne zgranie zegara na pierwszym przeskoku #serverTime. Tworzymy
-    // obserwator dopiero tutaj, bo w callbacku odswiezamy juz gotowy panel.
+    // Tylko dla trybu zapasowego: gdy nie ma Timing, dokladne zgranie bierzemy
+    // z pierwszego przeskoku #serverTime (to prawdziwa granica sekundy serwera).
+    // Obserwator powstaje dopiero tutaj, bo w callbacku odswiezamy gotowy panel.
     const czasSerweraEl = document.getElementById('serverTime');
-    if (czasSerweraEl && typeof window.MutationObserver === 'function') {
+    if (!timingDostepny && czasSerweraEl && typeof window.MutationObserver === 'function') {
       const obserwator = new window.MutationObserver(function () {
         const sekundy = odczytajCzasSerwera();
         if (sekundy == null) return;
         // Tekst wlasnie sie zmienil, czyli ta sekunda serwera zaczyna sie teraz.
-        ustawDryf(sekundy, Date.now());
+        ustawKotwice(sekundy + przesuniecieStrefy, performance.now());
         dryfZgranyNaPrzeskoku = true;
         odswiezOdliczanie();
       });
@@ -313,7 +338,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       }
       document.getElementById('cofkaOstrzezenie').textContent = komunikaty.join(' ');
 
-      ustawStatus(dryfZgranyNaPrzeskoku
+      ustawStatus(timingDostepny || dryfZgranyNaPrzeskoku
         ? 'Zegar zgrany z serwerem.'
         : 'Zegar zgrywa się z serwerem — dokładność ±1s do pierwszego tyknięcia.');
       odswiezOdliczanie();
