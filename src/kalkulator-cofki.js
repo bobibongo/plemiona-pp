@@ -81,19 +81,41 @@ export function formatOdliczania(sekundyPozostale) {
 
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   (function () {
+    // Hierarchia: godzina przerwania jest najwazniejsza, zaraz pod nia licznik
+    // "przerwij" do dopasowania z gra. Odliczanie i dane rozkazu sa pomocnicze.
     const STYL_WLASNY = `
     #cofkaPanel .pm-pole { width: 100%; box-sizing: border-box; text-align: center; font-size: 16px; letter-spacing: .05em; }
-    #cofkaPanel .info-start { text-align: center; font-size: 12px; color: #d8e0e0; margin-bottom: 8px; line-height: 1.5; }
-    #cofkaPanel .info-start .brak { color: #d9553f; }
-    #cofkaPanel .info-start b { color: #3ad6b8; font-weight: 700; }
-    #cofkaPanel .wynik { text-align: center; margin-top: 4px; }
-    #cofkaPanel .wynik-czas { font-size: 26px; font-weight: bold; color: #3ad6b8; letter-spacing: .04em;
-      text-shadow: 0 0 12px rgba(58,214,184,.35); }
-    #cofkaPanel .wynik-odliczanie { font-size: 20px; font-weight: bold; color: #d8e0e0; margin-top: 4px; }
-    #cofkaPanel .wynik-odliczanie.teraz { color: #d9553f; animation: cofkaMignij 1s infinite; }
+
+    #cofkaPanel .rozkaz { display: flex; justify-content: space-between; gap: 8px;
+      padding: 7px 9px; margin-bottom: 12px; background: #0c1113; border: 1px solid #2a3436; border-radius: 2px;
+      font-size: 11px; color: #7f9494; }
+    #cofkaPanel .rozkaz div { display: flex; flex-direction: column; gap: 2px; }
+    #cofkaPanel .rozkaz .etykieta { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: #5f7272; }
+    #cofkaPanel .rozkaz .wartosc { color: #d8e0e0; font-weight: 700; font-size: 12px; }
+    #cofkaPanel .rozkaz.brak { color: #d9553f; justify-content: center; border-color: #5a2e2a; background: #23100e; }
+
+    #cofkaPanel .karta-wyniku { margin-top: 12px; border: 1px solid #2d5a46; border-radius: 2px;
+      background: linear-gradient(#0f1a17, #0c1113); overflow: hidden; }
+    #cofkaPanel .glowny { padding: 12px 10px 14px; text-align: center;
+      border-bottom: 1px dashed #24403a; }
+    #cofkaPanel .glowny .etykieta { display: block; font-size: 10px; text-transform: uppercase;
+      letter-spacing: .12em; color: #7f9494; margin-bottom: 6px; }
+    #cofkaPanel .glowny .godzina { font-size: 38px; line-height: 1; font-weight: 700; color: #3ad6b8;
+      letter-spacing: .02em; text-shadow: 0 0 18px rgba(58,214,184,.4); }
+
+    #cofkaPanel .moment { padding: 11px 10px 12px; text-align: center; }
+    #cofkaPanel .moment .etykieta { display: block; font-size: 10px; text-transform: uppercase;
+      letter-spacing: .12em; color: #7f9494; margin-bottom: 5px; }
+    #cofkaPanel .moment .licznik { font-size: 22px; font-weight: 700; color: #ff8c1a;
+      letter-spacing: .02em; }
+
+    #cofkaPanel .pozostalo { display: flex; justify-content: space-between; align-items: baseline;
+      margin-top: 10px; font-size: 11px; color: #7f9494; }
+    #cofkaPanel .pozostalo .odliczanie { font-size: 14px; font-weight: 700; color: #d8e0e0; }
+    #cofkaPanel .pozostalo .odliczanie.teraz { color: #d9553f; animation: cofkaMignij 1s infinite; }
     @keyframes cofkaMignij { 50% { opacity: .3; } }
-    #cofkaPanel .info-wiersz { display: flex; justify-content: space-between; font-size: 11px; color: #7f9494; margin-top: 4px; }
-    #cofkaPanel .ostrzezenie { color: #ff8c1a; font-size: 11px; margin-top: 6px; text-align: center; line-height: 1.5; }
+
+    #cofkaPanel .ostrzezenie { color: #ff8c1a; font-size: 11px; margin-top: 8px; text-align: center; line-height: 1.5; }
     `;
 
     usunIstniejacyPanel('cofkaPanel');
@@ -121,30 +143,44 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 
     // Zegar systemowy potrafi odstawac od serwera o kilka sekund (Windows
     // synchronizuje czas rzadko), a gra odlicza wzgledem serwera - stad staly
-    // blad przy trafianiu w sekunde. Mierzymy ten dryf raz, porownujac zegar gry
-    // (#serverTime, ta sama os co data-starttime) z zegarem przegladarki.
-    // #serverTime tyka co sekunde, wiec celujemy w srodek biezacej sekundy,
-    // zeby samemu nie dolozyc bledu +-1s.
-    function zmierzDryfZegara() {
+    // blad przy trafianiu w sekunde.
+    //
+    // #serverTime pokazuje pelne sekundy, wiec sam odczyt nie mowi, w ktorym
+    // miejscu sekundy jestesmy - to daje +-1s niepewnosci. Zamiast zgadywac,
+    // obserwujemy MOMENT PRZESKOKU tego elementu: gdy gra zmieni tekst, wiemy,
+    // ze wlasnie zaczela sie ta sekunda serwera, i mozemy zgrac zegary co do
+    // milisekund. Do pierwszego przeskoku dzialamy na zgrubnym oszacowaniu.
+    function odczytajCzasSerwera() {
       const czasEl = document.getElementById('serverTime');
       const dataEl = document.getElementById('serverDate');
-      if (!czasEl || !dataEl) return 0;
+      if (!czasEl || !dataEl) return null;
       const czas = czasEl.textContent.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})/);
       const data = dataEl.textContent.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (!czas || !data) return 0;
-      const gra = Date.UTC(
+      if (!czas || !data) return null;
+      return Date.UTC(
         Number(data[3]), Number(data[2]) - 1, Number(data[1]),
         Number(czas[1]), Number(czas[2]), Number(czas[3])
-      ) / 1000 + 0.5;
-      const lokalny = Date.now() / 1000 + przesuniecieStrefy;
-      const dryf = gra - lokalny;
-      // Powyzej doby to nie dryf tylko zla data - wtedy lepiej nie korygowac nic.
-      return Math.abs(dryf) < 24 * 3600 ? dryf : 0;
+      ) / 1000;
     }
 
-    // Mierzymy przy otwarciu, a potem jeszcze raz przy kazdym liczeniu - panel
-    // bywa otwarty dlugo, a #serverTime tyka przez caly czas.
-    let dryfZegara = zmierzDryfZegara();
+    function ustawDryf(sekundySerwera, momentOdczytu) {
+      const lokalny = momentOdczytu / 1000 + przesuniecieStrefy;
+      const nowy = sekundySerwera - lokalny;
+      // Powyzej doby to nie dryf tylko zla data - wtedy lepiej nie korygowac nic.
+      if (Math.abs(nowy) >= 24 * 3600) return;
+      // Dryf zegara zmienia sie powoli, wiec nagly skok o sekundy to nie realna
+      // korekta tylko zly odczyt (gra potrafi chwilowo przerysowac #serverTime
+      // stara wartoscia). Pierwszy pomiar przyjmujemy bez zastrzezen.
+      if (dryfZgranyNaPrzeskoku && Math.abs(nowy - dryfZegara) > 2) return;
+      dryfZegara = nowy;
+    }
+
+    let dryfZegara = 0;
+    let dryfZgranyNaPrzeskoku = false;
+
+    // Zgrubny start: zakladamy srodek biezacej sekundy (blad do +-0.5 s).
+    const czasPoczatkowy = odczytajCzasSerwera();
+    if (czasPoczatkowy != null) ustawDryf(czasPoczatkowy + 0.5, Date.now());
 
     function terazSekundyGry() {
       return Date.now() / 1000 + przesuniecieStrefy + dryfZegara;
@@ -154,16 +190,25 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     <div id="cofkaPanel">
       <h3>Kalkulator cofki <span class="pm-x" id="cofkaClose">x</span></h3>
       <div class="pm-body">
-        <div class="info-start" id="cofkaInfoStart"></div>
+        <div class="rozkaz" id="cofkaRozkaz"></div>
         <div class="pm-sekcja">
           <span class="pm-etykieta">Docelowy czas powrotu</span>
           <input type="text" id="cofkaCel" class="pm-pole" placeholder="GG:MM:SS:mmm">
         </div>
         <button id="cofkaPolicz" class="pm-ok">Policz</button>
-        <div class="wynik" id="cofkaWynikBlok" style="display:none">
-          <div class="wynik-czas" id="cofkaWynikCzas"></div>
-          <div class="wynik-odliczanie" id="cofkaOdliczanie"></div>
-          <div class="info-wiersz"><span>Licznik „przerwij” pokaże</span><span id="cofkaTrwanie"></span></div>
+        <div class="karta-wyniku" id="cofkaWynikBlok" style="display:none">
+          <div class="glowny">
+            <span class="etykieta">Przerwij atak o czasie</span>
+            <span class="godzina" id="cofkaWynikCzas"></span>
+          </div>
+          <div class="moment">
+            <span class="etykieta">w momencie gdy zobaczysz</span>
+            <span class="licznik" id="cofkaTrwanie"></span>
+          </div>
+        </div>
+        <div class="pozostalo" id="cofkaPozostalo" style="display:none">
+          <span>Do cofnięcia pozostało</span>
+          <span class="odliczanie" id="cofkaOdliczanie"></span>
         </div>
         <div class="ostrzezenie" id="cofkaOstrzezenie"></div>
         <div class="pm-status" id="cofkaStatus"></div>
@@ -182,35 +227,57 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       document.getElementById('cofkaStatus').textContent = tekst;
     }
 
-    const infoStartEl = document.getElementById('cofkaInfoStart');
+    const rozkazEl = document.getElementById('cofkaRozkaz');
     const przyciskPolicz = document.getElementById('cofkaPolicz');
     const koniecOkna = startSekundy != null ? koniecOknaPrzerwania(startSekundy, przybycieSekundy) : null;
 
+    function polePodsumowania(etykieta, wartosc) {
+      return '<div><span class="etykieta">' + etykieta + '</span>'
+        + '<span class="wartosc">' + wartosc + '</span></div>';
+    }
+
     if (startSekundy == null) {
-      infoStartEl.innerHTML = '<span class="brak">Rozkazu nie można cofnąć</span>';
+      rozkazEl.className = 'rozkaz brak';
+      rozkazEl.textContent = 'Rozkazu nie można cofnąć';
       przyciskPolicz.disabled = true;
     } else if (koniecOkna <= terazSekundyGry()) {
-      infoStartEl.innerHTML = '<span class="brak">Okno na przerwanie już minęło</span>';
+      rozkazEl.className = 'rozkaz brak';
+      rozkazEl.textContent = 'Okno na przerwanie już minęło';
       przyciskPolicz.disabled = true;
     } else {
-      infoStartEl.innerHTML = 'Wysłano o <b>' + formatZegara(startSekundy) + '</b><br>'
-        + 'Przerwać można do <b>' + formatZegara(koniecOkna) + '</b>';
+      rozkazEl.innerHTML = polePodsumowania('Wysłano o', formatZegara(startSekundy))
+        + polePodsumowania('Przerwać do', formatZegara(koniecOkna));
     }
 
     let przerwanieSekundy = null;
     let licznik = null;
 
     function odswiezOdliczanie() {
-      const el = document.getElementById('cofkaOdliczanie');
       if (przerwanieSekundy == null) return;
+      const el = document.getElementById('cofkaOdliczanie');
+      if (!el) return;
       const pozostale = przerwanieSekundy - terazSekundyGry();
       el.textContent = formatOdliczania(pozostale);
       el.classList.toggle('teraz', pozostale <= 0);
     }
 
+    // Dokladne zgranie zegara na pierwszym przeskoku #serverTime. Tworzymy
+    // obserwator dopiero tutaj, bo w callbacku odswiezamy juz gotowy panel.
+    const czasSerweraEl = document.getElementById('serverTime');
+    if (czasSerweraEl && typeof window.MutationObserver === 'function') {
+      const obserwator = new window.MutationObserver(function () {
+        const sekundy = odczytajCzasSerwera();
+        if (sekundy == null) return;
+        // Tekst wlasnie sie zmienil, czyli ta sekunda serwera zaczyna sie teraz.
+        ustawDryf(sekundy, Date.now());
+        dryfZgranyNaPrzeskoku = true;
+        odswiezOdliczanie();
+      });
+      obserwator.observe(czasSerweraEl, { childList: true, characterData: true, subtree: true });
+    }
+
     przyciskPolicz.addEventListener('click', function () {
       if (startSekundy == null) return;
-      dryfZegara = zmierzDryfZegara();
       const celTekst = document.getElementById('cofkaCel').value;
 
       const celSekundy = ustalCelSekundy(celTekst, terazSekundyGry());
@@ -231,8 +298,9 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       // Gra przy linku "przerwij" odlicza czas do zamkniecia okna anulowania, a
       // nie czas od wyslania - pokazujemy dokladnie te wartosc, zeby dalo sie
       // kliknac na dopasowanie licznikow, bez przeliczania w glowie.
-      document.getElementById('cofkaTrwanie').textContent = formatOdliczania(koniecOkna - przerwanieSekundy);
+      document.getElementById('cofkaTrwanie').textContent = 'przerwij (' + formatOdliczania(koniecOkna - przerwanieSekundy) + ')';
       document.getElementById('cofkaWynikBlok').style.display = 'block';
+      document.getElementById('cofkaPozostalo').style.display = 'flex';
 
       const komunikaty = [];
       if (!wynik.parzysta) {
@@ -245,7 +313,9 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       }
       document.getElementById('cofkaOstrzezenie').textContent = komunikaty.join(' ');
 
-      ustawStatus('Policzono.');
+      ustawStatus(dryfZgranyNaPrzeskoku
+        ? 'Zegar zgrany z serwerem.'
+        : 'Zegar zgrywa się z serwerem — dokładność ±1s do pierwszego tyknięcia.');
       odswiezOdliczanie();
       if (licznik) clearInterval(licznik);
       licznik = setInterval(odswiezOdliczanie, 250);
