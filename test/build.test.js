@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, buildHandlarzPPBookmarklet, buildHandlarzPPUserscript, buildHandlarzPPLanding, buildKalkulatorCofkiBookmarklet, buildKalkulatorCofkiLanding, WIOSKA_LOGIC } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, buildHandlarzPPBookmarklet, buildHandlarzPPUserscript, buildHandlarzPPLanding, buildKalkulatorCofkiBookmarklet, buildKalkulatorCofkiLanding, buildScavLegalBookmarklet, WIOSKA_LOGIC } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -273,4 +273,28 @@ test('kazdy plik src/wioska/*.js jest wymieniony w WIOSKA_LOGIC', () => {
     .sort();
   const wBundlu = [...WIOSKA_LOGIC].sort();
   assert.deepEqual(wBundlu, naDysku);
+});
+// Bookmarklety sa sklejane z modulow ES i wstrzykiwane jako jedna linia
+// javascript:. Jesli stripModule zostawi ogon wielolinijkowego importu albo
+// eksportu, przegladarka odrzuci CALY bookmarklet z SyntaxError i skrypt sie
+// nie odpali. Sprawdzamy wiec, ze wynik da sie w ogole sparsowac.
+test('kazdy bookmarklet jest skladniowo poprawnym JS', () => {
+  const bookmarklety = {
+    kolektor: buildBookmarklet(),
+    zbieractwo: buildScavBookmarklet(),
+    'zbieractwo-legal': buildScavLegalBookmarklet(),
+    'handlarz-pp': buildHandlarzPPBookmarklet(),
+    cofka: buildKalkulatorCofkiBookmarklet(),
+  };
+  for (const [nazwa, bm] of Object.entries(bookmarklety)) {
+    const cialo = bm.replace(/^javascript:/, '');
+    assert.doesNotThrow(() => new Function(cialo), nazwa + ': bookmarklet nie parsuje sie jako JS');
+  }
+});
+
+test('sklejone zrodla bookmarkletow nie zawieraja resztek import/export', () => {
+  const bookmarklety = [buildScavBookmarklet(), buildScavLegalBookmarklet(), buildHandlarzPPBookmarklet()];
+  for (const bm of bookmarklety) {
+    assert.equal(/\bfrom\s+'\.\//.test(bm), false, 'zostal ogon instrukcji import/export');
+  }
 });

@@ -2,8 +2,15 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 
 const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
+// Usuwa skladnie modulow ES, zeby pliki dalo sie skleic w jeden bookmarklet.
+// Importy i re-eksporty ({ ... } from '...') moga byc WIELOLINIJKOWE — dlatego
+// dopasowujemy je az do konca instrukcji, a nie do konca linii. Wersja
+// ograniczona do jednej linii zostawiala osierocony ogon (`A, B } from './x.js';`),
+// co lamalo caly bookmarklet SyntaxError-em.
 const stripModule = code => code
-  .replace(/^\s*import[^\n]*\n/gm, '')
+  .replace(/^[ \t]*import\s+[\s\S]*?\bfrom\s*['"][^'"]*['"][ \t]*;?[ \t]*\r?\n/gm, '')
+  .replace(/^[ \t]*import\s*['"][^'"]*['"][ \t]*;?[ \t]*\r?\n/gm, '')
+  .replace(/^[ \t]*export\s*\{[\s\S]*?\}\s*from\s*['"][^'"]*['"][ \t]*;?[ \t]*\r?\n/gm, '')
   .replace(/^\s*export\s+/gm, '');
 
 // Usuwa komentarze przed sklejeniem kodu w jedną linię (bookmarklet).
@@ -33,7 +40,14 @@ export function buildBookmarklet() {
 }
 
 export function buildScavBookmarklet() {
-  const js = ['src/panel-theme.js', 'src/scav.js']
+  const js = ['src/panel-theme.js', 'src/scav-logika.js', 'src/scav.js']
+    .map(p => stripComments(stripModule(read('./' + p)))).join('\n');
+  const oneLine = 'javascript:(()=>{' + js.replace(/\n\s*/g, ' ').trim() + '})()';
+  return oneLine;
+}
+
+export function buildScavLegalBookmarklet() {
+  const js = ['src/panel-theme.js', 'src/scav-logika.js', 'src/scav_legal.js']
     .map(p => stripComments(stripModule(read('./' + p)))).join('\n');
   const oneLine = 'javascript:(()=>{' + js.replace(/\n\s*/g, ' ').trim() + '})()';
   return oneLine;
@@ -70,6 +84,26 @@ const HANDLARZ_PP_USERSCRIPT_META = `// ==UserScript==
 export function buildHandlarzPPUserscript() {
   const js = ['src/panel-theme.js', 'src/handlarz-pp.js'].map(p => stripModule(read('./' + p))).join('\n');
   return HANDLARZ_PP_USERSCRIPT_META + '\n' + js + '\n';
+}
+
+// Userscript wersji "legal" — odpala sie na ekranie zbieractwa masowego.
+// Panel wypelnia pola kolejnymi krokami sekwencji; przycisk "Wyslij" klika czlowiek.
+const SCAV_LEGAL_USERSCRIPT_META = `// ==UserScript==
+// @name         Plemiona — Zbieractwo (legal)
+// @namespace    plemiona-pp
+// @version      1.0.0
+// @description  Panel zbieractwa masowego: wypelnia pola kolejnymi krokami sekwencji po kazdej wysylce. Nic nie klika ani nie wysyla samo — "Wyslij" klikasz Ty.
+// @author       plemiona-pp
+// @match        https://*.plemiona.pl/game.php?*screen=place*mode=scavenge_mass*
+// @run-at       document-idle
+// @grant        none
+// ==/UserScript==
+`;
+
+export function buildScavLegalUserscript() {
+  const js = ['src/panel-theme.js', 'src/scav-logika.js', 'src/scav_legal.js']
+    .map(p => stripModule(read('./' + p))).join('\n');
+  return SCAV_LEGAL_USERSCRIPT_META + '\n' + js + '\n';
 }
 
 const RATES_LOGIC = ['src/rates-history.js', 'src/rates-signals.js', 'src/rates-chart.js', 'src/rates-page.js'];
@@ -279,6 +313,70 @@ export function buildScavLanding(bm) {
 
 // Strona kolektora Handlarza PP — bookmarklet + userscript + instrukcja.
 // Panel tylko odczytuje pojemnosc/stan gieldy i wypelnia pole kup/sprzedaz; nic nie klika ani nie wysyla.
+export function buildScavLegalLanding(bm, usHref) {
+  const href = bm.replace(/"/g, '&quot;');
+  return `<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zbieractwo (legal) — Plemiona</title>
+<style>
+  :root{--w:#2c2015;--w2:#170f08;--pg:#f4ead2;--ink:#38291a;--ink2:#6b543a;--acc:#7c2b2b;--gold:#a8842c;--line:#c4ac7c}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+    background:radial-gradient(ellipse at 50% -10%,#3a2c1c,var(--w) 45%,var(--w2)) fixed;min-height:100vh}
+  .wrap{width:90%;max-width:760px;margin:0 auto;padding:36px 0 60px}
+  header{text-align:center;color:#f6ecd4;margin-bottom:26px}
+  .eyebrow{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  h1{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:30px;margin:6px 0 8px}
+  header p{opacity:.85;margin:0}
+  .card{background:radial-gradient(120% 80% at 25% 0%,rgba(255,251,240,.55),transparent 55%),var(--pg);
+    border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin:16px 0;
+    box-shadow:0 8px 22px rgba(0,0,0,.38)}
+  .card h2{margin:0 0 8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--acc)}
+  .step{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.1em}
+  ol{margin:8px 0 0 18px}li{margin:4px 0}
+  .btn{display:inline-block;padding:11px 18px;border-radius:6px;text-decoration:none;font-weight:700}
+  .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
+  .muted{color:var(--ink2);font-size:13px}
+  code{background:#0002;padding:1px 5px;border-radius:4px}
+  footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
+</style></head>
+<body><div class="wrap">
+<header>
+  <div class="eyebrow">Plemiona · zbieractwo</div>
+  <h1>Zbieractwo masowe — wersja legal</h1>
+  <p>Panel wypełnia pola kolejnymi krokami sekwencji. <b>Nic nie klika i nic nie wysyła sam</b> — przycisk „Wyślij” klikasz Ty.</p>
+</header>
+
+<div class="card">
+  <span class="step">Wariant 1 — bookmarklet</span>
+  <h2>Zainstaluj bookmarklet</h2>
+  <p class="muted">Przeciągnij ten przycisk na <b>pasek zakładek</b> przeglądarki:</p>
+  <p><a class="btn bm" href="${href}">🐴 Zbieractwo (legal)</a></p>
+</div>
+
+<div class="card">
+  <span class="step">Wariant 2 — userscript (Tampermonkey)</span>
+  <h2>Zainstaluj userscript</h2>
+  <p class="muted">Panel pojawia się sam po wejściu na ekran zbieractwa masowego.</p>
+  <p><a class="btn bm" href="${usHref}">⚙️ Zainstaluj userscript</a></p>
+</div>
+
+<div class="card">
+  <span class="step">Jak używać</span>
+  <h2>Przebieg</h2>
+  <ol>
+    <li>Wejdź na <b>Plac → Zbieractwo masowe</b>.</li>
+    <li>Panel od razu wpisuje <b>krok 1</b> i pokazuje, co masz wysłać.</li>
+    <li>Klikasz <b>„Wyślij”</b> w grze. Panel wykrywa wysyłkę i wpisuje krok 2.</li>
+    <li>Powtarzasz aż do końca sekwencji.</li>
+    <li>Gdyby wykrywanie nie zadziałało — użyj przycisku <b>„Następny ▸”</b> w panelu.</li>
+  </ol>
+</div>
+
+<footer>Skrypt nie wywołuje żadnych kliknięć ani żądań do serwera gry — wyłącznie odczytuje stronę i wypełnia pola.</footer>
+</div></body></html>`;
+}
+
 export function buildHandlarzPPLanding(bm) {
   const href = bm.replace(/"/g, '&quot;');
   return `<!doctype html>
@@ -411,6 +509,10 @@ export function buildRozdzielnik({ base = './', rozszerzony = false } = {}) {
     <h2>Zbieractwo — własne serie</h2>
     <p>Bookmarklet do zbieractwa masowego: własne liczby jednostek per poziom, wysyłane z losowym odstępem.</p>
   </a>
+  <a class="karta" href="${base}zbieractwo-legal/">
+    <h2>Zbieractwo — wersja legal</h2>
+    <p>Bookmarklet/userscript do zbieractwa masowego: wypełnia pola kolejnymi krokami sekwencji. Nic nie klika i nie wysyła sam — „Wyślij” klikasz Ty.</p>
+  </a>
   <a class="karta" href="${base}handlarz-pp/">
     <h2>Handlarz PP</h2>
     <p>Bookmarklet/userscript do Giełdy Premium: liczy ile kupić/sprzedać do progu wypełnienia giełdy i wypełnia pole.</p>
@@ -438,6 +540,9 @@ if (process.argv[1] && process.argv[1].endsWith('build.js')) {
   writeFileSync(new URL('./dist/wioska/index.html', import.meta.url), buildWioskaPage());
   mkdirSync(new URL('./dist/zbieractwo/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/zbieractwo/index.html', import.meta.url), buildScavLanding(buildScavBookmarklet()));
+  mkdirSync(new URL('./dist/zbieractwo-legal/', import.meta.url), { recursive: true });
+  writeFileSync(new URL('./dist/zbieractwo-legal/index.html', import.meta.url), buildScavLegalLanding(buildScavLegalBookmarklet(), '../zbieractwo-legal.user.js'));
+  writeFileSync(new URL('./dist/zbieractwo-legal.user.js', import.meta.url), buildScavLegalUserscript());
   mkdirSync(new URL('./dist/handlarz-pp/', import.meta.url), { recursive: true });
   writeFileSync(new URL('./dist/handlarz-pp/index.html', import.meta.url), buildHandlarzPPLanding(buildHandlarzPPBookmarklet()));
   writeFileSync(new URL('./dist/handlarz-pp.user.js', import.meta.url), buildHandlarzPPUserscript());

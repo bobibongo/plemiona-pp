@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ustalCelSekundy, obliczPrzerwanie, formatZegara, formatOdliczania,
+  ustalCelSekundy, obliczPrzerwanie, formatZegara, formatOdliczania, opoznienieDoNastepnejSekundy,
   koniecOknaPrzerwania, OKNO_PRZERWANIA_SEKUND, licznikPrzerwaniaWChwili,
 } from '../src/kalkulator-cofki.js';
 
@@ -157,4 +157,36 @@ test('formatOdliczania formatuje dodatnie sekundy jako G:MM:SS, zawsze z godzina
   assert.equal(formatOdliczania(65), '0:01:05');
   assert.equal(formatOdliczania(3661), '1:01:01');
   assert.equal(formatOdliczania(530), '0:08:50');
+});
+
+// --- opoznienieDoNastepnejSekundy: pozwala zaplanowac JEDNO wybudzenie
+// dokladnie na granice zmiany wyswietlanej sekundy, zamiast odpytywac co
+// 250ms. Wyswietlana liczba to Math.ceil(pozostale), wiec granica wypada
+// przy najblizszej pelnej liczbie sekund poczawszy od chwili obecnej.
+
+test('opoznienieDoNastepnejSekundy dla pelnej sekundy zwraca 1000ms', () => {
+  assert.equal(opoznienieDoNastepnejSekundy(10), 1000);
+});
+
+test('opoznienieDoNastepnejSekundy zwraca czas do najblizszej granicy w dol', () => {
+  // pozostalo 10.73s -> wyswietlacz pokazuje ceil(10.73)=11 az do momentu,
+  // gdy pozostanie dokladnie 10s (11 -> 10 nastapi po uplywie 0.73s)
+  assert.equal(Math.round(opoznienieDoNastepnejSekundy(10.73)), 730);
+});
+
+test('opoznienieDoNastepnejSekundy tuz przed granica zwraca male opoznienie', () => {
+  assert.ok(opoznienieDoNastepnejSekundy(10.02) < 30);
+});
+
+test('opoznienieDoNastepnejSekundy dla ujemnych pozostalych sekund zwraca null (juz po TERAZ!)', () => {
+  assert.equal(opoznienieDoNastepnejSekundy(-3), null);
+});
+
+test('opoznienieDoNastepnejSekundy dla zera zwraca null', () => {
+  assert.equal(opoznienieDoNastepnejSekundy(0), null);
+});
+
+test('opoznienieDoNastepnejSekundy tuz nad zerem odlicza do samego TERAZ!', () => {
+  // 0.4s pozostalo, ceil=1 ("0:00:01"), granica przy pozostale=0 (TERAZ!)
+  assert.equal(Math.round(opoznienieDoNastepnejSekundy(0.4)), 400);
 });

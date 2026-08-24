@@ -104,6 +104,18 @@ export function formatOdliczania(sekundyPozostale) {
   return godziny + ':' + pad(minuty) + ':' + pad(sek);
 }
 
+// Ile milisekund zostalo do momentu, w ktorym formatOdliczania() zwroci inny
+// napis niz teraz. Wyswietlana liczba to Math.ceil(sekundyPozostale), wiec
+// granica wypada tam, gdzie sekundyPozostale schodzi do najblizszej pelnej
+// liczby calkowitej "w dol". Pozwala to zaplanowac JEDNO wybudzenie zamiast
+// odpytywac zegar w petli.
+export function opoznienieDoNastepnejSekundy(sekundyPozostale) {
+  if (sekundyPozostale <= 0) return null;
+  const doNastepnejCalkowitej = sekundyPozostale - Math.floor(sekundyPozostale);
+  const ms = doNastepnejCalkowitej * 1000;
+  return ms > 0 ? ms : 1000;
+}
+
 if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   (function () {
     // Hierarchia: godzina przerwania jest najwazniejsza, zaraz pod nia licznik
@@ -266,7 +278,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     document.body.insertAdjacentHTML('beforeend', html);
 
     document.getElementById('cofkaClose').addEventListener('click', function () {
-      clearInterval(licznik);
+      clearTimeout(licznik);
       document.getElementById('cofkaPanel').remove();
     });
 
@@ -301,13 +313,21 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     let przerwanieSekundy = null;
     let licznik = null;
 
+    // Zamiast odpytywac zegar co 250ms, planujemy JEDNO wybudzenie dokladnie
+    // na granice zmiany wyswietlanej sekundy (patrz opoznienieDoNastepnejSekundy).
+    // Karta w tle spowalnia timery — po kazdym wybudzeniu i tak przeliczamy
+    // pozostaly czas od zera, wiec drzemiaca karta sama sie nadrabia po powrocie.
     function odswiezOdliczanie() {
+      if (licznik) clearTimeout(licznik);
       if (przerwanieSekundy == null) return;
       const el = document.getElementById('cofkaOdliczanie');
       if (!el) return;
       const pozostale = przerwanieSekundy - terazSekundyGry();
       el.textContent = formatOdliczania(pozostale);
       el.classList.toggle('teraz', pozostale <= 0);
+
+      const opoznienie = opoznienieDoNastepnejSekundy(pozostale);
+      if (opoznienie != null) licznik = setTimeout(odswiezOdliczanie, opoznienie);
     }
 
     // Tylko dla trybu zapasowego: gdy nie ma Timing, dokladne zgranie bierzemy
@@ -370,8 +390,6 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
         ? 'Zegar zgrany z serwerem.'
         : 'Zegar zgrywa się z serwerem — dokładność ±1s do pierwszego tyknięcia.');
       odswiezOdliczanie();
-      if (licznik) clearInterval(licznik);
-      licznik = setInterval(odswiezOdliczanie, 250);
     });
   })();
 }
