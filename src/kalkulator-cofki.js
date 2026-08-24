@@ -4,6 +4,16 @@
 // sekundach, ile juz szla - wiec moment przerwania to arytmetyczny srodek miedzy
 // czasem wyslania a oczekiwanym czasem powrotu.
 //
+// WYNIK JEST CZYSTA ARYTMETYKA na stalych z tabeli rozkazu - zaden zegar nie
+// bierze w nim udzialu:
+//   Przerwij o        = wyslano + (cel - wyslano) / 2
+//   Licznik "przerwij" = okno    - (cel - wyslano) / 2
+// gdzie okno = min(10 min, trwanie rozkazu); krotszego rozkazu nie da sie
+// cofnac po tym, jak juz doleci.
+//
+// Zegar (Timing gry) sluzy wylacznie do odliczania "do cofniecia pozostalo"
+// i do komunikatow o tym, ze okno albo sam moment juz minal.
+//
 // OS CZASU: wszystko liczymy w "sekundach czasu gry", czyli unix UTC powiekszonym
 // o server_utc_diff. Powod: data-starttime/data-endtime to surowy unix UTC, ale
 // godziny na ekranie gry (i te, ktore gracz wkleja z karety) sa juz przesuniete
@@ -55,8 +65,12 @@ export function obliczPrzerwanie(startSekundy, docelowySekundy) {
 
 // Zamienia GG:MM:SS (milisekundy w tekscie, jesli podane, sa ignorowane - nie
 // wplywaja na moment przerwania) na sekundy czasu gry, wybierajac najblizsze
-// wystapienie tej godziny po terazSekundy.
-export function ustalCelSekundy(tekst, terazSekundy) {
+// wystapienie tej godziny po punkcieOdniesienia.
+//
+// Punktem odniesienia jest czas WYSLANIA rozkazu, a nie biezacy czas: caly
+// rachunek ma sie opierac wylacznie na stalych z tabeli rozkazu, zeby wynik
+// nie zalezal od tego, kiedy naciskamy "Policz".
+export function ustalCelSekundy(tekst, punktOdniesienia) {
   const dopasowanie = String(tekst).trim().match(/^(\d{1,2}):(\d{2}):(\d{2})(?::\d{1,3})?$/);
   if (!dopasowanie) return null;
   const godzina = Number(dopasowanie[1]);
@@ -65,9 +79,9 @@ export function ustalCelSekundy(tekst, terazSekundy) {
   if (godzina > 23 || minuta > 59 || sekunda > 59) return null;
 
   const dobaSekund = 24 * 3600;
-  const dzienStartu = Math.floor(terazSekundy / dobaSekund) * dobaSekund;
+  const dzienStartu = Math.floor(punktOdniesienia / dobaSekund) * dobaSekund;
   let kandydat = dzienStartu + godzina * 3600 + minuta * 60 + sekunda;
-  if (kandydat <= terazSekundy) kandydat += dobaSekund;
+  if (kandydat <= punktOdniesienia) kandydat += dobaSekund;
   return kandydat;
 }
 
@@ -316,7 +330,9 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       if (startSekundy == null) return;
       const celTekst = document.getElementById('cofkaCel').value;
 
-      const celSekundy = ustalCelSekundy(celTekst, terazSekundyGry());
+      // Punktem odniesienia jest czas wyslania rozkazu - wynik ma zalezec
+      // wylacznie od danych z tabeli, nie od chwili nacisniecia przycisku.
+      const celSekundy = ustalCelSekundy(celTekst, startSekundy);
       if (celSekundy == null) {
         ustawStatus('Podaj docelowy czas w formacie GG:MM:SS lub GG:MM:SS:mmm.');
         return;

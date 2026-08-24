@@ -48,6 +48,18 @@ test('cel wpisany w czasie gry nie przeskakuje o godziny (regresja: +2h ze stref
   assert.equal(cel, gra(23, 30, 59), 'cel zostaje tego samego dnia, bez przesuniecia o strefe');
 });
 
+// Wynik ma byc czysta arytmetyka na stalych z tabeli rozkazu. ustalCelSekundy
+// dostaje wiec czas WYSLANIA jako punkt odniesienia, a nie biezacy czas - dzieki
+// czemu ta sama para (wyslano, cel) zawsze daje ten sam rezultat.
+test('ustalCelSekundy odnosi sie do czasu wyslania, nie do biezacej chwili', () => {
+  const start = gra(17, 32, 11);
+  // Cel tuz po wyslaniu trafia w ten sam dzien...
+  assert.equal(ustalCelSekundy('17:35:27', start), gra(17, 35, 27));
+  // ...a godzina wczesniejsza niz wyslanie to juz doba pozniej, bo powrot nie
+  // moze wypasc przed rozkazem.
+  assert.equal(ustalCelSekundy('17:30:00', start), gra(17, 30, 0) + 24 * 3600);
+});
+
 test('obliczPrzerwanie zwraca srodek miedzy startem a celem dla parzystego odstepu', () => {
   const wynik = obliczPrzerwanie(1000, 1120);
   assert.equal(wynik.przerwanieSekundy, 1060);
