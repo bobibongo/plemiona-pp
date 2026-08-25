@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ustalCelSekundy, obliczPrzerwanie, formatZegara, formatOdliczania, opoznienieDoNastepnejSekundy,
+  fazaOdliczania,
   koniecOknaPrzerwania, OKNO_PRZERWANIA_SEKUND, licznikPrzerwaniaWChwili,
 } from '../src/kalkulator-cofki.js';
 
@@ -189,4 +190,30 @@ test('opoznienieDoNastepnejSekundy dla zera zwraca null', () => {
 test('opoznienieDoNastepnejSekundy tuz nad zerem odlicza do samego TERAZ!', () => {
   // 0.4s pozostalo, ceil=1 ("0:00:01"), granica przy pozostale=0 (TERAZ!)
   assert.equal(Math.round(opoznienieDoNastepnejSekundy(0.4)), 400);
+});
+
+// --- fazaOdliczania: sterowanie wygladem licznika na ostatniej prostej.
+// Ponizej 10 s licznik przelacza sie na duze cyfry, a przy zerze na stan
+// "teraz" (czerwony, pulsujacy).
+
+test('fazaOdliczania dla duzego zapasu jest spokojna', () => {
+  assert.equal(fazaOdliczania(34), 'spokojna');
+});
+
+test('fazaOdliczania dokladnie na 10 s jest juz finiszem', () => {
+  assert.equal(fazaOdliczania(10), 'finisz');
+});
+
+test('fazaOdliczania tuz nad 10 s jest jeszcze spokojna', () => {
+  assert.equal(fazaOdliczania(10.5), 'spokojna');
+});
+
+test('fazaOdliczania na kilku ostatnich sekundach jest finiszem', () => {
+  assert.equal(fazaOdliczania(3), 'finisz');
+  assert.equal(fazaOdliczania(0.4), 'finisz');
+});
+
+test('fazaOdliczania po zejsciu do zera jest teraz', () => {
+  assert.equal(fazaOdliczania(0), 'teraz');
+  assert.equal(fazaOdliczania(-5), 'teraz');
 });

@@ -104,6 +104,15 @@ export function formatOdliczania(sekundyPozostale) {
   return godziny + ':' + pad(minuty) + ':' + pad(sek);
 }
 
+// Ostatnie sekundy przed przerwaniem sa najwazniejsze - wtedy licznik ma byc
+// czytelny katem oka, bez wpatrywania sie w panel.
+export const SEKUNDY_FINISZU = 10;
+
+export function fazaOdliczania(sekundyPozostale) {
+  if (sekundyPozostale <= 0) return 'teraz';
+  return sekundyPozostale <= SEKUNDY_FINISZU ? 'finisz' : 'spokojna';
+}
+
 // Ile milisekund zostalo do momentu, w ktorym formatOdliczania() zwroci inny
 // napis niz teraz. Wyswietlana liczba to Math.ceil(sekundyPozostale), wiec
 // granica wypada tam, gdzie sekundyPozostale schodzi do najblizszej pelnej
@@ -143,13 +152,17 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
     #cofkaPanel .moment { padding: 11px 10px 12px; text-align: center; }
     #cofkaPanel .moment .etykieta { display: block; font-size: 10px; text-transform: uppercase;
       letter-spacing: .12em; color: #7f9494; margin-bottom: 5px; }
-    #cofkaPanel .moment .licznik { font-size: 22px; font-weight: 700; color: #ff8c1a;
-      letter-spacing: .02em; }
 
-    #cofkaPanel .pozostalo { display: flex; justify-content: space-between; align-items: baseline;
-      margin-top: 10px; font-size: 11px; color: #7f9494; }
-    #cofkaPanel .pozostalo .odliczanie { font-size: 14px; font-weight: 700; color: #d8e0e0; }
-    #cofkaPanel .pozostalo .odliczanie.teraz { color: #d9553f; animation: cofkaMignij 1s infinite; }
+    /* Odliczanie ma trzy stany. Daleko od celu jest dyskretne; na ostatnich
+       10 s rosnie i zoltnie, a w samym momencie przerwania robi sie czerwone
+       i pulsuje - ma byc czytelne katem oka, bez wpatrywania sie w panel. */
+    #cofkaPanel .moment .odliczanie { display: block; font-weight: 700; color: #d8e0e0;
+      font-size: 20px; letter-spacing: .02em; line-height: 1.1;
+      transition: font-size .15s, color .15s; }
+    #cofkaPanel .moment .odliczanie.finisz { font-size: 46px; color: #ff8c1a;
+      text-shadow: 0 0 20px rgba(255,140,26,.45); }
+    #cofkaPanel .moment .odliczanie.teraz { font-size: 46px; color: #d9553f;
+      text-shadow: 0 0 22px rgba(217,85,63,.5); animation: cofkaMignij 1s infinite; }
     @keyframes cofkaMignij { 50% { opacity: .3; } }
 
     #cofkaPanel .ostrzezenie { color: #ff8c1a; font-size: 11px; margin-top: 8px; text-align: center; line-height: 1.5; }
@@ -262,14 +275,10 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
             <span class="etykieta">Przerwij atak o czasie</span>
             <span class="godzina" id="cofkaWynikCzas"></span>
           </div>
-          <div class="moment">
-            <span class="etykieta">w momencie gdy zobaczysz</span>
-            <span class="licznik" id="cofkaTrwanie"></span>
+          <div class="moment" id="cofkaPozostalo" style="display:none">
+            <span class="etykieta">Do cofnięcia pozostało</span>
+            <span class="odliczanie" id="cofkaOdliczanie"></span>
           </div>
-        </div>
-        <div class="pozostalo" id="cofkaPozostalo" style="display:none">
-          <span>Do cofnięcia pozostało</span>
-          <span class="odliczanie" id="cofkaOdliczanie"></span>
         </div>
         <div class="ostrzezenie" id="cofkaOstrzezenie"></div>
         <div class="pm-status" id="cofkaStatus"></div>
@@ -324,7 +333,10 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       if (!el) return;
       const pozostale = przerwanieSekundy - terazSekundyGry();
       el.textContent = formatOdliczania(pozostale);
-      el.classList.toggle('teraz', pozostale <= 0);
+
+      const faza = fazaOdliczania(pozostale);
+      el.classList.toggle('finisz', faza === 'finisz');
+      el.classList.toggle('teraz', faza === 'teraz');
 
       const opoznienie = opoznienieDoNastepnejSekundy(pozostale);
       if (opoznienie != null) licznik = setTimeout(odswiezOdliczanie, opoznienie);
@@ -367,13 +379,14 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
 
       przerwanieSekundy = wynik.przerwanieSekundy;
       document.getElementById('cofkaWynikCzas').textContent = formatZegara(przerwanieSekundy);
-      // Gra przy linku "przerwij" odlicza czas do zamkniecia okna anulowania, a
-      // nie czas od wyslania - pokazujemy dokladnie te wartosc, zeby dalo sie
-      // kliknac na dopasowanie licznikow, bez przeliczania w glowie.
-      document.getElementById('cofkaTrwanie').textContent =
-        'przerwij (' + formatOdliczania(licznikPrzerwaniaWChwili(przerwanieSekundy, koniecOkna)) + ')';
+      // Swiadomie NIE pokazujemy juz wartosci licznika "przerwij" z gry.
+      // Liczniki gry sa zakotwiczone o czas wyrenderowany przez serwer i
+      // zaokraglane przez Math.round, przez co potrafia byc o sekunde
+      // przesuniete wzgledem prawdziwego czasu serwera (widac to takze na
+      // "Przybycie za"). Nasze odliczanie liczy z data-starttime i zgadza sie
+      // z zegarem gry, wiec to ono jest wiarygodnym sygnalem do klikniecia.
       document.getElementById('cofkaWynikBlok').style.display = 'block';
-      document.getElementById('cofkaPozostalo').style.display = 'flex';
+      document.getElementById('cofkaPozostalo').style.display = 'block';
 
       const komunikaty = [];
       if (!wynik.parzysta) {
