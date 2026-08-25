@@ -217,9 +217,14 @@ export function buildLanding(bm) {
   .go{background:var(--acc);color:#f6ecd4}
   .muted{color:var(--ink2);font-size:13px}
   code{background:#0002;padding:1px 5px;border-radius:4px}
+  .wstecz{display:inline-block;margin-bottom:14px;padding:7px 14px;border-radius:6px;
+    background:#0003;color:#e8cfa8;text-decoration:none;font-size:13px;font-weight:700;
+    border:1px solid #ffffff22}
+  .wstecz:hover{background:#0005;color:#fff}
   footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
 </style></head>
 <body><div class="wrap">
+<a class="wstecz" href="../index.html" onclick="if(history.length>1){history.back();return false}">← Narzędzia</a>
 <header>
   <div class="eyebrow">Plemiona · analiza PP</div>
   <h1>Bilans punktów premium</h1>
@@ -247,7 +252,7 @@ export function buildLanding(bm) {
   <span class="step">Krok 3</span>
   <h2>Analizuj</h2>
   <p class="muted">Otwórz dashboard i przeciągnij na niego swój plik JSON (lub CSV). Dane zostają u Ciebie.</p>
-  <p><a class="btn go" href="../pp/">Otwórz dashboard →</a></p>
+  <p><a class="btn go" href="../pp/index.html">Otwórz dashboard →</a></p>
 </div>
 
 <footer>Prywatność: cała analiza dzieje się w Twojej przeglądarce (localStorage). Twoje dane nie są nigdzie wysyłane.</footer>
@@ -281,9 +286,14 @@ export function buildScavLanding(bm) {
   .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
   .muted{color:var(--ink2);font-size:13px}
   code{background:#0002;padding:1px 5px;border-radius:4px}
+  .wstecz{display:inline-block;margin-bottom:14px;padding:7px 14px;border-radius:6px;
+    background:#0003;color:#e8cfa8;text-decoration:none;font-size:13px;font-weight:700;
+    border:1px solid #ffffff22}
+  .wstecz:hover{background:#0005;color:#fff}
   footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
 </style></head>
 <body><div class="wrap">
+<a class="wstecz" href="../index.html" onclick="if(history.length>1){history.back();return false}">← Narzędzia</a>
 <header>
   <div class="eyebrow">Plemiona · zbieractwo</div>
   <h1>Zbieractwo masowe — własne serie</h1>
@@ -338,9 +348,14 @@ export function buildScavLegalLanding(bm, usHref) {
   .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
   .muted{color:var(--ink2);font-size:13px}
   code{background:#0002;padding:1px 5px;border-radius:4px}
+  .wstecz{display:inline-block;margin-bottom:14px;padding:7px 14px;border-radius:6px;
+    background:#0003;color:#e8cfa8;text-decoration:none;font-size:13px;font-weight:700;
+    border:1px solid #ffffff22}
+  .wstecz:hover{background:#0005;color:#fff}
   footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
 </style></head>
 <body><div class="wrap">
+<a class="wstecz" href="../index.html" onclick="if(history.length>1){history.back();return false}">← Narzędzia</a>
 <header>
   <div class="eyebrow">Plemiona · zbieractwo</div>
   <h1>Zbieractwo masowe — wersja legal</h1>
@@ -403,9 +418,14 @@ export function buildHandlarzPPLanding(bm) {
   .us{background:#2a4a35;color:#e4f4e9;border:2px solid #4c8c62}
   .muted{color:var(--ink2);font-size:13px}
   code{background:#0002;padding:1px 5px;border-radius:4px}
+  .wstecz{display:inline-block;margin-bottom:14px;padding:7px 14px;border-radius:6px;
+    background:#0003;color:#e8cfa8;text-decoration:none;font-size:13px;font-weight:700;
+    border:1px solid #ffffff22}
+  .wstecz:hover{background:#0005;color:#fff}
   footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
 </style></head>
 <body><div class="wrap">
+<a class="wstecz" href="../index.html" onclick="if(history.length>1){history.back();return false}">← Narzędzia</a>
 <header>
   <div class="eyebrow">Plemiona · giełda premium</div>
   <h1>Handlarz PP</h1>
@@ -469,9 +489,14 @@ export function buildKalkulatorCofkiLanding(bm) {
   .bm{background:#5b3a1e;color:#f4e9d8;border:2px solid var(--gold)}
   .muted{color:var(--ink2);font-size:13px}
   code{background:#0002;padding:1px 5px;border-radius:4px}
+  .wstecz{display:inline-block;margin-bottom:14px;padding:7px 14px;border-radius:6px;
+    background:#0003;color:#e8cfa8;text-decoration:none;font-size:13px;font-weight:700;
+    border:1px solid #ffffff22}
+  .wstecz:hover{background:#0005;color:#fff}
   footer{text-align:center;color:#e8cfa8;opacity:.7;font-size:12px;margin-top:24px}
 </style></head>
 <body><div class="wrap">
+<a class="wstecz" href="../index.html" onclick="if(history.length>1){history.back();return false}">← Narzędzia</a>
 <header>
   <div class="eyebrow">Plemiona · klin z cofki</div>
   <h1>Kalkulator cofki</h1>
@@ -505,19 +530,19 @@ export function buildKalkulatorCofkiLanding(bm) {
 // rozszerzony: dolacza karty narzedzi nieobecne w publicznej wersji (np. zbieractwo).
 export function buildRozdzielnik({ base = './', rozszerzony = false } = {}) {
   const dodatkoweKarty = rozszerzony
-    ? `<a class="karta" href="${base}zbieractwo/">
+    ? `<a class="karta" href="${base}zbieractwo/index.html">
     <h2>Zbieractwo — własne serie</h2>
     <p>Bookmarklet do zbieractwa masowego: własne liczby jednostek per poziom, wysyłane z losowym odstępem.</p>
   </a>
-  <a class="karta" href="${base}zbieractwo-legal/">
+  <a class="karta" href="${base}zbieractwo-legal/index.html">
     <h2>Zbieractwo — wersja legal</h2>
     <p>Bookmarklet/userscript do zbieractwa masowego: wypełnia pola kolejnymi krokami sekwencji. Nic nie klika i nie wysyła sam — „Wyślij” klikasz Ty.</p>
   </a>
-  <a class="karta" href="${base}handlarz-pp/">
+  <a class="karta" href="${base}handlarz-pp/index.html">
     <h2>Handlarz PP</h2>
     <p>Bookmarklet/userscript do Giełdy Premium: liczy ile kupić/sprzedać do progu wypełnienia giełdy i wypełnia pole.</p>
   </a>
-  <a class="karta" href="${base}cofka/">
+  <a class="karta" href="${base}cofka/index.html">
     <h2>Kalkulator cofki</h2>
     <p>Liczy dokładny moment przerwania komendy, żeby wojsko wróciło o zadanej sekundzie (klin z cofki).</p>
   </a>`

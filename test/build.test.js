@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync } from 'node:fs';
-import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, buildHandlarzPPBookmarklet, buildHandlarzPPUserscript, buildHandlarzPPLanding, buildKalkulatorCofkiBookmarklet, buildKalkulatorCofkiLanding, buildScavLegalBookmarklet, WIOSKA_LOGIC } from '../build.js';
+import { buildDashboard, buildBookmarklet, buildUserscript, buildRatesPage, buildWioskaPage, buildRozdzielnik, buildLanding, buildScavBookmarklet, buildScavLanding, buildHandlarzPPBookmarklet, buildHandlarzPPUserscript, buildHandlarzPPLanding, buildKalkulatorCofkiBookmarklet, buildKalkulatorCofkiLanding, buildScavLegalBookmarklet, buildScavLegalLanding, buildScavLegalUserscript, WIOSKA_LOGIC } from '../build.js';
 
 test('dashboard nie zawiera markerów ani importów', () => {
   const html = buildDashboard();
@@ -152,10 +152,12 @@ test('strona wioski zawiera moduł zapotrzebowania i widoki', () => {
 
 test('rozdzielnik publiczny linkuje do narzędzi bezpiecznych, bez zbieractwa, handlarza PP ani cofki', () => {
   const html = buildRozdzielnik();
-  assert.match(html, /href="\.\/pp\/"/);
-  assert.match(html, /href="\.\/kursy\/"/);
-  assert.match(html, /href="\.\/wioska\/"/);
-  assert.match(html, /href="\.\/kolektor\/"/);
+  // Linki musza wskazywac wprost na index.html — przy otwieraniu z dysku
+  // (file://) przegladarka nie domysla sie pliku i pokazuje listing katalogu.
+  assert.match(html, /href="\.\/pp\/index\.html"/);
+  assert.match(html, /href="\.\/kursy\/index\.html"/);
+  assert.match(html, /href="\.\/wioska\/index\.html"/);
+  assert.match(html, /href="\.\/kolektor\/index\.html"/);
   assert.doesNotMatch(html, /zbieractwo/);
   assert.doesNotMatch(html, /handlarz-pp/);
   assert.doesNotMatch(html, /cofka/);
@@ -163,10 +165,10 @@ test('rozdzielnik publiczny linkuje do narzędzi bezpiecznych, bez zbieractwa, h
 
 test('rozdzielnik rozszerzony dolacza karty zbieractwa, handlarza PP i cofki z poprawnym base', () => {
   const html = buildRozdzielnik({ base: '../', rozszerzony: true });
-  assert.match(html, /href="\.\.\/pp\/"/);
-  assert.match(html, /href="\.\.\/zbieractwo\/"/);
-  assert.match(html, /href="\.\.\/handlarz-pp\/"/);
-  assert.match(html, /href="\.\.\/cofka\/"/);
+  assert.match(html, /href="\.\.\/pp\/index\.html"/);
+  assert.match(html, /href="\.\.\/zbieractwo\/index\.html"/);
+  assert.match(html, /href="\.\.\/handlarz-pp\/index\.html"/);
+  assert.match(html, /href="\.\.\/cofka\/index\.html"/);
 });
 
 test('bookmarklet kalkulatora cofki jest jedną linią javascript: bez importów/komentarzy', () => {
@@ -239,7 +241,7 @@ test('strona handlarza PP zawiera bookmarklet, link do userscriptu i instrukcję
 
 test('strona kolektora wskazuje na dashboard pod nowym adresem', () => {
   const html = buildLanding('javascript:void 0');
-  assert.match(html, /href="\.\.\/pp\/"/);
+  assert.match(html, /href="\.\.\/pp\/index\.html"/);
 });
 
 test('strona wioski zawiera bilans i kolejnosc budynkow', () => {
@@ -297,4 +299,54 @@ test('sklejone zrodla bookmarkletow nie zawieraja resztek import/export', () => 
   for (const bm of bookmarklety) {
     assert.equal(/\bfrom\s+'\.\//.test(bm), false, 'zostal ogon instrukcji import/export');
   }
+});
+
+// REGRESJA: linki koniczace sie na "/" przy otwieraniu z dysku (file://)
+// pokazywaly listing katalogu zamiast strony — przegladarka nie domysla sie
+// index.html tak jak robi to serwer HTTP.
+test('zaden link nawigacyjny nie konczy sie na ukosniku katalogu', () => {
+  const strony = [
+    buildRozdzielnik(),
+    buildRozdzielnik({ base: '../', rozszerzony: true }),
+    buildScavLanding(buildScavBookmarklet()),
+    buildScavLegalLanding(buildScavLegalBookmarklet(), '../zbieractwo-legal.user.js'),
+    buildHandlarzPPLanding(buildHandlarzPPBookmarklet()),
+    buildKalkulatorCofkiLanding(buildKalkulatorCofkiBookmarklet()),
+    buildLanding(buildBookmarklet()),
+  ];
+  for (const html of strony) {
+    assert.doesNotMatch(html, /href="\.{1,2}\/[a-z-]+\/"/,
+      'link wskazuje na katalog zamiast na index.html');
+  }
+});
+
+test('landingi narzedzi maja link powrotny do rozdzielnika', () => {
+  const landingi = [
+    buildScavLanding(buildScavBookmarklet()),
+    buildScavLegalLanding(buildScavLegalBookmarklet(), '../zbieractwo-legal.user.js'),
+    buildHandlarzPPLanding(buildHandlarzPPBookmarklet()),
+    buildKalkulatorCofkiLanding(buildKalkulatorCofkiBookmarklet()),
+    buildLanding(buildBookmarklet()),
+  ];
+  for (const html of landingi) {
+    assert.match(html, /class="wstecz"[^>]*href="\.\.\/index\.html"/);
+  }
+});
+
+test('userscript zbieraka legal ma naglowek metadanych i pasuje do ekranu zbieractwa', () => {
+  const js = buildScavLegalUserscript();
+  assert.match(js, /^\/\/ ==UserScript==/m);
+  assert.match(js, /\/\/ ==\/UserScript==/m);
+  assert.match(js, /@match\s+https:\/\/\*\.plemiona\.pl\/game\.php\?\*screen=place\*mode=scavenge_mass\*/);
+  assert.match(js, /@grant\s+none/);
+});
+
+test('userscript zbieraka legal nie klika ani nie wysyla nic sam', () => {
+  const js = buildScavLegalUserscript();
+  const bezKomentarzy = js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+  assert.doesNotMatch(bezKomentarzy, /\.click\s*\(/);
+  assert.doesNotMatch(bezKomentarzy, /\.submit\s*\(/);
+  assert.doesNotMatch(bezKomentarzy, /\bfetch\s*\(/);
+  assert.doesNotMatch(bezKomentarzy, /XMLHttpRequest/);
+  assert.doesNotMatch(bezKomentarzy, /setInterval/);
 });
