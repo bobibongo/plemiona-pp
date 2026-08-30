@@ -180,16 +180,16 @@ test('wczytajZapisaneZaokraglenie wraca do domyslnego gdy zapis jest niepoprawny
   assert.equal(wczytajZapisaneZaokraglenie(storage, 'sell', 0), 0);
 });
 
-test('ograniczDoDostepnych dla sell obcina do limitu kupcow gdy jest nizszy niz wynik', () => {
+test('ograniczDoDostepnych dla sell obcina do limitu kupcow (minus zapas kupca) gdy jest nizszy niz wynik', () => {
   const wynik = ograniczDoDostepnych(50000, 'sell', { stanMagazynu: 100000, maxTransportKupcow: 20000, pojemnoscSpichlerza: NaN });
-  assert.equal(wynik.wynik, 20000);
+  assert.equal(wynik.wynik, 19000);
   assert.equal(wynik.obciete, true);
   assert.match(wynik.powod, /kupców/);
 });
 
-test('ograniczDoDostepnych dla sell obcina do stanu magazynu gdy jest nizszy niz wynik i limit kupcow', () => {
+test('ograniczDoDostepnych dla sell obcina do stanu magazynu (minus zapas) gdy jest nizszy niz wynik i limit kupcow', () => {
   const wynik = ograniczDoDostepnych(50000, 'sell', { stanMagazynu: 5000, maxTransportKupcow: 20000, pojemnoscSpichlerza: NaN });
-  assert.equal(wynik.wynik, 5000);
+  assert.equal(wynik.wynik, 4000);
   assert.equal(wynik.obciete, true);
   assert.match(wynik.powod, /magazynu/);
 });
@@ -201,16 +201,78 @@ test('ograniczDoDostepnych dla sell nie obcina gdy oba limity sa wyzsze niz wyni
   assert.equal(wynik.powod, null);
 });
 
-test('ograniczDoDostepnych dla buy obcina do wolnego miejsca w spichlerzu', () => {
+test('ograniczDoDostepnych dla buy obcina do wolnego miejsca w spichlerzu (minus zapas)', () => {
   const wynik = ograniczDoDostepnych(50000, 'buy', { stanMagazynu: 380000, maxTransportKupcow: NaN, pojemnoscSpichlerza: 400000 });
-  assert.equal(wynik.wynik, 20000);
+  assert.equal(wynik.wynik, 19000);
   assert.equal(wynik.obciete, true);
   assert.match(wynik.powod, /spichlerza/);
 });
 
-test('ograniczDoDostepnych dla buyAll rowniez obcina do wolnego miejsca w spichlerzu', () => {
+test('ograniczDoDostepnych dla buyAll rowniez obcina do wolnego miejsca w spichlerzu (minus zapas)', () => {
   const wynik = ograniczDoDostepnych(50000, 'buyAll', { stanMagazynu: 395000, maxTransportKupcow: NaN, pojemnoscSpichlerza: 400000 });
-  assert.equal(wynik.wynik, 5000);
+  assert.equal(wynik.wynik, 4000);
+  assert.equal(wynik.obciete, true);
+});
+
+// Kurs gieldy nie jest staly — przy wiekszym zamowieniu srednia cena rosnie,
+// wiec gra pobierze wiecej surowca niz wpisana kwota. Przy limicie granicznym
+// (caly magazyn / wszyscy kupcy) transakcja sie wtedy blokuje. Dlatego przy
+// KAZDYM obcieciu do limitu zostawiamy zapas: 1 kupiec i 1000 surowca.
+test('ograniczDoDostepnych zostawia zapas jednego kupca przy limicie transportowym', () => {
+  const wynik = ograniczDoDostepnych(50000, 'sell', { stanMagazynu: 100000, maxTransportKupcow: 10000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 9000);
+  assert.equal(wynik.obciete, true);
+  assert.match(wynik.powod, /kupców/);
+});
+
+test('ograniczDoDostepnych zostawia zapas 1000 surowca przy limicie magazynu', () => {
+  const wynik = ograniczDoDostepnych(50000, 'sell', { stanMagazynu: 12000, maxTransportKupcow: 40000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 11000);
+  assert.equal(wynik.obciete, true);
+  assert.match(wynik.powod, /magazynu/);
+});
+
+test('ograniczDoDostepnych zostawia zapas 1000 przy limicie spichlerza', () => {
+  const wynik = ograniczDoDostepnych(50000, 'buy', { stanMagazynu: 380000, maxTransportKupcow: NaN, pojemnoscSpichlerza: 400000 });
+  assert.equal(wynik.wynik, 19000);
+  assert.equal(wynik.obciete, true);
+  assert.match(wynik.powod, /spichlerza/);
+});
+
+// Zapas dotyczy tylko sytuacji granicznej. Jesli gracz i tak nie dobija do
+// limitu, nie ma czego zabezpieczac — kwota zostaje nietknieta.
+test('ograniczDoDostepnych nie odejmuje zapasu gdy zaden limit nie obcina', () => {
+  const wynik = ograniczDoDostepnych(1000, 'sell', { stanMagazynu: 5000, maxTransportKupcow: 20000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 1000);
+  assert.equal(wynik.obciete, false);
+  assert.equal(wynik.powod, null);
+});
+
+// Przy bardzo malym limicie zapas zjadlby cala kwote — wtedy zwracamy 0,
+// zeby panel nie wpisywal wartosci ujemnej.
+test('ograniczDoDostepnych nie schodzi ponizej zera gdy zapas przekracza limit', () => {
+  const wynik = ograniczDoDostepnych(50000, 'sell', { stanMagazynu: 600, maxTransportKupcow: 40000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 0);
+});
+
+// Przypadek graniczny z realnej gry: kwota rowna sie dokladnie limitowi.
+// To wlasnie tu transakcja najczesciej sie blokowala, wiec zapas MUSI zadzialac
+// takze przy rownosci (a nie tylko gdy limit jest ostro mniejszy).
+test('ograniczDoDostepnych stosuje zapas gdy kwota rowna sie dokladnie stanowi magazynu', () => {
+  const wynik = ograniczDoDostepnych(12000, 'sell', { stanMagazynu: 12000, maxTransportKupcow: 40000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 11000);
+  assert.equal(wynik.obciete, true);
+});
+
+test('ograniczDoDostepnych stosuje zapas gdy kwota rowna sie dokladnie ladownosci kupcow', () => {
+  const wynik = ograniczDoDostepnych(10000, 'sell', { stanMagazynu: 100000, maxTransportKupcow: 10000, pojemnoscSpichlerza: NaN });
+  assert.equal(wynik.wynik, 9000);
+  assert.equal(wynik.obciete, true);
+});
+
+test('ograniczDoDostepnych stosuje zapas gdy kwota rowna sie dokladnie wolnemu miejscu w spichlerzu', () => {
+  const wynik = ograniczDoDostepnych(20000, 'buy', { stanMagazynu: 380000, maxTransportKupcow: NaN, pojemnoscSpichlerza: 400000 });
+  assert.equal(wynik.wynik, 19000);
   assert.equal(wynik.obciete, true);
 });
 

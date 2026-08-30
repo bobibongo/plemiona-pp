@@ -38,9 +38,20 @@ export function polaDlaTrybu(tryb) {
   return tryb === 'sell' ? 'sell' : 'buy';
 }
 
+// Kurs gieldy nie jest staly: przy wiekszym zamowieniu srednia cena rosnie
+// (np. nominalne 300 potrafi wyjsc ~400), wiec gra przeliczy transakcje drozej
+// niz wynika z wpisanej kwoty. Gdy celujemy dokladnie w limit — caly magazyn
+// albo pelna ladownosc kupcow — ta nadwyzka wywala transakcje. Dlatego przy
+// obcieciu do limitu zostawiamy zapas bezpieczenstwa.
+export const ZAPAS_KUPCA = 1000;      // ladownosc jednego kupca
+export const ZAPAS_SUROWCA = 1000;    // bufor na wyzszy kurs sredni
+
 // Ogranicza wyliczona ilosc do tego co faktycznie da sie zrealizowac:
 // - SELL: limituje maxTransport kupcow ORAZ stan magazynu wioski (musisz miec surowiec).
 // - BUY/BUY ALL: limituje wolne miejsce w spichlerzu wioski (pojemnoscSpichlerza - stanMagazynu).
+// Kazdy z tych limitow jest pomniejszany o zapas — ale tylko wtedy, gdy
+// faktycznie obcina wynik. Zamowienie ktore i tak nie dobija do limitu
+// zostaje nietkniete, bo nie ma tam czego zabezpieczac.
 // Zwraca { wynik, obciete, powod } zeby UI/konsola mogly poinformowac co ograniczylo.
 export function ograniczDoDostepnych(wynik, tryb, dane) {
   const { stanMagazynu, maxTransportKupcow, pojemnoscSpichlerza } = dane;
@@ -48,21 +59,21 @@ export function ograniczDoDostepnych(wynik, tryb, dane) {
   let powod = null;
 
   if (tryb === 'sell') {
-    if (Number.isFinite(maxTransportKupcow) && maxTransportKupcow < limit) {
-      limit = maxTransportKupcow;
-      powod = 'limit transportowy kupców';
+    if (Number.isFinite(maxTransportKupcow) && maxTransportKupcow <= limit) {
+      limit = maxTransportKupcow - ZAPAS_KUPCA;
+      powod = 'limit transportowy kupców (zapas 1 kupca)';
     }
-    if (Number.isFinite(stanMagazynu) && stanMagazynu < limit) {
-      limit = stanMagazynu;
-      powod = 'stan magazynu wioski';
+    if (Number.isFinite(stanMagazynu) && stanMagazynu <= limit) {
+      limit = stanMagazynu - ZAPAS_SUROWCA;
+      powod = 'stan magazynu wioski (zapas ' + ZAPAS_SUROWCA + ')';
     }
   } else {
     const wolneMiejsce = Number.isFinite(pojemnoscSpichlerza) && Number.isFinite(stanMagazynu)
       ? pojemnoscSpichlerza - stanMagazynu
       : NaN;
-    if (Number.isFinite(wolneMiejsce) && wolneMiejsce < limit) {
-      limit = wolneMiejsce;
-      powod = 'pojemność spichlerza';
+    if (Number.isFinite(wolneMiejsce) && wolneMiejsce <= limit) {
+      limit = wolneMiejsce - ZAPAS_SUROWCA;
+      powod = 'pojemność spichlerza (zapas ' + ZAPAS_SUROWCA + ')';
     }
   }
 
@@ -229,6 +240,15 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       return new Promise(function (resolve) { setTimeout(resolve, ms); });
     }
 
+    // Po wypelnieniu ilosci ustawiamy fokus na przycisku "Kalkuluj najlepsza oferte",
+    // zeby transakcje mozna bylo zatwierdzic Enterem bez siegania po mysz.
+    function zafokusujPrzyciskKupna() {
+      const przycisk = document.querySelector('input.btn-premium-exchange-buy:not([disabled])');
+      if (!przycisk) return false;
+      przycisk.focus();
+      return document.activeElement === przycisk;
+    }
+
     function odswiezPrzyciskiTrybow() {
       document.querySelectorAll('#handlarzPPTryby button').forEach(function (przycisk) {
         przycisk.classList.toggle('pm-aktywny', przycisk.getAttribute('data-tryb') === tryb);
@@ -332,6 +352,7 @@ if (typeof document !== 'undefined' && typeof window !== 'undefined') {
       const wynik = ograniczenie.obciete ? zaokraglijWDol(ograniczenie.wynik, zaokraglenie) : wynikZaokraglony;
 
       ustawWartoscInputa(inputDocelowy, wynik);
+      zafokusujPrzyciskKupna();
       if (tryb !== 'buyAll') zapiszProg(window.localStorage, tryb, progWpisany);
       ustawStatus(NAZWY_TRYBOW[tryb] + ' ' + NAZWY_SUROWCOW[surowiec] + ': pojemność ' + pojemnosc + ' − stan ' + stan
         + (tryb === 'buyAll' ? '' : ' − próg ' + progWpisany + '%')
