@@ -198,7 +198,13 @@ Kod klienta (13 KB) to wyłącznie UI — nie zawiera żadnego wzoru bojowego
 (brak `Math.pow`, `Math.sqrt`, obliczeń obrażeń); jedyne wywołania ajax to
 `calculate_morale` i zarządzanie szablonami efektów.
 
-Alternatywa na przyszłość: zaimplementować publicznie udokumentowane wzory TW
+Pomysł na później (lepszy niż przepisywanie wzorów): skrypt wypełniający
+formularz symulatora w grze składem wygenerowanym tutaj — z mnożnikiem
+(np. 4 nasze zagrody vs 4× off przeciwnika) i gotowymi standardami. Liczy
+wtedy serwer, więc wynik jest z definicji zgodny z grą, a my dostarczamy samo
+wypełnianie pól. Zgodne z zasadą repo: skrypt wypełnia, człowiek zatwierdza.
+
+Alternatywa gorsza: zaimplementować publicznie udokumentowane wzory TW
 (przewaga liczebna^1,5, mur, morale, szczęście ±25%, premia nocna, podział
 obrony wg typów atakującego) od zera. To osobny projekt z własnym specem —
 świadomie poza zakresem tego symulatora. Główne ryzyko: bez możliwości
