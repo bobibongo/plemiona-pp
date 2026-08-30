@@ -31,10 +31,24 @@ export function punktyWDniach(plan, wynik) {
   return punkty;
 }
 
-const SZER_SLUPKA = 34;
-const ODSTEP = 6;
-const WYS = 160;
-const MARGINES = { gora: 12, dol: 26, lewo: 8, prawo: 8 };
+const SZER_SLUPKA = 16;
+const ODSTEP = 3;
+const WYS = 180;
+// Lewy margines musi pomiescic podpisy osi Y (np. "12k").
+const MARGINES = { gora: 12, dol: 26, lewo: 34, prawo: 8 };
+
+// Podzialka osi Y: krok 3000 pkt, tak jak prosil uzytkownik (3k, 6k, 9k...).
+// Przy bardzo wysokich planach krok rosnie wielokrotnosciami 3k, zeby linii
+// nie bylo wiecej niz szesc.
+const KROK_BAZOWY = 3000;
+export function krokOsi(maks) {
+  const mnoznik = Math.max(1, Math.ceil(maks / (KROK_BAZOWY * 6)));
+  return KROK_BAZOWY * mnoznik;
+}
+
+function etykietaOsi(v) {
+  return v >= 1000 ? `${v / 1000}k` : String(v);
+}
 
 // Slupek na dzien, indeks dnia podpisany pod kazdym z nich — szerokosc SVG
 // rosnie z liczba dni (przewijana pozioma sekcja w CSS), zamiast sciskac
@@ -65,7 +79,21 @@ export function wykresHTML(plan, wynik, zaznaczony) {
       + `</g>`;
   }).join('');
 
+  // Linie odniesienia rysujemy pod slupkami, zeby ich nie przecinaly wizualnie.
+  const krok = krokOsi(maksPunkty);
+  const linie = [];
+  for (let v = krok; v <= maksPunkty; v += krok) {
+    const y = MARGINES.gora + wysRys - (v / maksPunkty) * wysRys;
+    linie.push(`<line class="wykres-siatka" x1="${MARGINES.lewo}" y1="${y.toFixed(1)}" x2="${(szer - MARGINES.prawo).toFixed(1)}" y2="${y.toFixed(1)}"/>`
+      + `<text class="wykres-os-y" x="${(MARGINES.lewo - 5).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end">${etykietaOsi(v)}</text>`);
+  }
+  // Linia bazowa (0) zawsze, jako podstawa slupkow.
+  const yZero = MARGINES.gora + wysRys;
+  linie.push(`<line class="wykres-os" x1="${MARGINES.lewo}" y1="${yZero}" x2="${(szer - MARGINES.prawo).toFixed(1)}" y2="${yZero}"/>`
+    + `<text class="wykres-os-y" x="${(MARGINES.lewo - 5).toFixed(1)}" y="${(yZero + 3.5).toFixed(1)}" text-anchor="end">0</text>`);
+
   return `<svg class="wykres-punkty" viewBox="0 0 ${szer} ${WYS}" width="${szer}" height="${WYS}" role="img" aria-label="Punkty wioski w czasie, słupek na dzień">`
+    + linie.join('')
     + slupki
     + `</svg>`;
 }

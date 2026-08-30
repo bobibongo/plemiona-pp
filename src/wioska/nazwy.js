@@ -18,3 +18,11 @@ export const NAZWY_JEDNOSTEK = {
   zwiadowca: 'Zwiadowca', lekka: 'Lekka kawaleria', lucznikNaKoniu: 'Łucznik na koniu',
   ciezka: 'Ciężka kawaleria', taran: 'Taran', katapulta: 'Katapulta',
 };
+
+// Skroty do ciasnych miejsc (pasek wojska): ikona bywa nieczytelna w 20 px,
+// wiec obok niej stoi skrot uzywany w grze przez graczy.
+export const SKROTY_JEDNOSTEK = {
+  pikinier: 'PIK', miecznik: 'MIECZ', topornik: 'TOP', lucznik: 'ŁUK',
+  zwiadowca: 'ZWIAD', lekka: 'LK', lucznikNaKoniu: 'LŁ',
+  ciezka: 'CK', taran: 'TAR', katapulta: 'KAT',
+};

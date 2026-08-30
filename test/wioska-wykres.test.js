@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
 import { punktyWioski } from '../src/wioska/punkty.js';
-import { punktyWDniach, wykresHTML } from '../src/wioska/widok-wykres.js';
+import { punktyWDniach, wykresHTML, krokOsi } from '../src/wioska/widok-wykres.js';
 
 function zbuduj(kroki, poziomyStart = {}) {
   const plan = normalizujPlan({ swiat: 'pl231', kroki });
@@ -65,4 +65,30 @@ test('kazdy slupek pokazuje numer dnia od jednego', () => {
   const html = wykresHTML(plan, wynik, null);
   const seria = punktyWDniach(plan, wynik);
   for (let i = 0; i < seria.length; i++) assert.match(html, new RegExp(`>${i + 1}</text>`));
+});
+
+test('wykres rysuje os Y z podzialka co 3k i linia zera', () => {
+  // Pelne EKO + spichlerz + zagroda daje kilka tysiecy punktow, wiec nad
+  // zerem musi stanac przynajmniej dzialka 3k. Spichlerz i zagroda sa w
+  // planie, zeby symulacja nie stanela na limicie magazynu.
+  const kroki = [];
+  for (let p = 2; p <= 30; p++) kroki.push({ budynek: 'spichlerz', doPoziomu: p });
+  for (let p = 2; p <= 30; p++) kroki.push({ budynek: 'zagroda', doPoziomu: p });
+  for (const b of ['tartak', 'cegielnia', 'huta']) {
+    for (let p = 1; p <= 30; p++) kroki.push({ budynek: b, doPoziomu: p });
+  }
+  const plan = normalizujPlan({
+    swiat: 'pl231',
+    kroki,
+    dochody: [{ kotwica: null, sumaD: 500000, zrodlo: 'farma' }],
+  });
+  const html = wykresHTML(plan, symuluj(plan), null);
+  assert.match(html, />0<\/text>/, 'linia zera jest podpisana');
+  assert.match(html, />3k<\/text>/, 'podzialka co 3000 punktow');
+  assert.match(html, /class="wykres-siatka"/, 'linie odniesienia sa rysowane');
+});
+
+test('krok osi rosnie, gdy plan przekracza szesc dzialek', () => {
+  assert.equal(krokOsi(9000), 3000);
+  assert.equal(krokOsi(30000), 6000);
 });

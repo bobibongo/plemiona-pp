@@ -2,8 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizujPlan } from '../src/wioska/plan.js';
-import { zapotrzebowanie, osBezPrzestojow, osRekrutacjiBezPrzestojow, zuzycieNaDobe, zapotrzebowanieDzienne, ostrzezeniaRekrutacji } from '../src/wioska/zapotrzebowanie.js';
+import { zapotrzebowanie, osBezPrzestojow, osRekrutacjiBezPrzestojow, zuzycieNaDobe, zapotrzebowanieDzienne, ostrzezeniaRekrutacji, wojskoNaKoniecDnia, kosztyDoMomentu } from '../src/wioska/zapotrzebowanie.js';
 import { czasBudowy } from '../src/wioska/czas.js';
+import { kosztPoziomu } from '../src/wioska/swiat.js';
 import { czasRekrutacji } from '../src/wioska/jednostki.js';
 import { swiat } from '../src/wioska/swiaty.js';
 
@@ -306,4 +307,70 @@ test('rekrutacja pod limit po rozbudowaniu zagrody w kolejce budowy nie ostrzega
     rekrutacje: [{ kotwica: { budynek: 'zagroda', doPoziomu: 2 }, jednostka: 'pikinier', ilosc: 50 }],
   });
   assert.deepEqual(ostrzezeniaRekrutacji(p), []);
+});
+
+test('rozbudowa koszar w trakcie partii skraca jej czas', () => {
+  // Partia rusza przy koszarach 1, ale plan podnosi je do 20 juz po starcie.
+  // Kolejne sztuki musza korzystac z wyzszego poziomu, wiec calosc trwa
+  // krocej, niz gdyby poziom byl zamrozony na moment kotwicy.
+  const p = plan({
+    start: { poziomy: { koszary: 1 } },
+    kroki: Array.from({ length: 19 }, (_, i) => ({ budynek: 'koszary', doPoziomu: i + 2 })),
+    rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 2000 }],
+  });
+  const zamrozony = czasRekrutacji(s, 'topornik', 1) * 2000;
+  const rek = osRekrutacjiBezPrzestojow(p)[0];
+  assert.ok(rek.trwanieS < zamrozony,
+    `rekrutacja powinna przyspieszyc wraz z koszarami (${rek.trwanieS} >= ${zamrozony})`);
+});
+
+test('wojsko na koniec dnia narasta i zatrzymuje sie na zamowionej ilosci', () => {
+  // Topornik przy koszarach 0: 1320 s/szt, wiec doba to ~65 sztuk.
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'topornik', ilosc: 100 }] });
+  const dni = wojskoNaKoniecDnia(p);
+  assert.ok(dni[0].jednostki.topornik > 0, 'pierwszego dnia czesc partii jest gotowa');
+  assert.ok(dni[0].jednostki.topornik < 100, 'ale nie cala');
+  assert.equal(dni.at(-1).jednostki.topornik, 100, 'na koncu stoi dokladnie zamowiona ilosc');
+});
+
+test('wojsko na koniec dnia sumuje kilka partii tej samej jednostki', () => {
+  const p = plan({
+    rekrutacje: [
+      { kotwica: null, jednostka: 'pikinier', ilosc: 30 },
+      { kotwica: null, jednostka: 'pikinier', ilosc: 20 },
+    ],
+  });
+  assert.equal(wojskoNaKoniecDnia(p).at(-1).jednostki.pikinier, 50);
+});
+
+test('wojsko na koniec dnia liczy populacje zajeta przez jednostki', () => {
+  // Zwiadowca ma pop 2, wiec 10 sztuk to 20 miejsc w zagrodzie.
+  const p = plan({ rekrutacje: [{ kotwica: null, jednostka: 'zwiadowca', ilosc: 10 }] });
+  assert.equal(wojskoNaKoniecDnia(p).at(-1).populacja, 20);
+});
+
+test('plan bez rekrutacji daje wojsko zerowe, nie wysypuje sie', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const dni = wojskoNaKoniecDnia(p);
+  assert.equal(dni.length, 1);
+  assert.deepEqual(dni[0].jednostki, {});
+  assert.equal(dni[0].populacja, 0);
+});
+
+test('koszty do momentu rozbijaja sie na budowe i rekrutacje', () => {
+  const p = plan({
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 10 }],
+  });
+  const k = kosztyDoMomentu(p, 0);
+  assert.deepEqual(k.budowa, kosztPoziomu(s, 'tartak', 1));
+  // Rekrutacja bez kotwicy startuje w zerze, wiec do konca kroku splywa
+  // jej czesc — dodatnia, ale nie wieksza niz calosc zamowienia.
+  assert.ok(k.rekrutacja.drewno > 0);
+  assert.ok(k.rekrutacja.drewno <= 50 * 10);
+});
+
+test('koszty do momentu bez rekrutacji daja zerowa czesc rekrutacyjna', () => {
+  const p = plan({ kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  assert.deepEqual(kosztyDoMomentu(p, 0).rekrutacja, { drewno: 0, glina: 0, zelazo: 0 });
 });

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { swiat } from '../src/wioska/swiaty.js';
 import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
-import { zapotrzebowanie } from '../src/wioska/zapotrzebowanie.js';
+import { zapotrzebowanie, osBezPrzestojow } from '../src/wioska/zapotrzebowanie.js';
 import { pasekStanuHTML } from '../src/wioska/widok-status.js';
 
 const s = swiat('pl231');
@@ -44,10 +44,12 @@ test('poziom budynku jest wyswietlany pod ikona, nie obok', () => {
   assert.match(html, /class="poziom-budynku"[^<]*<img[^>]*>\s*<b>\d+<\/b>/);
 });
 
-test('pasek podaje czas netto i realny', () => {
+test('pasek podaje realny czas planu', () => {
+  // Czas netto ("bez przerw") zostal z paska usuniety — zostaje tylko czas
+  // realny, bo tylko on odpowiada na pytanie "kiedy to bedzie gotowe".
   const html = pasekStanuHTML(s, plan, wynik, zap, null);
-  assert.match(html, /bez przerw/i);
   assert.match(html, /realny/i);
+  assert.doesNotMatch(html, /bez przerw/i);
 });
 
 test('pasek podaje ludnosc zajeta i limit zagrody', () => {
@@ -108,4 +110,50 @@ test('rekrutacja w trakcie nie liczy sie w calosci przed zakonczeniem', () => {
   // budowy zdazyla wyrekrutowac sie tylko niewielka czesc, wiec populacja
   // ma byc dużo mniejsza niz pelne 4000 + 5 startowych.
   assert.doesNotMatch(html, /Populacja<\/b> 4005 \//);
+});
+
+test('populacja w pasku stanu jest liczba calkowita', () => {
+  // Ludnosc rekrutacji liczy sie liniowo, wiec bywa ulamkowa — pasek stanu
+  // nie moze pokazywac "3484.7271079196544".
+  const planPop = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 37 }],
+  });
+  const html = pasekStanuHTML(s, planPop, symuluj(planPop), zapotrzebowanie(planPop), 1);
+  const m = html.match(/<b>Populacja<\/b>\s*([\d.]+)\s*\//);
+  assert.ok(m, 'wiersz populacji istnieje');
+  assert.ok(!m[1].includes('.'), `populacja powinna byc calkowita, jest "${m[1]}"`);
+});
+
+test('numer doby w pasku zgadza sie z numeracja kolumny bilansu', () => {
+  // Krok przechodzacy przez polnoc: pasek i bilans musza podac te sama dobe.
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: Array.from({ length: 40 }, (_, i) => ({ budynek: 'tartak', doPoziomu: i + 1 })).slice(0, 30),
+    dochody: [{ kotwica: null, sumaD: 400000, zrodlo: 'farma' }],
+  });
+  const w = symuluj(p);
+  const os = osBezPrzestojow(p);
+  for (let i = 0; i < Math.min(os.length, 12); i++) {
+    const html = pasekStanuHTML(s, p, w, zapotrzebowanie(p), i);
+    const oczekiwany = Math.floor(os[i].startS / 86400) + 1;
+    assert.match(html, new RegExp(`Dzień ${oczekiwany}<`),
+      `krok ${i} powinien byc opisany jako Dzień ${oczekiwany}`);
+  }
+});
+
+test('sekcja czasu opisuje zaznaczona dobe, nie caly plan', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: Array.from({ length: 30 }, (_, i) => ({ budynek: 'tartak', doPoziomu: i + 1 })),
+    dochody: [{ kotwica: null, sumaD: 400000, zrodlo: 'farma' }],
+  });
+  const w = symuluj(p);
+  const naPoczatku = pasekStanuHTML(s, p, w, zapotrzebowanie(p), 0);
+  const naKoncu = pasekStanuHTML(s, p, w, zapotrzebowanie(p), null);
+  assert.match(naPoczatku, /Bez przestojów/, 'jest wiersz czasu netto');
+  assert.match(naPoczatku, /Przestoje/, 'jest wiersz przestojow');
+  assert.notEqual(naPoczatku, naKoncu, 'czas pierwszej doby rozni sie od konca planu');
+  assert.doesNotMatch(naPoczatku, /cały plan/, 'sekcja nie mowi juz o calym planie');
 });

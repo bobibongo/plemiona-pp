@@ -16,6 +16,7 @@ import { produkcjaGodzinowa, maksLudnosc } from './tabele.js';
 import { czasBudowy } from './czas.js';
 import { kosztJednostki, populacjaJednostki, budynekJednostki, czasRekrutacji } from './jednostki.js';
 import { NAZWY_JEDNOSTEK } from './nazwy.js';
+import { kolejnoscPaczek } from './rekrutacja.js';
 
 const SUROWCE_Z = ['drewno', 'glina', 'zelazo'];
 const KOPALNIA_SUROWCA = { drewno: 'tartak', glina: 'cegielnia', zelazo: 'huta' };
@@ -42,29 +43,169 @@ function indeksKotwicyOsi(kotwica, kroki) {
 
 // Rekrutacja biegnie rownolegle do budowy, wiec nie wchodzi do osBezPrzestojow
 // — dostaje wlasna os, zakotwiczona do tych samych krokow budowy co dochod
-// i dosylki. Poziom budynku (koszary/stajnia/warsztat) jest zamrozony na
-// moment kotwicy — spojne z tym, jak dochod zamraza swoja stawke na kroku.
-// Surowce nigdy nie ograniczaja tempa (patrz komentarz w symulacja.js o
-// przestojach budowy — tu celowo ich nie ma): rekrutacja ma tylko pokazywac
-// zapotrzebowanie w czasie, nie symulowac kolejke z przestojami.
-export function osRekrutacjiBezPrzestojow(plan) {
+// i dosylki. Surowce nigdy nie ograniczaja tempa (patrz komentarz w
+// symulacja.js o przestojach budowy — tu celowo ich nie ma): rekrutacja ma
+// tylko pokazywac zapotrzebowanie w czasie, nie symulowac kolejke z przestojami.
+//
+// Poziom budynku NIE jest zamrozony na moment kotwicy: dluga partia (7000
+// lucznikow to kilkadziesiat dni) przezywa kolejne rozbudowy koszar, a kazda
+// z nich skraca czas pozostalych sztuk. Dlatego czas partii liczymy odcinkami
+// miedzy kolejnymi ukonczeniami budynku produkujacego dana jednostke.
+
+// Momenty (na osi bez przestojow), w ktorych budynek konczy kolejny poziom.
+// Zwraca liste { czasS, poziom } posortowana rosnaco po czasie.
+function ukonczeniaBudynku(os, budynek, poziomStartowy) {
+  const lista = [{ czasS: 0, poziom: poziomStartowy }];
+  for (const w of os) {
+    if (w.budynek === budynek) lista.push({ czasS: w.startS + w.trwanieS, poziom: w.doPoziomu });
+  }
+  return lista;
+}
+
+// Ile sekund zajmie `ilosc` sztuk, jesli od `startS` budynek rosnie wg `ukonczenia`.
+// Kazdy odcinek o stalym poziomie produkuje z wlasnym tempem; ostatni odcinek
+// jest otwarty (poziom juz sie nie zmieni).
+function trwaniePartii(s, jednostka, ilosc, startS, ukonczenia) {
+  let zostalo = ilosc;
+  let czas = startS;
+  for (let i = 0; i < ukonczenia.length && zostalo > 0; i++) {
+    const poziom = ukonczenia[i].poziom;
+    // Poziom obowiazuje od max(startS, jego ukonczenia) do nastepnego ukonczenia.
+    const odS = Math.max(startS, ukonczenia[i].czasS);
+    const nastepne = ukonczenia[i + 1];
+    if (odS > czas) czas = odS;
+    const czasSztukiS = czasRekrutacji(s, jednostka, poziom);
+    if (!nastepne || nastepne.czasS <= odS) {
+      // Ostatni odcinek albo poziom natychmiast zastapiony — jesli to koniec
+      // listy, dorabiamy reszte w tym tempie.
+      if (!nastepne) { czas += zostalo * czasSztukiS; zostalo = 0; break; }
+      continue;
+    }
+    const oknoS = nastepne.czasS - czas;
+    if (oknoS <= 0) continue;
+    const zmiesci = Math.floor(oknoS / czasSztukiS);
+    if (zmiesci >= zostalo) { czas += zostalo * czasSztukiS; zostalo = 0; break; }
+    zostalo -= zmiesci;
+    czas += zmiesci * czasSztukiS;
+  }
+  return Math.max(0, czas - startS);
+}
+
+// Harmonogram paczek dla calego planu, z podzialem na kolejki budynkow.
+// Kazdy budynek (koszary/stajnia/warsztat) ma WLASNA kolejke — trzy kolejki
+// biegna rownolegle, ale wewnatrz jednej jednostki ida po kolei, bo wioska
+// ma po jednym takim budynku.
+//
+// Wpisy rekrutacji o tej samej kotwicy skladaja sie w jeden cel; paczki
+// wyrownuja proporcje wzgledem tego, co juz stoi w wiosce (patrz
+// rekrutacja.js). Poziom budynku aktualizuje sie w trakcie — dluga partia
+// przyspiesza wraz z jego rozbudowa.
+export function harmonogramPaczek(plan) {
   const s = swiat(plan.swiat);
   const os = osBezPrzestojow(plan);
-  const poziomy = { ...plan.start.poziomy };
-  const poPoziomie = os.map(w => { const p = { ...poziomy }; poziomy[w.budynek] = w.doPoziomu; return p; });
-  const poziomyNaStart = (indeksKotwicy) => (indeksKotwicy < 0 ? plan.start.poziomy : poPoziomie[indeksKotwicy] ?? poziomy);
 
-  return plan.rekrutacje.map(r => {
-    const indeksKotwicy = indeksKotwicyOsi(r.kotwica, plan.kroki);
-    const startS = indeksKotwicy < 0 ? 0 : (os[indeksKotwicy]?.startS ?? 0) + (os[indeksKotwicy]?.trwanieS ?? 0);
+  // Grupy wpisow wg momentu startu (indeks kotwicy), w kolejnosci osi.
+  const grupy = new Map();
+  plan.rekrutacje.forEach((r, indeksWpisu) => {
+    const i = indeksKotwicyOsi(r.kotwica, plan.kroki);
+    const startS = i < 0 ? 0 : (os[i] ? os[i].startS + os[i].trwanieS : 0);
+    const klucz = `${i}`;
+    const g = grupy.get(klucz) ?? { startS, cel: {}, wpisy: [] };
+    g.cel[r.jednostka] = (g.cel[r.jednostka] ?? 0) + r.ilosc;
+    g.wpisy.push({ indeksWpisu, jednostka: r.jednostka, ilosc: r.ilosc });
+    grupy.set(klucz, g);
+  });
+
+  const kolejneUkonczenia = (budynek) => {
+    const lista = [{ czasS: 0, poziom: plan.start.poziomy[budynek] ?? 0 }];
+    for (const w of os) {
+      if (w.budynek === budynek) lista.push({ czasS: w.startS + w.trwanieS, poziom: w.doPoziomu });
+    }
+    return lista;
+  };
+  const poziomNaCzas = (ukonczenia, czasS) => {
+    let poziom = ukonczenia[0].poziom;
+    for (const u of ukonczenia) { if (u.czasS <= czasS) poziom = u.poziom; else break; }
+    return poziom;
+  };
+
+  const ukonczeniaBudynkow = {};
+  for (const b of ['koszary', 'stajnia', 'warsztat']) ukonczeniaBudynkow[b] = kolejneUkonczenia(b);
+
+  // Zegar kazdej kolejki osobno — to daje rownoleglosc budynkow.
+  const zegar = { koszary: 0, stajnia: 0, warsztat: 0 };
+  const stan = {};
+  const wynik = [];
+
+  const posortowane = [...grupy.values()].sort((a, b) => a.startS - b.startS);
+  for (const g of posortowane) {
+    for (const b of Object.keys(zegar)) zegar[b] = Math.max(zegar[b], g.startS);
+    for (const paczka of kolejnoscPaczek(s, g.cel, stan)) {
+      const b = paczka.budynek;
+      const ukonczenia = ukonczeniaBudynkow[b] ?? [{ czasS: 0, poziom: 0 }];
+      const start = zegar[b];
+      const poziom = poziomNaCzas(ukonczenia, start);
+      const trwanieS = czasRekrutacji(s, paczka.jednostka, poziom) * paczka.sztuk;
+      zegar[b] = start + trwanieS;
+      stan[paczka.jednostka] = (stan[paczka.jednostka] ?? 0) + paczka.sztuk;
+      wynik.push({
+        jednostka: paczka.jednostka, sztuk: paczka.sztuk, budynek: b,
+        startS: start, koniecS: zegar[b], poziomBudynku: poziom,
+      });
+    }
+  }
+  return wynik;
+}
+
+// Ile sztuk kazdej jednostki jest gotowych na dany moment.
+export function wojskoNaCzas(plan, czasS) {
+  const stan = {};
+  for (const p of harmonogramPaczek(plan)) {
+    if (p.koniecS <= czasS) {
+      stan[p.jednostka] = (stan[p.jednostka] ?? 0) + p.sztuk;
+    } else if (p.startS < czasS && p.koniecS > p.startS) {
+      const udzial = (czasS - p.startS) / (p.koniecS - p.startS);
+      stan[p.jednostka] = (stan[p.jednostka] ?? 0) + Math.floor(p.sztuk * udzial);
+    }
+  }
+  return stan;
+}
+
+// Widok "jeden wiersz na wpis planu", zlozony z paczek tego wpisu. Zachowuje
+// ksztalt uzywany przez reszte kodu (koszty, populacja, ostrzezenia).
+export function osRekrutacjiBezPrzestojow(plan) {
+  const s = swiat(plan.swiat);
+  const paczki = harmonogramPaczek(plan);
+
+  // Paczki nie niosa indeksu wpisu (jeden cel moze pochodzic z kilku wpisow),
+  // wiec rozdzielamy je miedzy wpisy tej samej jednostki wg kolejnosci.
+  const pozostalo = plan.rekrutacje.map(r => r.ilosc);
+  const zebrane = plan.rekrutacje.map(() => ({ sztuk: 0, startS: Infinity, koniecS: 0, poziom: 0 }));
+
+  for (const p of paczki) {
+    let doRozdania = p.sztuk;
+    for (let i = 0; i < plan.rekrutacje.length && doRozdania > 0; i++) {
+      if (plan.rekrutacje[i].jednostka !== p.jednostka || pozostalo[i] <= 0) continue;
+      const ile = Math.min(pozostalo[i], doRozdania);
+      pozostalo[i] -= ile;
+      doRozdania -= ile;
+      const z = zebrane[i];
+      z.sztuk += ile;
+      z.startS = Math.min(z.startS, p.startS);
+      z.koniecS = Math.max(z.koniecS, p.koniecS);
+      z.poziom = z.poziom || p.poziomBudynku;
+    }
+  }
+
+  return plan.rekrutacje.map((r, i) => {
+    const z = zebrane[i];
     const budynek = budynekJednostki(s, r.jednostka);
-    const poziomBudynku = poziomyNaStart(indeksKotwicy)[budynek] ?? 0;
-    const czasSztukiS = czasRekrutacji(s, r.jednostka, poziomBudynku);
-    const trwanieS = czasSztukiS * r.ilosc;
+    const startS = z.startS === Infinity ? 0 : z.startS;
     const koszt = kosztJednostki(s, r.jednostka);
     return {
-      jednostka: r.jednostka, ilosc: r.ilosc, budynek, poziomBudynku,
-      startS, trwanieS, koniecS: startS + trwanieS,
+      jednostka: r.jednostka, ilosc: r.ilosc, budynek,
+      poziomBudynku: z.poziom || (plan.start.poziomy[budynek] ?? 0),
+      startS, trwanieS: Math.max(0, z.koniecS - startS), koniecS: z.koniecS || startS,
       kosztSztuki: koszt,
       kosztCalkowity: { drewno: koszt.drewno * r.ilosc, glina: koszt.glina * r.ilosc, zelazo: koszt.zelazo * r.ilosc },
       populacjaCalkowita: populacjaJednostki(s, r.jednostka) * r.ilosc,
@@ -211,6 +352,71 @@ export function zapotrzebowanieDzienne(plan) {
     }
   });
 
+  return dni;
+}
+
+// Koszty poniesione do konca wskazanego kroku, rozbite na budowe i rekrutacje.
+// Budowa liczy sie po krokach (koszt jest punktowy, w momencie startu kroku),
+// rekrutacja — liniowo po czasie, tym samym modelem co zuzycieNaDobe.
+// indeksKroku === null oznacza koniec calego planu.
+export function kosztyDoMomentu(plan, indeksKroku) {
+  const os = osBezPrzestojow(plan);
+  const rekrutacje = osRekrutacjiBezPrzestojow(plan);
+  const budowa = { drewno: 0, glina: 0, zelazo: 0 };
+  const rekrutacja = { drewno: 0, glina: 0, zelazo: 0 };
+
+  const doIndeksu = indeksKroku === null ? os.length - 1 : indeksKroku;
+  for (let i = 0; i <= doIndeksu && i < os.length; i++) {
+    for (const r of SUROWCE_Z) budowa[r] += os[i].koszt[r];
+  }
+
+  const koniecBudowyS = os.length ? os.at(-1).startS + os.at(-1).trwanieS : 0;
+  const koniecRekrutacjiS = rekrutacje.reduce((maks, r) => Math.max(maks, r.koniecS), 0);
+  const doCzasuS = indeksKroku === null || !os[indeksKroku]
+    ? Math.max(koniecBudowyS, koniecRekrutacjiS)
+    : os[indeksKroku].startS + os[indeksKroku].trwanieS;
+
+  for (const r of rekrutacje) {
+    if (r.trwanieS <= 0 || doCzasuS <= r.startS) continue;
+    const udzial = Math.min(1, (doCzasuS - r.startS) / r.trwanieS);
+    for (const su of SUROWCE_Z) rekrutacja[su] += r.kosztCalkowity[su] * udzial;
+  }
+
+  const razem = {};
+  for (const r of SUROWCE_Z) razem[r] = budowa[r] + rekrutacja[r];
+  return { budowa, rekrutacja, razem };
+}
+
+// Stan wojska na koniec kazdej doby planu — narastajaco, tym samym liniowym
+// modelem tempa, co koszt i populacja rekrutacji. Sluzy paskowi "ile wojska
+// mam teraz" pod zapotrzebowaniem dziennym.
+export function wojskoNaKoniecDnia(plan) {
+  const s = swiat(plan.swiat);
+  const os = osBezPrzestojow(plan);
+  const rekrutacje = osRekrutacjiBezPrzestojow(plan);
+
+  const koniecBudowyS = os.length ? os.at(-1).startS + os.at(-1).trwanieS : 0;
+  const koniecRekrutacjiS = rekrutacje.reduce((maks, r) => Math.max(maks, r.koniecS), 0);
+  const czasNettoS = Math.max(koniecBudowyS, koniecRekrutacjiS);
+  const liczbaDni = Math.max(1, Math.ceil(czasNettoS / DOBA_S));
+
+  const dni = [];
+  for (let i = 0; i < liczbaDni; i++) {
+    // Ostatnia doba konczy sie na realnym koncu osi, zeby domknac partie,
+    // ktorej ostatnie sztuki wypadaja w srodku doby.
+    const doC = Math.min((i + 1) * DOBA_S, czasNettoS);
+    const jednostki = {};
+    let populacja = 0;
+    for (const r of rekrutacje) {
+      if (r.trwanieS <= 0 || doC <= r.startS) continue;
+      const udzial = Math.min(1, (doC - r.startS) / r.trwanieS);
+      const sztuk = Math.floor(r.ilosc * udzial);
+      if (sztuk <= 0) continue;
+      jednostki[r.jednostka] = (jednostki[r.jednostka] ?? 0) + sztuk;
+      populacja += populacjaJednostki(s, r.jednostka) * sztuk;
+    }
+    dni.push({ dzien: i, jednostki, populacja });
+  }
   return dni;
 }
 

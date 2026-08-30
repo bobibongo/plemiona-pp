@@ -216,10 +216,22 @@ test('bookmarklet handlarza PP jest jedną linią javascript: bez importów/kome
   assert.match(bm, /obliczIlosc/);
 });
 
-test('bookmarklet handlarza PP nie klika i nie wysyla nic — tylko odczyt i wypelnienie pola', () => {
+// Handlarz PP nigdy nie wykonuje transakcji za gracza — wypelnia pole ilosci
+// i najwyzej ustawia fokus na przycisku gry. Samo klikniecie/wyslanie zawsze
+// nalezy do czlowieka, dlatego pilnujemy tu braku automatyzacji akcji.
+test('bookmarklet handlarza PP nie klika i nie wysyla nic — tylko odczyt, wypelnienie pola i fokus', () => {
   const bm = buildHandlarzPPBookmarklet();
   assert.doesNotMatch(bm, /\.submit\s*\(/);
-  assert.doesNotMatch(bm, /btn-premium-exchange-buy/);
+  assert.doesNotMatch(bm, /\.click\s*\(/);
+  assert.doesNotMatch(bm, /MouseEvent|PointerEvent/);
+  assert.doesNotMatch(bm, /requestSubmit/);
+});
+
+test('bookmarklet handlarza PP fokusuje przycisk kupna, ale go nie klika', () => {
+  const bm = buildHandlarzPPBookmarklet();
+  assert.match(bm, /btn-premium-exchange-buy/);
+  assert.match(bm, /\.focus\s*\(\)/);
+  assert.doesNotMatch(bm, /\.click\s*\(/);
 });
 
 test('userscript handlarza PP ma naglowek metadanych i pasuje tylko do strony gieldy premium', () => {

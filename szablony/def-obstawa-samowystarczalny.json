@@ -1,0 +1,1368 @@
+{
+  "swiat": "pl231",
+  "start": {
+    "poziomy": {
+      "ratusz": 1,
+      "koszary": 0,
+      "stajnia": 0,
+      "warsztat": 0,
+      "kuznia": 0,
+      "palac": 0,
+      "plac": 0,
+      "piedestal": 0,
+      "rynek": 0,
+      "tartak": 0,
+      "cegielnia": 0,
+      "huta": 0,
+      "zagroda": 1,
+      "spichlerz": 1,
+      "schowek": 0,
+      "mur": 0,
+      "wieza": 0
+    },
+    "surowce": {
+      "drewno": 1000,
+      "glina": 1000,
+      "zelazo": 1000
+    }
+  },
+  "kroki": [
+    {
+      "budynek": "tartak",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "plac",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "piedestal",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "ratusz",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 26
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 27
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 28
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 29
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "spichlerz",
+      "doPoziomu": 30
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 26
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 26
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 26
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 27
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 27
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 27
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 28
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 1
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 2
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 3
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 4
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 5
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 28
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 28
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 26
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 29
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 29
+    },
+    {
+      "budynek": "tartak",
+      "doPoziomu": 30
+    },
+    {
+      "budynek": "cegielnia",
+      "doPoziomu": 30
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 27
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 28
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 29
+    },
+    {
+      "budynek": "huta",
+      "doPoziomu": 30
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 29
+    },
+    {
+      "budynek": "zagroda",
+      "doPoziomu": 30
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 21
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 22
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "kuznia",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "koszary",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "stajnia",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "warsztat",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 23
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 24
+    },
+    {
+      "budynek": "rynek",
+      "doPoziomu": 25
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 6
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 7
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 8
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 9
+    },
+    {
+      "budynek": "schowek",
+      "doPoziomu": 10
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 11
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 12
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 13
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 14
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 15
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 16
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 17
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 18
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 19
+    },
+    {
+      "budynek": "mur",
+      "doPoziomu": 20
+    },
+    {
+      "budynek": "palac",
+      "doPoziomu": 1
+    }
+  ],
+  "dochody": [
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 12
+      },
+      "sumaD": 12000,
+      "zrodlo": "zbieractwo"
+    },
+    {
+      "kotwica": {
+        "budynek": "rynek",
+        "doPoziomu": 3
+      },
+      "sumaD": 30000,
+      "zrodlo": "zbieractwo"
+    },
+    {
+      "kotwica": {
+        "budynek": "rynek",
+        "doPoziomu": 8
+      },
+      "sumaD": 60000,
+      "zrodlo": "zbieractwo"
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "sumaD": 60000,
+      "zrodlo": "zbieractwo"
+    }
+  ],
+  "zastrzyki": [],
+  "rekrutacje": [
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 12
+      },
+      "jednostka": "pikinier",
+      "ilosc": 1300
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 12
+      },
+      "jednostka": "zwiadowca",
+      "ilosc": 70
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "pikinier",
+      "ilosc": 5176
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "miecznik",
+      "ilosc": 4444
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "lucznik",
+      "ilosc": 2222
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "zwiadowca",
+      "ilosc": 1041
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "lekka",
+      "ilosc": 390
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "ciezka",
+      "ilosc": 333
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "taran",
+      "ilosc": 10
+    },
+    {
+      "kotwica": {
+        "budynek": "zagroda",
+        "doPoziomu": 21
+      },
+      "jednostka": "katapulta",
+      "ilosc": 150
+    }
+  ]
+}

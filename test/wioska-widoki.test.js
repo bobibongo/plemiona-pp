@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { swiat } from '../src/wioska/swiaty.js';
 import { normalizujPlan } from '../src/wioska/plan.js';
 import { symuluj } from '../src/wioska/symulacja.js';
+import { czasCzytelny } from '../src/wioska/format.js';
 import { esc, wierszBudynkuHTML } from '../src/wioska/widok-budynki.js';
 import { krokHTML, wtracenieHTML, naglowekDniaHTML, kolejkaHTML } from '../src/wioska/widok-kolejka.js';
 import { osBezPrzestojow, osRekrutacjiBezPrzestojow, zapotrzebowanieDzienne } from '../src/wioska/zapotrzebowanie.js';
@@ -40,13 +41,6 @@ test('budynek na maksymalnym poziomie nie ma przycisku rozbudowy', () => {
   const html = wierszBudynkuHTML(s, 'plac', { plac: 1, ratusz: 1 }, 1);
   assert.match(html, /rozbudowany/);
   assert.doesNotMatch(html, /data-dodaj/);
-});
-
-test('kafelek kroku nie pokazuje juz czasu', () => {
-  const w = symuluj(normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }] }));
-  const html = krokHTML(w.kroki[0], 0, false);
-  assert.match(html, /Tartak/);
-  assert.doesNotMatch(html, /\d+\s*(s|min|h)\b/);
 });
 
 test('kafelek kroku pokazuje laczne punkty wioski po tym kroku zamiast numeru', () => {
@@ -86,7 +80,10 @@ test('kafelek kroku z przestojem mowi, na ktory surowiec czeka', () => {
     dochody: [{ kotwica: null, sumaD: 4320, zrodlo: 'farma' }],
   }));
   assert.ok(w.kroki[0].czekanieS > 0, 'krok ma czekac, inaczej test nic nie sprawdza');
-  assert.match(krokHTML(w.kroki[0], 0, false), /czekanie/);
+  // Czekanie sygnalizuje klasa i podpowiedz, nie osobna ikona.
+  const html = krokHTML(w.kroki[0], 0, false);
+  assert.ok(html.includes('class="krok czeka"'), 'kafelek ma klase czekania');
+  assert.match(html, /title="Czeka na /);
 });
 
 test('wtracenie dochodu pokazuje sume dobowa i zrodlo', () => {
@@ -172,7 +169,9 @@ test('kolejka pokazuje naglowek dla dnia bez zadnego startujacego kroku', () => 
   assert.ok(os[0].trwanieS > 86400, 'test zaklada krok dluzszy niz doba — dostosuj plan, jesli tabele swiata sie zmienily');
   const w = symuluj(p);
   const html = kolejkaHTML(p, w, null);
-  assert.match(html, /Dzień 2 · 0 \/ 0 \/ 0 · 0 kroki/);
+  // Naglowek dnia niesie sam licznik krokow; surowce przenioslismy do paska
+  // budowy, ktory w dniu bez zadnego kroku celowo milczy.
+  assert.match(html, /Dzień 2 · 0 kroki/);
 });
 
 test('kolejka zachowuje kolejnosc: wtracenie na koncu dnia przed naglowkiem kolejnego', () => {
@@ -245,7 +244,9 @@ test('zaznaczenie kroku w srodku pasma rozbija grupe, zeby dalo sie go zaznaczyc
   const html = kolejkaHTML(p, w, 1);
   const dopasowania = html.match(/class="krok/g) ?? [];
   assert.equal(dopasowania.length, 3, 'zaznaczony krok w srodku pasma ma stac osobno od sasiadow');
-  assert.match(html, /data-krok="1"[^>]*data-krok-do="1"[^>]*class="krok zaznaczony"|class="krok zaznaczony"[^>]*data-krok="1"/);
+  // Kafelek moze niesc dodatkowe klasy (np. przynaleznosc do doby), wiec
+  // sprawdzamy obecnosc "zaznaczony" wsrod nich, nie dokladny ciag klas.
+  assert.match(html, /class="krok[^"]*\bzaznaczony\b[^"]*"[^>]*data-krok="1"[^>]*data-krok-do="1"/);
 });
 
 test('wtracenie zakotwiczone w srodku pasma przerywa grupowanie w tym miejscu', () => {
@@ -277,7 +278,7 @@ test('grupa dziedziczy stan czekania, jesli ktorykolwiek krok w niej czekal', ()
   const w = symuluj(p);
   assert.ok(w.kroki.some(k => k.czekanieS > 0), 'test zaklada przynajmniej jeden krok z czekaniem');
   const html = kolejkaHTML(p, w, null);
-  assert.match(html, /czekanie/);
+  assert.match(html, /class="[^"]*\bczeka\b[^"]*"/);
 });
 
 test('wtracenie rekrutacji pokazuje ilosc, jednostke, budynek i czas trwania', () => {
@@ -333,4 +334,81 @@ test('kolejka z rekrutacja dluzsza niz budowa dorenderowuje naglowki po ostatnim
   const html = kolejkaHTML(p, w, null);
   const dopasowania = html.match(/naglowek-dnia/g) ?? [];
   assert.equal(dopasowania.length, dni.length);
+});
+test('pasek wojska pokazuje skrot jednostki obok ikony', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'ciezka', ilosc: 50 }],
+  });
+  const html = kolejkaHTML(p, symuluj(p), null);
+  assert.match(html, /wojsko-skrot">CK</, 'ciezka kawaleria ma skrot CK');
+});
+
+test('dzien ma osobny pasek budowy z kosztem surowcow', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+  });
+  const html = kolejkaHTML(p, symuluj(p), null);
+  assert.match(html, /class="pasek-budowy[^"]*"/, 'pasek budowy istnieje');
+  assert.match(html, /budowa-skrot">D</, 'ma skrot drewna');
+  assert.match(html, /budowa-suma">/, 'ma sume dnia');
+});
+
+test('zaznaczenie kroku podswietla caly jego dzien, nie tylko krok', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'cegielnia', doPoziomu: 1 }],
+  });
+  const html = kolejkaHTML(p, symuluj(p), 0);
+  assert.match(html, /class="naglowek-dnia aktywny" data-dzien="0"/, 'naglowek dnia 0 jest aktywny');
+  assert.match(html, /class="pasek-budowy aktywny[^"]*"/, 'pasek budowy tez');
+});
+
+test('elementy dnia niosa data-dzien do klikania', () => {
+  const p = normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const html = kolejkaHTML(p, symuluj(p), null);
+  assert.match(html, /class="naglowek-dnia" data-dzien="0"/);
+});
+
+test('pasek budowy domyka blok dnia, gdy nie ma jeszcze wojska', () => {
+  // Plan bez rekrutacji: kazdy dzien konczy sie paskiem budowy, wiec to on
+  // musi niesc klase domykajaca ramke bloku.
+  const p = normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const html = kolejkaHTML(p, symuluj(p), null);
+  assert.match(html, /class="pasek-budowy domyka"/);
+  assert.ok(!html.includes('pasek-wojska'), 'bez rekrutacji nie ma paska wojska');
+});
+
+test('pasek budowy nie domyka bloku, gdy pod nim stoi wojsko', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }],
+    rekrutacje: [{ kotwica: null, jednostka: 'pikinier', ilosc: 20 }],
+  });
+  const html = kolejkaHTML(p, symuluj(p), null);
+  assert.ok(!html.includes('pasek-budowy domyka'), 'budowa nie domyka, bo jest wojsko');
+  assert.match(html, /class="pasek-wojska"/);
+});
+
+test('kafelek kroku pokazuje czas budowy', () => {
+  const p = normalizujPlan({ swiat: 'pl231', kroki: [{ budynek: 'tartak', doPoziomu: 1 }] });
+  const w = symuluj(p);
+  const html = kolejkaHTML(p, w, null);
+  assert.match(html, /class="czas-budowy"/, 'kafelek ma pole czasu');
+  assert.ok(html.includes(czasCzytelny(w.kroki[0].trwanieS)),
+    `kafelek powinien zawierac "${czasCzytelny(w.kroki[0].trwanieS)}"`);
+});
+
+test('zgrupowany kafelek sumuje czas calego pasma', () => {
+  const p = normalizujPlan({
+    swiat: 'pl231',
+    kroki: [{ budynek: 'tartak', doPoziomu: 1 }, { budynek: 'tartak', doPoziomu: 2 }],
+  });
+  const w = symuluj(p);
+  const suma = w.kroki[0].trwanieS + w.kroki[1].trwanieS;
+  const html = kolejkaHTML(p, w, null);
+  assert.ok(html.includes(czasCzytelny(suma)),
+    `zgrupowany kafelek powinien pokazac sume ${czasCzytelny(suma)}`);
 });

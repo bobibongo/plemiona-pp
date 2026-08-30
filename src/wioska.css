@@ -30,13 +30,102 @@ button:disabled{opacity:.45;cursor:not-allowed}
   background:var(--acc);color:#f6ecd4;font-weight:700;letter-spacing:.02em;
   padding:5px 10px;margin:6px 0 2px;border-radius:3px;border-bottom:none}
 #lista-krokow li.naglowek-dnia:first-child{margin-top:0}
+/* Pasek wojska: wyraznie oddzielony od kolejki wlasna ramka i tlem. */
+#lista-krokow li.pasek-wojska{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 12px;
+  grid-template-columns:none;background:linear-gradient(#f7efdb,#efe4c8);
+  border:2px solid #b99a63;border-top:none;border-radius:0 0 6px 6px;
+  padding:6px 10px;margin:0 4px 10px;box-shadow:0 2px 4px rgba(74,53,36,.18);
+  cursor:pointer;font-size:.82rem;color:var(--ink)}
+#lista-krokow li.pasek-wojska::before{content:"Wojsko";flex:0 0 auto;
+  font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+  color:#7a5c34;font-weight:700;padding-right:6px;border-right:1px solid #cdb894}
+/* Pasek budowy: ten sam ksztalt co wojsko, ale chlodniejszy akcent —
+   budowa jest niebieskawa, rekrutacja piaskowa. */
+#lista-krokow li.pasek-budowy{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 12px;
+  grid-template-columns:none;background:linear-gradient(#eef1f5,#e2e8ef);
+  border:2px solid #93a7bd;border-top:none;border-bottom:none;
+  padding:5px 10px;margin:0 4px;cursor:pointer;
+  font-size:.78rem;color:#243447}
+#lista-krokow li.pasek-budowy::before{content:"Budowa";flex:0 0 auto;
+  font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+  color:#42607f;font-weight:700;padding-right:6px;border-right:1px solid #a9bcd0}
+#lista-krokow li.pasek-budowy .budowa-poz{display:inline-flex;align-items:baseline;gap:5px;
+  font-variant-numeric:tabular-nums;background:#f8fafc;border:1px solid #bccbdb;
+  border-radius:4px;padding:2px 8px}
+#lista-krokow li.pasek-budowy .budowa-skrot{font-size:.66rem;font-weight:700;
+  letter-spacing:.04em;color:#42607f}
+#lista-krokow li.pasek-budowy .budowa-ile{font-weight:700;color:#243447}
+#lista-krokow li.pasek-budowy .budowa-suma{margin-left:auto;opacity:.8;font-style:italic;
+  font-size:.76rem}
+/* Pasek budowy stoi miedzy naglowkiem a wojskiem — gdy wojska nie ma,
+   sam domyka blok dnia zaokragleniem i dolna krawedzia. */
+/* Kroki naleza do bloku doby: te same boczne krawedzie co paski i to samo
+   wciecie, zeby dzien czytal sie jako jedna zwarta kartka, a nie naglowek
+   z odklejona lista pod spodem. */
+#lista-krokow li.krok[data-dzien-kroku]{margin:0 4px;
+  border-left:2px solid #b99a63;border-right:2px solid #b99a63;
+  border-bottom:1px solid #e3d5b6;background:#fdfaf1;padding-left:10px}
+/* Ostatni krok doby domyka kartke — ustawiane przy renderowaniu, bo po nim
+   moze stac naglowek kolejnego dnia albo wtracenie. */
+#lista-krokow li.krok.ostatni-w-dniu{border-bottom:2px solid #b99a63;
+  border-radius:0 0 6px 6px;margin-bottom:10px;box-shadow:0 2px 4px rgba(74,53,36,.14)}
+/* Paski nie domykaja juz bloku — robia to kroki pod nimi. */
+#lista-krokow li.pasek-budowy.domyka{border-bottom:none;border-radius:0;
+  margin-bottom:0;box-shadow:none}
+#lista-krokow li.pasek-wojska{border-radius:0;margin-bottom:0;box-shadow:none}
+/* Dzien zaznaczony: kroki podswietlaja sie razem z paskami. */
+#lista-krokow li.krok.dzien-aktywny{background:#f7efdb}
+
+/* Zaznaczony dzien: wyrazna obwodka wokol calego bloku. */
+#lista-krokow li.naglowek-dnia.aktywny{box-shadow:inset 0 0 0 2px #f6ecd4,0 0 0 2px var(--acc)}
+#lista-krokow li.pasek-budowy.aktywny{background:linear-gradient(#e4ecf6,#d3e0ee)}
+#lista-krokow li.pasek-wojska.aktywny{background:linear-gradient(#f9f0d8,#eddcb4)}
+
+/* Kafelek jednostki: skrot + liczba na jasnym tle. Bez ikon — w 20 px byly
+   nieczytelne, a skrot niesie te sama informacje jednoznacznie. */
+#lista-krokow li.pasek-wojska .wojsko-poz{display:inline-flex;align-items:baseline;gap:5px;
+  font-variant-numeric:tabular-nums;background:#fdf8ec;border:1px solid #d6c298;
+  border-radius:4px;padding:2px 8px}
+#lista-krokow li.pasek-wojska .wojsko-skrot{font-size:.66rem;font-weight:700;
+  letter-spacing:.04em;color:#7a5c34}
+#lista-krokow li.pasek-wojska .wojsko-ile{font-weight:700;color:var(--ink)}
+#lista-krokow li.pasek-wojska .wojsko-pop{margin-left:auto;opacity:.8;font-style:italic;
+  font-size:.76rem}
+/* Naglowek dnia zrasta sie z paskiem wojska w jeden blok. */
+#lista-krokow li.naglowek-dnia{margin-bottom:0;border-radius:6px 6px 0 0;cursor:pointer}
+
+/* Ikony surowcow w pasku stanu i bilansie. */
+.ikona-surowca{width:16px;height:16px;object-fit:contain;flex:0 0 16px;vertical-align:-3px}
+.z-ikonami{display:flex;align-items:center;flex-wrap:wrap;gap:2px 10px}
+.z-ikonami b{flex:0 0 auto;margin-right:2px}
+.z-ikonami .sur{display:inline-flex;align-items:center;gap:3px;
+  font-variant-numeric:tabular-nums}
+.suma-kosztow{border-top:1px solid #d8c9a4;margin-top:3px;padding-top:3px;font-weight:600}
+
+/* Wyrozniony dzien budowy w pasku stanu. */
+.stan-dzien{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  background:var(--acc);color:#f6ecd4;border-radius:4px;padding:6px 10px;margin:6px 0}
+.stan-dzien .dzien-duzy{font-size:1.15rem;font-weight:700;letter-spacing:.01em}
+.stan-dzien .dzien-maly{font-size:.74rem;opacity:.85}
+
+/* Os Y wykresu. */
+.wykres-siatka{stroke:#d3c09a;stroke-width:1;stroke-dasharray:3 3}
+.wykres-os{stroke:#8a7147;stroke-width:1.5}
+.wykres-os-y{font-size:9px;fill:var(--ink2)}
+
 #lista-krokow li.wtracenie{background:#e8f0e2}
 #lista-krokow li.wtracenie.rekrutacja{background:#e5dff0}
 #lista-krokow li.blad{background:#f3dede}
 #lista-krokow li[draggable=true]{cursor:grab}
 #lista-krokow .nr{min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums;
   color:var(--ink2);font-size:.8rem}
-.czekanie{font-size:.76rem;color:var(--acc)}
+/* Czas budowy: stala szerokosc i wyrownanie do prawej, zeby kolumna nie
+   skakala miedzy "10 s" a "7 h 43 min". */
+.czas-budowy{font-size:.78rem;color:var(--ink2);text-align:right;
+  min-width:6.5em;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Krok czekajacy na surowce — subtelny pasek z lewej zamiast ikony. */
+#lista-krokow li.krok.czeka{box-shadow:inset 3px 0 0 var(--acc)}
+#lista-krokow li.krok.czeka .czas-budowy{color:var(--acc)}
 .niepewny{color:var(--ink2)}
 #podsumowanie{margin-top:10px;padding-top:10px;border-top:2px solid var(--line);font-size:.9rem}
 #ostrzezenia{margin:8px 0 0;padding-left:18px;font-size:.82rem;color:var(--acc)}
@@ -96,3 +185,37 @@ li.wtracenie[draggable=true]{cursor:grab}
 .wykres-pusty{margin:0;color:var(--ink2);font-size:.86rem}
 #kolejka h2{display:flex;align-items:center;gap:10px}
 #kolejka h2 button{margin-left:auto;font-size:.78rem;padding:3px 9px}
+
+/* Panel informacyjny: sekcje z wlasnym tytulem zamiast jednakowych <hr>,
+   ktore zlewaly rozdzielenie sekcji z podsumowaniem wewnatrz sekcji. */
+.sekcja{border:1px solid #ddcda6;border-radius:5px;background:#fbf6ea;
+  padding:7px 9px;margin-bottom:8px}
+.sekcja:last-child{margin-bottom:0}
+.sekcja-tytul{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+  margin:0 0 5px;padding-bottom:4px;border-bottom:1px solid #e6d9bb;
+  font-size:.74rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--acc)}
+/* Znacznik zakresu: czy liczby dotycza tej doby, czy calego planu. */
+.zakres{font-size:.66rem;font-weight:600;letter-spacing:.02em;text-transform:none;
+  padding:1px 6px;border-radius:8px;border:1px solid transparent}
+.zakres-doba{background:#e6eef7;border-color:#b6cbe0;color:#2f4a66}
+.zakres-suma{background:#eee6d4;border-color:#cdb894;color:#6b512c}
+.zakres-teraz{background:#e6f0e2;border-color:#b7ceac;color:#3d5c33}
+
+/* Pusty wiersz (np. brak dosylki tego dnia) — obecny, ale wyciszony, zeby
+   sekcja nie skakala wysokoscia miedzy dniami. */
+.z-ikonami.pusty{opacity:.5}
+.z-ikonami .brak{font-variant-numeric:tabular-nums;color:var(--ink2)}
+
+/* Zaopatrzenie: kazdy wpis mowi, od ktorego dnia dziala. */
+#lista-dochodow li,#lista-dosylek li,#lista-rekrutacji li{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.od-dnia,.do-dnia{flex:0 0 auto;font-size:.68rem;font-weight:700;letter-spacing:.02em;
+  padding:1px 6px;border-radius:8px;white-space:nowrap}
+.od-dnia{background:#e6eef7;border:1px solid #b6cbe0;color:#2f4a66}
+.do-dnia{background:#eee6d4;border:1px solid #cdb894;color:#6b512c}
+.ile-trwa{margin-left:auto;font-size:.74rem;color:var(--ink2);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+#lista-dochodow li .opis,#lista-dosylek li .opis,#lista-rekrutacji li .opis{
+  flex:1 1 auto;min-width:0}
+li.pusto{color:var(--ink2);font-style:italic;font-size:.8rem}

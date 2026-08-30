@@ -6,12 +6,13 @@
 import { produkcjaGodzinowa, maksLudnosc, pojemnosc } from './tabele.js';
 import { ludnoscPoziomu } from './swiat.js';
 import { czasCzytelny } from './format.js';
-import { NAZWY } from './nazwy.js';
+import { NAZWY, NAZWY_SUROWCOW } from './nazwy.js';
 import { esc, ikonaHTML } from './widok-budynki.js';
 import { kolejnoscBudynkow } from './kolejnosc-budynkow.js';
 import { bilansHTML } from './widok-bilans.js';
 import { punktyWioski } from './punkty.js';
-import { ludnoscRekrutacjiDoCzasu } from './zapotrzebowanie.js';
+import { ludnoscRekrutacjiDoCzasu, kosztyDoMomentu, osBezPrzestojow } from './zapotrzebowanie.js';
+import { IKONY_SUROWCOW } from './ikony.js';
 
 const SUROWCE_S = ['drewno', 'glina', 'zelazo'];
 
@@ -43,6 +44,15 @@ function stanNaKrok(s, plan, wynik, indeks) {
   return { poziomy: k.poziomyPo, czasS: k.koniecS, ludnosc, wydano, indeks };
 }
 
+// Trojka surowcow z ikonami — jeden wzorzec dla calego paska stanu i bilansu.
+export function trojkaSurowcowHTML(w) {
+  return ['drewno', 'glina', 'zelazo'].map(r => {
+    const src = IKONY_SUROWCOW[r];
+    const ikona = src ? `<img class="ikona-surowca" src="${esc(src)}" alt="" title="${esc(NAZWY_SUROWCOW[r] ?? r)}">` : '';
+    return `<span class="sur"${src ? '' : ` title="${esc(NAZWY_SUROWCOW[r] ?? r)}"`}>${ikona}${Math.round(w[r]).toLocaleString('pl-PL')}</span>`;
+  }).join('');
+}
+
 function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
   const ikony = kolejnoscBudynkow(s)
     .map(b => `<span class="poziom-budynku" data-poziom-${esc(b)}="${st.poziomy[b] ?? 0}">`
@@ -60,19 +70,61 @@ function stanWioskiHTML(s, plan, wynik, zap, st, indeks) {
     ? 'stan końcowy'
     : `krok ${indeks + 1} — ${czasCzytelny(st.czasS)}`;
 
+  // Doba planu liczona po osi BEZ przestojow, wg STARTU kroku — dokladnie ta
+  // sama definicja, co naglowki w kolejce, wykres i kolumna bilansu. Wczesniej
+  // liczylismy ja z konca kroku, przez co krok przechodzacy przez polnoc
+  // pokazywal "Dzien 8" obok "doba: 7" w sasiedniej kolumnie.
+  const os = osBezPrzestojow(plan);
+  const iOs = indeks === null ? os.length - 1 : indeks;
+  const wpisOsi = os[iOs];
+  const dzienNetto = wpisOsi ? Math.floor(wpisOsi.startS / 86400) + 1 : 1;
+  const koszty = kosztyDoMomentu(plan, indeks);
+
+  // Czasy liczymy DO KONCA zaznaczonej doby, nie dla calego planu — kolumna
+  // ma opisywac ten sam moment, co reszta panelu. Netto bierzemy z osi bez
+  // przestojow, realny z symulacji; roznica to przestoje na surowce.
+  const ostatniKrokDoby = (() => {
+    let idx = iOs;
+    for (let i = 0; i < os.length; i++) {
+      if (Math.floor(os[i].startS / 86400) === dzienNetto - 1) idx = i;
+    }
+    return idx;
+  })();
+  const wpisNetto = os[ostatniKrokDoby];
+  const czasNettoS = wpisNetto ? wpisNetto.startS + wpisNetto.trwanieS : 0;
+  const czasRealnyS = wynik.kroki[ostatniKrokDoby]
+    ? wynik.kroki[ostatniKrokDoby].koniecS
+    : wynik.podsumowanie.czasS;
+
   return [
-    `<div class="stan-moment">● ${esc(etykieta)}</div>`,
+    `<div class="stan-dzien" title="Doba planu — ta sama numeracja, co w kolejce i na wykresie">`
+      + `<span class="dzien-duzy">Dzień ${dzienNetto}</span></div>`,
     `<div class="stan-ikony">${ikony}</div>`,
+
+    `<section class="sekcja">`,
+    `<h4 class="sekcja-tytul">Wioska <span class="zakres zakres-teraz">na ten moment</span></h4>`,
     `<div class="stan-liczby">`,
-    `<div title="Czas budowy przy założeniu, że surowców nigdy nie brakuje"><b>Czas budowy bez przerw</b> ${czasCzytelny(zap.czasNettoS)}</div>`,
-    `<div title="Czas obejmujący produkcję i zaopatrzenie"><b>Czas budowy realny</b> ${czasCzytelny(wynik.podsumowanie.czasS)}</div>`,
-    '<hr>',
     `<div><b>Punkty wioski</b> ${punkty}</div>`,
-    `<div><b>Aktualne eko</b> ${Math.round(prodH.drewno)} / ${Math.round(prodH.glina)} / ${Math.round(prodH.zelazo)} na h</div>`,
-    `<div><b>Populacja</b> ${st.ludnosc} / ${limit}</div>`,
-    `<div><b>Spichlerz</b> ${magazyn} na surowiec</div>`,
-    `<div><b>Wydano</b> ${st.wydano.drewno} / ${st.wydano.glina} / ${st.wydano.zelazo}</div>`,
-    `</div>`,
+    `<div class="z-ikonami"><b>Produkcja EKO / h</b> ${trojkaSurowcowHTML(prodH)}</div>`,
+    `<div><b>Populacja</b> ${Math.round(st.ludnosc)} / ${limit}</div>`,
+    `<div class="z-ikonami"><b>Pojemność spichlerza</b> ${trojkaSurowcowHTML({ drewno: magazyn, glina: magazyn, zelazo: magazyn })}</div>`,
+    `</div></section>`,
+
+    `<section class="sekcja">`,
+    `<h4 class="sekcja-tytul">Wydatki <span class="zakres zakres-suma">narastająco od początku</span></h4>`,
+    `<div class="stan-liczby">`,
+    `<div class="z-ikonami" title="Surowce wydane na budynki do tego momentu"><b>Budowa</b> ${trojkaSurowcowHTML(koszty.budowa)}</div>`,
+    `<div class="z-ikonami" title="Surowce wydane na jednostki do tego momentu"><b>Rekrutacja</b> ${trojkaSurowcowHTML(koszty.rekrutacja)}</div>`,
+    `<div class="z-ikonami suma-kosztow"><b>Razem</b> ${trojkaSurowcowHTML(koszty.razem)}</div>`,
+    `</div></section>`,
+
+    `<section class="sekcja">`,
+    `<h4 class="sekcja-tytul">Czas <span class="zakres zakres-doba">do końca doby ${dzienNetto}</span></h4>`,
+    `<div class="stan-liczby">`,
+    `<div title="Ile realnie zajmie dojście do tego momentu, z przestojami na surowce"><b>Realny</b> ${czasCzytelny(czasRealnyS)}</div>`,
+    `<div title="Ile zajęłoby dojście tutaj, gdyby surowców nigdy nie brakowało"><b>Bez przestojów</b> ${czasCzytelny(czasNettoS)}</div>`,
+    `<div class="stan-osobno" title="Opóźnienie wynikające z czekania na surowce"><b>Przestoje</b> ${czasCzytelny(Math.max(0, czasRealnyS - czasNettoS))}</div>`,
+    `</div></section>`,
   ].join('');
 }
 

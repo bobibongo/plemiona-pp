@@ -6,7 +6,7 @@ import { SWIATY, swiat } from './swiaty.js';
 import { kolejnoscBudynkow } from './kolejnosc-budynkow.js';
 import { normalizujPlan, bledyPlanu } from './plan.js';
 import { symuluj } from './symulacja.js';
-import { zapotrzebowanie, osRekrutacjiBezPrzestojow, ostrzezeniaRekrutacji } from './zapotrzebowanie.js';
+import { zapotrzebowanie, osRekrutacjiBezPrzestojow, ostrzezeniaRekrutacji, osBezPrzestojow } from './zapotrzebowanie.js';
 import { jednostkiSwiata } from './jednostki.js';
 import { planJSON, planTekst, czasCzytelny } from './format.js';
 import { esc, wierszBudynkuHTML } from './widok-budynki.js';
@@ -76,21 +76,51 @@ export function uruchom() {
     }
   }
 
+  // Dzien, w ktorym wtracenie zaczyna dzialac: po ukonczeniu kroku-kotwicy
+  // (kotwica null = od poczatku planu). Ta sama definicja doby, co naglowki
+  // w kolejce, zeby dalo sie je ze soba zestawic.
+  function dzienKotwicy(kotwica) {
+    if (kotwica === null) return 1;
+    const os = osBezPrzestojow(plan);
+    const i = plan.kroki.findIndex(k => k.budynek === kotwica.budynek && k.doPoziomu === kotwica.doPoziomu);
+    if (i < 0 || !os[i]) return 1;
+    return Math.floor((os[i].startS + os[i].trwanieS) / 86400) + 1;
+  }
+
+  function znacznikDnia(kotwica) {
+    return `<span class="od-dnia" title="Zaczyna działać tego dnia planu">dzień ${dzienKotwicy(kotwica)}</span>`;
+  }
+
   function zaopatrzenieHTML() {
-    $('lista-dochodow').innerHTML = plan.dochody.map((d, i) =>
-      `<li><span class="opis">${d.sumaD} na dobę (${esc(d.zrodlo)})</span>`
-      + `<button data-usun-dochod="${i}" title="Usuń">×</button></li>`).join('');
-    $('lista-dosylek').innerHTML = plan.zastrzyki.map((z, i) =>
-      `<li><span class="opis">${z.drewno} / ${z.glina} / ${z.zelazo}</span>`
-      + `<button data-usun-dosylke="${i}" title="Usuń">×</button></li>`).join('');
+    // Wpisy sortujemy po dniu — lista czyta sie wtedy jak harmonogram,
+    // a nie jak kolejnosc przypadkowego dodawania.
+    const wgDnia = (a, b) => dzienKotwicy(a.kotwica) - dzienKotwicy(b.kotwica);
+
+    const dochody = plan.dochody.map((d, i) => ({ d, i })).sort((a, b) => wgDnia(a.d, b.d));
+    $('lista-dochodow').innerHTML = dochody.map(({ d, i }) =>
+      `<li>${znacznikDnia(d.kotwica)}<span class="opis">${esc(d.zrodlo)} · ${d.sumaD.toLocaleString('pl-PL')} / dobę</span>`
+      + `<button data-usun-dochod="${i}" title="Usuń">×</button></li>`).join('')
+      || '<li class="pusto">Brak — dodaj dochód z farmy lub zbieractwa.</li>';
+
+    const dosylki = plan.zastrzyki.map((z, i) => ({ z, i })).sort((a, b) => wgDnia(a.z, b.z));
+    $('lista-dosylek').innerHTML = dosylki.map(({ z, i }) =>
+      `<li>${znacznikDnia(z.kotwica)}<span class="opis">`
+      + `${z.drewno.toLocaleString('pl-PL')} / ${z.glina.toLocaleString('pl-PL')} / ${z.zelazo.toLocaleString('pl-PL')}</span>`
+      + `<button data-usun-dosylke="${i}" title="Usuń">×</button></li>`).join('')
+      || '<li class="pusto">Brak — dosyłka pokrywa ujemne saldo doby, reszta przechodzi dalej.</li>';
+
     const rekrutacjeOs = osRekrutacjiBezPrzestojow(plan);
-    $('lista-rekrutacji').innerHTML = plan.rekrutacje.map((r, i) => {
+    const rekrutacje = plan.rekrutacje.map((r, i) => ({ r, i })).sort((a, b) => wgDnia(a.r, b.r));
+    $('lista-rekrutacji').innerHTML = rekrutacje.map(({ r, i }) => {
       const os = rekrutacjeOs[i];
       const nazwa = NAZWY_JEDNOSTEK[r.jednostka] ?? r.jednostka;
-      const czas = os ? ` — ${czasCzytelny(os.trwanieS)}` : '';
-      return `<li><span class="opis">${r.ilosc}× ${esc(nazwa)}${czas}</span>`
+      const doDnia = os ? Math.floor(os.koniecS / 86400) + 1 : null;
+      const zakres = doDnia ? `<span class="do-dnia" title="Ostatnia sztuka gotowa tego dnia">do ${doDnia}</span>` : '';
+      const czas = os ? `<span class="ile-trwa">${czasCzytelny(os.trwanieS)}</span>` : '';
+      return `<li>${znacznikDnia(r.kotwica)}${zakres}`
+        + `<span class="opis">${r.ilosc.toLocaleString('pl-PL')}× ${esc(nazwa)}</span>${czas}`
         + `<button data-usun-rekrutacje="${i}" title="Usuń">×</button></li>`;
-    }).join('');
+    }).join('') || '<li class="pusto">Brak — dodaj jednostki, żeby zobaczyć ich koszt w bilansie.</li>';
   }
 
   function rysuj() {
@@ -184,11 +214,24 @@ export function uruchom() {
       rysuj();
       return;
     }
+    // Klikniecie w naglowek dnia albo w ktorykolwiek z jego paskow zaznacza
+    // caly dzien — reprezentowany przez pierwszy krok, ktory sie w nim zaczyna.
+    const dzienEl = e.target.closest('[data-dzien]');
+    if (dzienEl) {
+      const d = Number(dzienEl.dataset.dzien);
+      const i = pierwszyKrokDnia(d);
+      if (i !== null) {
+        zaznaczony = dzienZaznaczenia() === d ? null : i;
+        rysuj();
+      }
+      return;
+    }
     const kropka = e.target.closest('[data-dzien-krok]');
     if (kropka && kropka.dataset.dzienKrok !== '') {
       const i = Number(kropka.dataset.dzienKrok);
       zaznaczony = zaznaczony === i ? null : i;
       rysuj();
+      przewinDoZaznaczonegoDnia();
     }
   });
 
@@ -276,6 +319,45 @@ export function uruchom() {
   });
 
   lista.addEventListener('dragend', () => { ciagniony = null; posprzatajPodswietlenie(); });
+
+  // Indeks pierwszego kroku rozpoczynajacego sie w danej dobie (os bez
+  // przestojow — ta sama definicja dnia, co naglowki w kolejce i wykres).
+  function pierwszyKrokDnia(dzien) {
+    const os = osBezPrzestojow(plan);
+    for (let i = 0; i < os.length; i++) {
+      if (Math.floor(os[i].startS / 86400) === dzien) return i;
+    }
+    // Doba bez wlasnego startu (dlugi krok przechodzi przez nia) — zaznaczamy
+    // ostatni krok, ktory zaczal sie wczesniej.
+    let ostatni = null;
+    for (let i = 0; i < os.length; i++) {
+      if (Math.floor(os[i].startS / 86400) <= dzien) ostatni = i;
+    }
+    return ostatni;
+  }
+
+  function dzienZaznaczenia() {
+    if (zaznaczony === null) return null;
+    const os = osBezPrzestojow(plan);
+    return os[zaznaczony] ? Math.floor(os[zaznaczony].startS / 86400) : null;
+  }
+
+  // Tabela kolejki sama dojezdza do zaznaczonego dnia — inaczej klikniecie
+  // w slupek wykresu zmienia podswietlenie poza widocznym obszarem listy.
+  //
+  // Celowo NIE uzywamy scrollIntoView: ono przewija wszystkich przodkow, wiec
+  // klikniecie w wykres u gory strony wyrzucalo widok na dol, do kolejki.
+  // Zamiast tego przesuwamy sam kontener listy, licząc pozycje wzgledem
+  // niego — reszta strony zostaje tam, gdzie jest.
+  function przewinDoZaznaczonegoDnia() {
+    const d = dzienZaznaczenia();
+    if (d === null) return;
+    const cel = lista.querySelector(`.naglowek-dnia[data-dzien="${d}"]`);
+    if (!cel) return;
+    const gora = cel.offsetTop - lista.offsetTop;
+    const srodek = gora - (lista.clientHeight - cel.offsetHeight) / 2;
+    lista.scrollTo({ top: Math.max(0, srodek), behavior: 'smooth' });
+  }
 
   function kotwicaOdZaznaczenia() {
     if (zaznaczony === null || !plan.kroki[zaznaczony]) return null;

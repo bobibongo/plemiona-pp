@@ -20,3 +20,9 @@ export const IKONY_BUDYNKOW = Object.freeze({
   schowek: '../assets/buildings/hide.svg',
   mur: '../assets/buildings/wall.svg',
 });
+
+export const IKONY_SUROWCOW = Object.freeze({
+  drewno: '../assets/res/wood.svg',
+  glina: '../assets/res/clay.svg',
+  zelazo: '../assets/res/iron.svg',
+});

@@ -135,6 +135,7 @@ export const WIOSKA_LOGIC = [
   'src/wioska/jednostki.js',
   'src/wioska/plan.js',
   'src/wioska/symulacja.js',
+  'src/wioska/rekrutacja.js',
   'src/wioska/zapotrzebowanie.js',
   'src/wioska/format.js',
   'src/wioska/widok-budynki.js',
@@ -146,17 +147,22 @@ export const WIOSKA_LOGIC = [
 ];
 
 function osadzIkonyBudynkow(js) {
-  const katalog = './src/assets/buildings/';
-  const pliki = [
-    'main', 'barracks', 'stable', 'garage', 'watchtower', 'snob', 'smith',
-    'place', 'statue', 'market', 'wood', 'stone', 'iron', 'farm', 'storage',
-    'hide', 'wall',
+  const grupy = [
+    { katalog: './src/assets/buildings/', prefiks: '../assets/buildings/', pliki: [
+      'main', 'barracks', 'stable', 'garage', 'watchtower', 'snob', 'smith',
+      'place', 'statue', 'market', 'wood', 'stone', 'iron', 'farm', 'storage',
+      'hide', 'wall',
+    ] },
+    { katalog: './src/assets/res/', prefiks: '../assets/res/', pliki: [
+      'wood', 'clay', 'iron',
+    ] },
   ];
   let wynik = js;
-  for (const nazwa of pliki) {
-    const sciezka = `../assets/buildings/${nazwa}.svg`;
-    const base64 = readFileSync(new URL(`${katalog}${nazwa}.svg`, import.meta.url)).toString('base64');
-    wynik = wynik.replaceAll(sciezka, `data:image/svg+xml;base64,${base64}`);
+  for (const { katalog, prefiks, pliki } of grupy) {
+    for (const nazwa of pliki) {
+      const base64 = readFileSync(new URL(`${katalog}${nazwa}.svg`, import.meta.url)).toString('base64');
+      wynik = wynik.replaceAll(`${prefiks}${nazwa}.svg`, `data:image/svg+xml;base64,${base64}`);
+    }
   }
   return wynik;
 }
